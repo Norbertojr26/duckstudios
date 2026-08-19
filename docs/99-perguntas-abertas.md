@@ -3,6 +3,20 @@
 Nada aqui dá para eu inferir — depende da sua operação. Isto é o insumo da Fase 0.
 Responder direto neste arquivo (editar e commitar).
 
+## ✅ Já respondido nos áudios de 18/08 (não precisa repetir)
+
+| Pergunta | Resposta |
+|---|---|
+| Ferramenta de inventário hoje | AssetTiger (gratuito) — tem check-in, não tem check-out |
+| Como o controle funciona | memória; nada sumiu porque ele era o único operador |
+| Canais de lead | 90% indicação/rede · casamentos.com.br (pago) |
+| Resultado da plataforma paga | ⚠️ 70+ leads respondidos → 1 fechamento desde março |
+| Ticket atual vs. desejado | ⚠️ R$ 3,8k (casamento) vs. R$ 10k–80k (marca/retainer) |
+| Prospecção já tentada | e-mail, mensagem, ligação, visita — sem retorno |
+| Contexto urgente | campanha em curso, vários videomakers com o equipamento |
+
+**Prioridade de resposta agora:** perguntas 9, 10, 11, 13 e 17 (bloqueiam o P0 e o P2).
+
 ## Operação de mídia (bloqueia SOP-001)
 
 1. **Qual estrutura de pastas você usa hoje?** Cole a árvore real de um projeto recente.
@@ -16,11 +30,13 @@ Responder direto neste arquivo (editar e commitar).
 
 ## Locação (bloqueia SOP-002)
 
-9. **Quantos itens** no inventário? Tem planilha? (se tiver, é a base da migração)
-10. **O que é controlado por número de série** vs. por quantidade?
-11. **Trabalha com kits fechados** ou monta item a item?
+9. **Quantos itens** no inventário? — exportar o **CSV do AssetTiger**; é a carga inicial. 🔴 bloqueia P0
+10. **O que é controlado por número de série** vs. por quantidade? (cabo e bateria por serial é o
+    jeito mais rápido de abandonar o sistema) 🔴 bloqueia P0
+11. **Trabalha com kits fechados** ou monta item a item? 🔴 bloqueia P0
 12. **Política de caução:** valor, quando exige, como devolve.
-13. **Buffer entre locações:** quantas horas para vistoria/limpeza/recarga?
+13. **Buffer entre locações:** quantas horas para vistoria/limpeza/recarga? 🔴 bloqueia P0
+13b. **Quem mais vai usar o app** na campanha, e esses videomakers devolvem sozinhos? 🔴 bloqueia P0
 14. **Como registra dano hoje?** Tem termo de responsabilidade padrão? (anexar)
 15. **Aluga para pessoa física?** Muda exigência de documento e risco.
 
@@ -53,3 +69,13 @@ Responder direto neste arquivo (editar e commitar).
 
 31. Das automações possíveis, **qual você mais quer ver funcionando primeiro?**
     (a resposta define a ordem da Fase 2 — a primeira vitória precisa ser visível)
+
+## Estratégia (bloqueiam o P3)
+
+32. **Qual é o cliente-alvo, em uma frase específica?** Setor, porte, cidade, quem decide.
+    "Marca que precisa de conteúdo" é largo demais para virar lista.
+33. Dos últimos 20 leads de casamento: **quanto tempo até sua primeira resposta** e **quantos
+    receberam um segundo contato?** (decide se o problema é segmento ou processo)
+34. **Quem já te indicou** nos últimos 2 anos? Lista nominal — é o seu canal principal e hoje é passivo.
+35. **Quais produtoras e agências** da sua região já subcontratam? (foi assim que veio seu cliente atual)
+36. A campanha atual **pode virar case público** — ou tem restrição de divulgação?

@@ -2,6 +2,11 @@
 
 Cada fase tem **critério de saída**. Não começar a próxima sem cumprir.
 
+> **Repriorizado** depois do levantamento em [`10-como-funciona-hoje.md`](10-como-funciona-hoje.md).
+> A Fase 1 foi reduzida a um recorte entregável em semanas — o app de conferência de equipamento —
+> porque é a necessidade com prazo (campanha em curso) e com risco de perda patrimonial.
+> O CRM completo continua sendo o destino, mas entra por partes.
+
 ---
 
 ## Fase 0 — Conhecimento (1–2 semanas) · sem código
@@ -16,13 +21,27 @@ Cada fase tem **critério de saída**. Não começar a próxima sem cumprir.
 
 ---
 
-## Fase 1 — Fonte de verdade (3–4 semanas) · **zero agentes**
+## Fase 1a — App de conferência de equipamento (2–3 semanas) · **P0**
 
-1. Postgres em Docker no Mac Mini + `db/schema.sql`.
-2. Migrar dados reais: clientes, projetos ativos, **inventário completo com valor de reposição**.
-3. Cadastrar tabela de preços.
-4. UI de administração (NocoDB apontando para o banco) — usar de verdade, todo dia.
+Spec completa em [`12-mvp-conferencia-equipamento.md`](12-mvp-conferencia-equipamento.md).
+
+1. Postgres no Mac Mini + `db/schema.sql`.
+2. Importar inventário do AssetTiger (CSV) com valor de reposição.
+3. Etiquetas QR impressas em material resistente e coladas no parque.
+4. PWA com as telas: "o que está fora agora", nova saída (scan), retorno (scan).
 5. `pg_dump` diário automatizado.
+
+**Saída:** toda saída da campanha registrada no app, e você responde "quem está com a lente X?"
+pelo celular, sem sinal, em 5 segundos.
+
+---
+
+## Fase 1b — CRM como fonte de verdade (3–4 semanas) · **zero agentes**
+
+1. Migrar clientes, projetos ativos e tabela de preços.
+2. Termo de responsabilidade com assinatura na tela.
+3. UI de administração (NocoDB apontando para o banco) — usar de verdade, todo dia.
+4. Instrumentar o funil comercial: tempo até primeira resposta, follow-up, motivo de perda.
 
 **Saída:** você opera o studio pelo CRM por 2 semanas sem voltar para a planilha. Se voltar, o
 modelo está errado — corrigir antes de seguir.
@@ -85,6 +104,9 @@ Isso já economiza tempo, mesmo que você pare o projeto aqui.
 | Tempo até primeira resposta a lead | < 4h úteis |
 | Propostas sem follow-up | 0 |
 | Overbooking de equipamento | 0 (garantido pelo banco) |
+| Saídas de equipamento registradas no app (vs. memória) | 100% |
+| Itens fora de controle (sem saída registrada) | 0 |
+| Tempo para conferir uma saída de 15 itens | < 2 min |
 | Perda de material bruto | 0 — **inegociável** |
 
 ## Anti-metas

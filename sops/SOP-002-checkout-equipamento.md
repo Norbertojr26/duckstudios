@@ -17,6 +17,11 @@ depende_de: [SOP-003]
 
 > **Rascunho.** A parte de conflito de agenda e vistoria já está fechada; valores, prazos e
 > política de caução são seus.
+>
+> **Contexto atual (ago/2026):** o controle é feito de memória e o AssetTiger só registra o retorno —
+> a falta aparece na volta, quando já não dá para saber o que saiu. Com outros videomakers usando o
+> equipamento na campanha, o check-out passou a ser o passo crítico. Ver
+> [`../docs/12-mvp-conferencia-equipamento.md`](../docs/12-mvp-conferencia-equipamento.md).
 
 ## 0. Objetivo e escopo
 
@@ -67,6 +72,10 @@ depende_de: [SOP-003]
 
 ## 4. Regras de negócio
 
+- **Nem toda saída é aluguel.** Quatro tipos, e o registro precisa distinguir: `locacao_paga`,
+  `emprestimo` (amigo do meio), `uso_interno` (job próprio) e `subcontratacao` (videomaker operando
+  para você). Sem essa distinção, faturamento por item e taxa de ocupação viram número falso.
+  Empréstimo a amigo tem termo simplificado — mas **tem termo**.
 - **Anti-overbooking é do banco, não do agente:** a constraint `EXCLUDE USING gist` em
   `rental_line` impede fisicamente duas reservas confirmadas sobrepostas no mesmo `asset_id`.
   O agente **nunca** contorna isso; ele reporta o conflito.

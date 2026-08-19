@@ -230,6 +230,11 @@ CREATE TABLE rental (
     contact_id      uuid REFERENCES contact(id),
     project_id      uuid REFERENCES project(id),      -- locação para job interno
     numero          text UNIQUE,
+    -- Distinguir isto é o que impede relatório de faturamento e ocupação virarem ficção.
+    tipo            text NOT NULL DEFAULT 'locacao_paga'
+                    CHECK (tipo IN ('locacao_paga','emprestimo','uso_interno','subcontratacao')),
+    responsavel_nome text,                            -- quem fisicamente levou (pode não ser o contato)
+    previsao_devolucao timestamptz,
     status          text NOT NULL DEFAULT 'hold'
                     CHECK (status IN ('hold','confirmado','em_campo','devolvido','cancelado')),
     inicio          timestamptz NOT NULL,
@@ -238,6 +243,7 @@ CREATE TABLE rental (
     caucao          numeric(12,2),
     termo_path      text,
     termo_assinado_em timestamptz,
+    assinatura_path text,                             -- assinatura coletada na tela do celular
     checkout_at     timestamptz,
     checkin_at      timestamptz,
     criado_em       timestamptz NOT NULL DEFAULT now(),
@@ -260,6 +266,25 @@ CREATE TABLE rental_line (
         during   WITH &&
     ) WHERE (status IN ('confirmado','em_campo'))
 );
+
+-- Cada bipada de QR na conferência de saída ou de retorno (MVP de conferência).
+-- client_uuid vem do celular e garante sincronização idempotente depois de operar offline.
+CREATE TABLE conference_check (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    rental_id       uuid NOT NULL REFERENCES rental(id) ON DELETE CASCADE,
+    asset_id        uuid NOT NULL REFERENCES asset(id),
+    momento         text NOT NULL CHECK (momento IN ('saida','retorno')),
+    quantidade      int NOT NULL DEFAULT 1,           -- itens não serializados
+    estado          text CHECK (estado IN ('ok','danificado','faltando')),
+    observacao      text,
+    fotos           jsonb NOT NULL DEFAULT '[]',
+    operador        text NOT NULL,                    -- quem conferiu (pode não ser o dono)
+    client_uuid     uuid NOT NULL UNIQUE,             -- idempotência na sincronização offline
+    registrado_em   timestamptz NOT NULL DEFAULT now(),
+    sincronizado_em timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (rental_id, asset_id, momento)
+);
+CREATE INDEX ON conference_check (rental_id, momento);
 
 CREATE TABLE damage_report (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -433,3 +458,20 @@ RETURNS boolean AS $$
           AND rl.during && tstzrange(p_inicio, p_fim)
     ) AND (SELECT status IN ('disponivel','em_campo') FROM asset WHERE id = p_asset_id);
 $$ LANGUAGE sql STABLE;
+
+-- Responde "quem está com o quê, agora" — a tela inicial do app de conferência.
+CREATE OR REPLACE VIEW equipamento_em_campo AS
+SELECT r.id                AS rental_id,
+       r.tipo,
+       COALESCE(r.responsavel_nome, c.nome, co.nome) AS responsavel,
+       a.codigo,
+       a.nome              AS equipamento,
+       r.checkout_at,
+       r.previsao_devolucao,
+       (now() > r.previsao_devolucao) AS atrasado
+FROM rental r
+JOIN rental_line rl ON rl.rental_id = r.id AND rl.status = 'em_campo'
+JOIN asset a        ON a.id = rl.asset_id
+LEFT JOIN contact c ON c.id = r.contact_id
+LEFT JOIN company co ON co.id = r.company_id
+WHERE r.status = 'em_campo';

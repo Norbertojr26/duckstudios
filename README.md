@@ -21,6 +21,9 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/05-crm-modelo-dados.md`](docs/05-crm-modelo-dados.md) | Entidades do CRM + locação (o coração do sistema) |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Ordem de implementação em fases, com critério de saída |
 | [`docs/07-hardware-campo.md`](docs/07-hardware-campo.md) | Mac Mini + bateria + Starlink: números reais de energia e storage |
+| [`docs/10-como-funciona-hoje.md`](docs/10-como-funciona-hoje.md) | **Retrato da operação atual** — receita, comercial, controle de equipamento |
+| [`docs/11-necessidades-priorizadas.md`](docs/11-necessidades-priorizadas.md) | **Necessidades organizadas e priorizadas** (P0→P4) |
+| [`docs/12-mvp-conferencia-equipamento.md`](docs/12-mvp-conferencia-equipamento.md) | **P0: spec do app de conferência com scan** |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |
 | [`sops/README.md`](sops/README.md) | **Como capturar e escrever SOPs** (o método, não só o formato) |
 | [`sops/_TEMPLATE-SOP.md`](sops/_TEMPLATE-SOP.md) | Template v2 (o seu, corrigido e expandido) |
@@ -35,3 +38,9 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [SOP-003](sops/SOP-003-orcamento-comercial.md) | Lead → orçamento → follow-up | Rascunho |
 
 Rascunhos marcam com `<!-- PREENCHER -->` tudo que depende da sua operação real.
+
+## Por onde começar
+
+O primeiro entregável **não** é o CRM inteiro nem os agentes: é o
+[app de conferência de equipamento](docs/12-mvp-conferencia-equipamento.md) (P0, 2–3 semanas).
+Razão e priorização completa em [`docs/11-necessidades-priorizadas.md`](docs/11-necessidades-priorizadas.md).
