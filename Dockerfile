@@ -16,4 +16,7 @@ RUN cp design/tokens.css app/static/ && cp -r design/logo app/static/logo && \
 
 EXPOSE 8000
 # Railway define $PORT; o padrão cobre execução local.
-CMD ["sh", "-c", "python -m app.migrar && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# --proxy-headers: atrás do edge da Railway (e da Cloudflare, se o proxy estiver ligado) o
+# X-Forwarded-Proto é o que diz que a origem é https. Sem isso a aplicação se acha em http.
+CMD ["sh", "-c", "python -m app.migrar && exec uvicorn app.main:app \
+     --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

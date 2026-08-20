@@ -110,3 +110,48 @@ Deliberadamente fora deste primeiro corte, para ele subir hoje:
 - Termo de responsabilidade em PDF com assinatura
 - Fotos de estado na saída e no retorno
 - Login por usuário (Basic auth é senha única, não identifica quem conferiu)
+
+---
+
+## 8. Domínio próprio: `crm.duckstudios.com.br`
+
+O DNS de `duckstudios.com.br` está na **Cloudflare** (`shubhi.ns.cloudflare.com` /
+`louis.ns.cloudflare.com`). O apex aponta para `185.158.133.1` — o site atual. `crm` é subdomínio
+novo, então **não encosta no site**.
+
+### Passos
+
+1. **Railway** → serviço `duckstudios` → **Settings → Networking → Custom Domain**
+   → `crm.duckstudios.com.br`. O Railway devolve um alvo `algo.up.railway.app`.
+2. **Cloudflare** → DNS → **Add record**:
+
+   | Campo | Valor |
+   |---|---|
+   | Type | `CNAME` |
+   | Name | `crm` |
+   | Target | o alvo que o Railway mostrou (`…up.railway.app`) |
+   | Proxy status | **DNS only** (nuvem **cinza**) |
+
+3. Espere o Railway marcar o domínio como válido e emitir o certificado (minutos).
+
+### A pegadinha da Cloudflare
+
+Se você deixar a nuvem **laranja** (proxy ligado) com o modo SSL/TLS em **Flexible**, o site entra
+em **loop de redirecionamento** — `ERR_TOO_MANY_REDIRECTS`. É o erro mais comum dessa combinação:
+a Cloudflare fala HTTP com a origem, o Railway devolve redirect para HTTPS, e a volta recomeça.
+
+Duas saídas, nessa ordem de preferência:
+
+- **DNS only (cinza).** Simples, e o Railway já entrega TLS e CDN. É o que recomendo para começar.
+- **Proxy ligado (laranja)**: antes de ligar, mude **SSL/TLS → Overview** para **Full (strict)**.
+
+### Enquanto propaga
+
+Gere também o domínio do Railway (**Generate Domain**) e teste por ele. Assim você separa
+"o app está no ar" de "o DNS já propagou" — se algo falhar, você sabe de qual lado é.
+
+### Senha e domínio próprio
+
+Com Basic auth, a senha viaja no cabeçalho a cada requisição. Sobre HTTPS isso é seguro; sobre HTTP
+não é. Por isso o `--proxy-headers` no Dockerfile e o modo **Full (strict)** caso você ligue o proxy
+da Cloudflare — os dois garantem que a ponta a ponta seja HTTPS de verdade.
