@@ -1,0 +1,65 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Proposta {{ q.numero }} — Duck Studios</title>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
+<style>
+  @page{size:A4;margin:18mm 16mm}
+  *{box-sizing:border-box}
+  body{font-family:Satoshi,Helvetica,Arial,sans-serif;color:#111;background:#fff;margin:0;
+       font-size:11pt;line-height:1.5}
+  header{display:flex;justify-content:space-between;align-items:flex-start;
+         border-bottom:2px solid #082D2A;padding-bottom:14px;margin-bottom:26px}
+  .marca{background:#082D2A;padding:12px 16px;border-radius:10px}
+  .marca img{height:34px;display:block}
+  h1{font-size:20pt;margin:0 0 4px;font-weight:500}
+  .meta{color:#666;font-size:9.5pt}
+  table{width:100%;border-collapse:collapse;margin:22px 0}
+  th{text-align:left;font-size:8pt;letter-spacing:.06em;text-transform:uppercase;color:#666;
+     border-bottom:1px solid #ccc;padding:0 6px 8px}
+  td{padding:9px 6px;border-bottom:1px solid #eee;vertical-align:top}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .totais{margin-left:auto;width:58mm}
+  .tl{display:flex;justify-content:space-between;padding:6px 0;font-size:10.5pt}
+  .tl.forte{border-top:2px solid #082D2A;margin-top:6px;padding-top:10px;
+            font-size:14pt;font-weight:700}
+  footer{margin-top:30px;padding-top:14px;border-top:1px solid #ddd;color:#666;font-size:9pt}
+  @media screen{body{max-width:210mm;margin:24px auto;padding:18mm 16mm;
+                     box-shadow:0 2px 24px rgba(0,0,0,.15)}}
+</style></head><body>
+
+<header>
+  <div>
+    <h1>Proposta comercial</h1>
+    <div class="meta">Nº {{ q.numero }} · emitida em {{ q.criado_em.strftime('%d/%m/%Y') }}
+      {% if q.validade %}· válida até {{ q.validade.strftime('%d/%m/%Y') }}{% endif %}</div>
+  </div>
+  <div class="marca"><img src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios"></div>
+</header>
+
+<div style="display:flex;gap:40px;margin-bottom:6px">
+  <div><div class="meta">Cliente</div><b>{{ q.empresa or '—' }}</b>
+    {% if q.contato %}<div class="meta">A/C {{ q.contato }}</div>{% endif %}</div>
+  <div><div class="meta">Objeto</div><b>{{ q.titulo or '—' }}</b>
+    {% if q.data_evento %}<div class="meta">Data: {{ q.data_evento.strftime('%d/%m/%Y') }}</div>{% endif %}</div>
+</div>
+
+<table><thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Unitário</th>
+  <th class="num">Total</th></tr></thead>
+<tbody>{% for i in itens %}<tr>
+  <td>{{ i.descricao }}</td>
+  <td class="num">{{ i.quantidade|qtd }}</td>
+  <td class="num">R$ {{ '%.2f'|format(i.valor_unitario or 0)|replace('.', ',') }}</td>
+  <td class="num">R$ {{ '%.2f'|format(i.total or 0)|replace('.', ',') }}</td>
+</tr>{% endfor %}</tbody></table>
+
+<div class="totais">
+  <div class="tl"><span>Subtotal</span><span>R$ {{ '%.2f'|format(q.subtotal or 0)|replace('.', ',') }}</span></div>
+  {% if q.desconto %}<div class="tl"><span>Desconto</span><span>− R$ {{ '%.2f'|format(q.desconto)|replace('.', ',') }}</span></div>{% endif %}
+  <div class="tl forte"><span>Total</span><span>R$ {{ '%.2f'|format(q.total or 0)|replace('.', ',') }}</span></div>
+</div>
+
+<footer>
+  <b>Duck Studios</b> · duckcineproducoes@gmail.com · (61) 99663-6353 · @duckcineproducoes<br>
+  Locação de equipamento sujeita a disponibilidade na data. Valores de cessão de uso, quando
+  aplicáveis, estão discriminados como item próprio.
+</footer>
+</body></html>

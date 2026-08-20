@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% block titulo %}Agentes — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 380px;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1080px){.grade{grid-template-columns:1fr}}
+  .rota{display:grid;grid-template-columns:74px 1fr;gap:12px;padding:10px 0;font-size:.8125rem}
+  .rota+.rota{border-top:1px solid var(--ds-border)}
+  .verbo{font-size:.6875rem;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:6px;
+         text-align:center;background:var(--ds-ok-bg);color:var(--ds-ok);height:fit-content}
+  .verbo.post{background:var(--ds-atencao-bg);color:var(--ds-atencao)}
+  code{font-size:.8125rem;color:var(--ds-txt)}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Agentes</h1>
+  <div class="sub">Nada que chegue ao cliente ou mexa em dinheiro passa sem aprovação</div></div>
+  <a class="ds-btn ds-btn--fantasma" href="/api/docs">Documentação da API</a></div>
+
+<div class="grade">
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
+    <section class="ds-card ds-card--alto">
+      <h2>Aprovações pendentes</h2>
+      {% if pendentes %}
+        {% for p in pendentes %}
+        <div style="padding:var(--ds-e-4) 0;border-top:1px solid var(--ds-border)">
+          <b>{{ p.titulo }}</b>
+          <div class="meta" style="margin:6px 0 10px;line-height:1.55">{{ p.descricao }}</div>
+          <form method="post" action="/agentes/aprovacao/{{ p.id }}" style="display:flex;gap:8px">
+            <button class="ds-btn" name="decisao" value="sim">Aprovar</button>
+            <button class="ds-btn ds-btn--fantasma" name="decisao" value="nao">Rejeitar</button>
+          </form>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="meta" style="line-height:1.7">Nenhuma aprovação pendente.<br>
+          Quando um agente quiser mandar proposta, cobrar ou fechar reserva, o pedido aparece aqui
+          com a ação exata que será executada — e só executa se você aprovar.</div>
+      {% endif %}
+    </section>
+
+    <section class="ds-card">
+      <h2>Execuções recentes</h2>
+      {% if execucoes %}
+      <table><thead><tr><th>Agente</th><th>SOP</th><th>Status</th><th>Ações</th><th>Quando</th></tr></thead>
+      <tbody>{% for e in execucoes %}<tr>
+        <td>{{ e.agente }}</td><td class="meta">{{ e.sop_id or '—' }}</td>
+        <td><span class="ds-chip">{{ e.status }}</span></td>
+        <td>{{ e.acoes }}</td>
+        <td class="meta">{{ e.iniciado_em.strftime('%d/%m %H:%M') }}</td>
+      </tr>{% endfor %}</tbody></table>
+      {% else %}
+      <div class="meta" style="line-height:1.7">Nenhum agente rodou ainda.<br>
+        Toda execução grava aqui: qual ferramenta chamou, com que argumentos, o que voltou e quem
+        aprovou. É o que permite subir a autonomia por evidência em vez de por confiança.</div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="ds-card">
+    <h2>O que a API expõe</h2>
+    <div class="meta" style="margin-bottom:var(--ds-e-4);line-height:1.55">
+      É a mesma verdade das telas. Nenhum número aparece aqui sem estar disponível ali.</div>
+    <div class="rota"><span class="verbo">GET</span><code>/api/resumo</code></div>
+    <div class="rota"><span class="verbo">GET</span><code>/api/em-campo</code></div>
+    <div class="rota"><span class="verbo">GET</span><code>/api/equipamento?busca=&dono=</code></div>
+    <div class="rota"><span class="verbo">GET</span><code>/api/disponibilidade?codigo=&inicio=&fim=</code></div>
+    <div class="rota"><span class="verbo">GET</span><code>/api/precos</code></div>
+    <div class="rota"><span class="verbo post">POST</span><code>/api/saidas/{id}/bipar</code></div>
+    <div class="meta" style="margin-top:var(--ds-e-4);line-height:1.55">
+      <b>Sublocado nunca vira preço.</b> <code>/api/disponibilidade</code> devolve
+      <code>requer_cotacao</code>, e o agente responde "preciso cotar" em vez de inventar valor.</div>
+  </section>
+</div>
+{% endblock %}

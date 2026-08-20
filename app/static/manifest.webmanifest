@@ -1,0 +1,12 @@
+{
+  "name": "Duck Studios",
+  "short_name": "Duck",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A100F",
+  "theme_color": "#0A100F",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/static/logo/marca-cor.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

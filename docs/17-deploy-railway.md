@@ -101,15 +101,43 @@ docker build -t duck .
 docker run -p 8000:8000 -e DATABASE_URL=... -e APP_SENHA=... duck
 ```
 
+## Módulos
+
+| Rota | O que faz |
+|---|---|
+| `/` | painel: o que está fora, atrasos, patrimônio |
+| `/equipamento` · `/kits` | inventário com busca, ficha por item, os 10 kits com conteúdo |
+| `/saidas` · `/conferencia` | conferência por scan (câmera, leitor ou digitação), saída e retorno |
+| `/funil` · `/clientes` · `/propostas` | comercial: negócios por estágio, cadastro, proposta com PDF |
+| `/projetos` | projetos, ligados à mídia pelo `slug` da pasta |
+| `/agentes` | aprovações pendentes, execuções e o mapa da API |
+| `/api/docs` | a API que os agentes consomem |
+
+## Offline
+
+O app é instalável (PWA) e funciona sem rede:
+
+- **Service worker** guarda a casca e as páginas visitadas. Sem rede, abre com o último estado
+  conhecido em vez de tela em branco.
+- **Bipada offline** vai para uma fila no aparelho com `client_uuid` próprio e sobe sozinha quando
+  a conexão volta. O servidor deduplica por esse uuid — reenviar nunca conta duas vezes.
+- Um aviso no topo informa quantas bipadas estão aguardando rede.
+
+Instalar no celular: abrir no Chrome/Safari → menu → **Adicionar à tela de início**.
+
+## Câmera como scanner
+
+Na tela de saída, **Ler pela câmera** usa a `BarcodeDetector` do navegador (QR, Code 128, Code 39,
+EAN-13). Onde ela não existe, o campo de digitação e o leitor USB continuam funcionando — a tela
+nunca fica sem saída.
+
 ## O que ainda não está aqui
 
-Deliberadamente fora deste primeiro corte, para ele subir hoje:
-
-- **Offline** — o app ainda exige rede. É o próximo passo e é o que decide o uso em locação
-- **Câmera do celular** como scanner (hoje o campo aceita leitor USB e digitação)
-- Termo de responsabilidade em PDF com assinatura
+- Termo de responsabilidade em PDF com assinatura na tela
 - Fotos de estado na saída e no retorno
-- Login por usuário (Basic auth é senha única, não identifica quem conferiu)
+- Registro de dano no retorno (a tabela existe, a tela não)
+- Login por usuário — Basic auth é senha única, não identifica quem conferiu
+- Ingestão de mídia (SOP-001)
 
 ---
 

@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% block titulo %}{{ co.nome }}{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 340px;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1080px){.grade{grid-template-columns:1fr}}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .ev{padding:11px 0;font-size:.8125rem;color:var(--ds-txt-2)}
+  .ev+.ev{border-top:1px solid var(--ds-border)}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><div class="meta">{{ co.tipo or 'cliente' }}</div><h1>{{ co.nome }}</h1></div>
+  <a class="ds-btn ds-btn--fantasma" href="/clientes">Voltar</a></div>
+
+<div class="grade">
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
+    <section class="ds-card"><h2>Negócios</h2>
+      {% if negocios %}<table><tbody>{% for d in negocios %}<tr>
+        <td>{{ d.titulo }}<div class="meta">{{ d.tipo_servico or '' }}</div></td>
+        <td><span class="ds-chip">{{ d.estagio|replace('_',' ') }}</span></td>
+        <td class="num">{{ d.valor_estimado|brl }}</td>
+      </tr>{% endfor %}</tbody></table>
+      {% else %}<div class="meta">Nenhum negócio. Crie no funil.</div>{% endif %}
+    </section>
+
+    <section class="ds-card"><h2>Locações</h2>
+      {% if locacoes %}<table><tbody>{% for r in locacoes %}<tr>
+        <td><a href="/saidas/{{ r.id }}" style="color:var(--ds-txt);text-decoration:none">{{ r.numero or '—' }}</a>
+            <div class="meta">{{ r.tipo|replace('_',' ') }}</div></td>
+        <td class="num">{{ r.itens }} itens</td>
+        <td class="meta">{{ r.checkout_at.strftime('%d/%m/%y') if r.checkout_at else '—' }}</td>
+        <td><span class="ds-chip">{{ r.status }}</span></td>
+      </tr>{% endfor %}</tbody></table>
+      {% else %}<div class="meta">Nunca alugou.</div>{% endif %}
+    </section>
+
+    <section class="ds-card"><h2>Histórico</h2>
+      <form method="post" action="/clientes/{{ co.id }}/nota" style="display:flex;gap:8px;
+            margin-bottom:var(--ds-e-4)">
+        <input class="ds-campo" name="texto" placeholder="Anotar algo sobre este cliente" required>
+        <button class="ds-btn">Anotar</button></form>
+      {% for a in atividades %}<div class="ev">
+        <b style="color:var(--ds-txt)">{{ a.conteudo }}</b>
+        <div class="meta">{{ a.criado_em.strftime('%d/%m/%Y %H:%M') }} · {{ a.autor or '' }}</div>
+      </div>{% else %}<div class="meta">Sem histórico ainda.</div>{% endfor %}
+    </section>
+  </div>
+
+  <section class="ds-card"><h2>Contatos</h2>
+    {% for c in contatos %}<div class="ev">
+      <b style="color:var(--ds-txt)">{{ c.nome }}</b>
+      <div class="meta">{{ c.email or '' }} {{ c.telefone_e164 or '' }}</div>
+    </div>{% else %}<div class="meta">Nenhum contato cadastrado.</div>{% endfor %}
+  </section>
+</div>
+{% endblock %}

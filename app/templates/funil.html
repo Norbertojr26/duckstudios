@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% block titulo %}Funil — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .board{display:grid;grid-template-columns:repeat(6,minmax(210px,1fr));gap:var(--ds-e-3);
+         overflow-x:auto;padding-bottom:8px}
+  @media (max-width:1280px){.board{grid-template-columns:repeat(6,240px)}}
+  .col{background:var(--ds-surface);border:1px solid var(--ds-border);border-radius:var(--ds-r-card);
+       padding:var(--ds-e-3);min-height:140px}
+  .colcab{display:flex;justify-content:space-between;align-items:center;
+          font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ds-txt-3);
+          padding:4px 6px var(--ds-e-3)}
+  .cartao{background:var(--ds-grad-surface-2);border:1px solid var(--ds-border);
+          border-radius:14px;padding:12px;margin-bottom:8px;box-shadow:var(--ds-elev-1)}
+  .cartao b{font-size:.875rem;display:block;line-height:1.3}
+  .cartao .v{font-variant-numeric:tabular-nums;font-weight:700;margin-top:6px;font-size:.8125rem}
+  .cartao select{width:100%;margin-top:8px;font-size:.75rem;min-height:32px;padding:0 8px}
+  .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+  .form label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Funil</h1>
+  <div class="sub">Motivo de perda é obrigatório — é o dado que melhora a precificação</div></div></div>
+
+<section class="ds-card" style="margin-bottom:var(--ds-e-4)">
+  <h2>Novo negócio</h2>
+  <form method="post" action="/funil/novo" class="form">
+    <div><label>Título</label><input class="ds-campo" name="titulo" required></div>
+    <div><label>Serviço</label><select class="ds-campo" name="tipo_servico">
+      <option value="filmagem">Filmagem</option><option value="edicao">Edição</option>
+      <option value="locacao">Locação</option><option value="pacote">Pacote</option></select></div>
+    <div><label>Cliente</label><select class="ds-campo" name="company_id">
+      <option value="">—</option>
+      {% for e in empresas %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+    <div><label>Valor estimado</label><input class="ds-campo" name="valor" type="number" step="0.01"></div>
+    <div><label>Data do evento</label><input class="ds-campo" name="data_evento" type="date"></div>
+    <button class="ds-btn">Criar</button>
+  </form>
+</section>
+
+<div class="board">
+{% for e in estagios %}
+  <div class="col">
+    <div class="colcab"><span>{{ e|replace('_',' ') }}</span><span>{{ colunas[e]|length }}</span></div>
+    {% for d in colunas[e] %}
+    <div class="cartao">
+      <b>{{ d.titulo }}</b>
+      <div class="meta">{{ d.empresa or 'sem cliente' }}</div>
+      {% if d.valor_estimado %}<div class="v">{{ d.valor_estimado|brl }}</div>{% endif %}
+      {% if d.motivo_perda %}<div class="meta" style="color:var(--ds-erro)">{{ d.motivo_perda }}</div>{% endif %}
+      <form method="post" action="/funil/{{ d.id }}/estagio">
+        <select class="ds-campo" name="estagio" onchange="mover(this)">
+          {% for x in estagios %}<option value="{{ x }}" {{ 'selected' if x==d.estagio }}>
+            {{ x|replace('_',' ') }}</option>{% endfor %}
+        </select>
+        <input type="hidden" name="motivo">
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+{% endfor %}
+</div>
+
+<script>
+function mover(sel){
+  const f = sel.form;
+  if (sel.value === 'perdido'){
+    const m = prompt('Por que perdeu? (obrigatório)');
+    if (!m) { sel.value = sel.dataset.antes || 'novo'; return; }
+    f.motivo.value = m;
+  }
+  f.submit();
+}
+document.querySelectorAll('.cartao select').forEach(s => s.dataset.antes = s.value);
+</script>
+{% endblock %}

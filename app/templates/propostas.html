@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block titulo %}Propostas — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+  .form label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Propostas</h1>
+  <div class="sub">Montada a partir da tabela de preços e do inventário — sem inventar número</div></div></div>
+
+<section class="ds-card" style="margin-bottom:var(--ds-e-4)">
+  <h2>Nova proposta</h2>
+  {% if negocios %}
+  <form method="post" action="/propostas/nova" class="form">
+    <div style="min-width:280px"><label>Negócio</label><select class="ds-campo" name="deal_id" required>
+      {% for d in negocios %}<option value="{{ d.id }}">{{ d.titulo }}{% if d.empresa %} — {{ d.empresa }}{% endif %}</option>{% endfor %}
+    </select></div>
+    <div><label>Validade (dias)</label><input class="ds-campo" name="validade_dias" type="number" value="15" style="width:110px"></div>
+    <button class="ds-btn">Criar</button>
+  </form>
+  {% else %}
+  <div class="meta">Nenhum negócio aberto. Crie um no <a href="/funil">funil</a> primeiro —
+    proposta sempre nasce de um negócio, senão não há a quem cobrar nem o que registrar quando fecha.</div>
+  {% endif %}
+</section>
+
+<section class="ds-card ds-card--alto">
+{% if linhas %}
+<table><thead><tr><th>Nº</th><th>Negócio</th><th>Cliente</th><th>Status</th>
+  <th class="num">Itens</th><th class="num">Total</th><th>Validade</th></tr></thead>
+<tbody>{% for q in linhas %}<tr>
+  <td><a href="/propostas/{{ q.id }}" style="color:var(--ds-txt);text-decoration:none;font-weight:600">{{ q.numero }}</a></td>
+  <td>{{ q.titulo or '—' }}</td><td>{{ q.empresa or '—' }}</td>
+  <td><span class="ds-chip">{{ q.status|replace('_',' ') }}</span></td>
+  <td class="num">{{ q.itens }}</td><td class="num">{{ q.total|brl }}</td>
+  <td class="meta">{{ q.validade.strftime('%d/%m/%y') if q.validade else '—' }}</td>
+</tr>{% endfor %}</tbody></table>
+{% else %}<div class="meta" style="padding:var(--ds-e-6) 0;text-align:center">Nenhuma proposta ainda.</div>{% endif %}
+</section>
+{% endblock %}

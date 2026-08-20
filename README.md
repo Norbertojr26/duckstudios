@@ -48,9 +48,14 @@ Rascunhos marcam com `<!-- PREENCHER -->` tudo que depende da sua operação rea
 
 ## Aplicação
 
-Existe app rodando: FastAPI + PostgreSQL, com painel, busca de equipamento, conferência de saída e
-retorno por scan, e **API em `/api/docs` — a mesma verdade da tela, que é por onde os agentes vão
-ler e escrever.** Deploy em [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md).
+No ar em `crm.duckstudios.com.br`. FastAPI + PostgreSQL, instalável como PWA e **funcionando sem
+rede**: a bipada offline entra numa fila local e sobe sozinha, sem duplicar.
+
+Módulos: painel · equipamento e kits · saídas e conferência por scan (câmera, leitor ou digitação) ·
+funil, clientes e propostas com PDF · projetos · agentes. E **`/api/docs` — a mesma verdade das
+telas, que é por onde os agentes leem e escrevem.**
+
+Deploy em [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md).
 
 ```bash
 createdb duck && export DATABASE_URL=postgresql:///duck

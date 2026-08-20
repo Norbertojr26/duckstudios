@@ -33,8 +33,16 @@ def curto(v):
     return f"{v/1_000_000:.1f}M".replace(".", ",") if v >= 1_000_000 else f"{v/1000:.0f}k"
 
 
+def qtd(v):
+    if v is None:
+        return "—"
+    f = float(v)
+    return str(int(f)) if f == int(f) else f"{f:.1f}".replace(".", ",")
+
+
 tpl.env.filters["brl"] = brl
 tpl.env.filters["curto"] = curto
+tpl.env.filters["qtd"] = qtd
 
 
 # ------------------------------------------------------------------ acesso
@@ -203,40 +211,62 @@ def saida(request: Request, rid: str, erro: str = "", ok: str = ""):
     return pag(request, "saida.html", ativo="saidas", r=r, itens=itens, erro=erro, ok=ok)
 
 
-@app.post("/saidas/{rid}/bipar")
-def bipar(rid: str, codigo: str = Form(...), momento: str = Form("saida")):
-    codigo = codigo.strip().upper()
+def _bipar(rid: str, codigo: str, momento: str, client_uuid: str | None = None):
+    """Regra única de conferência. HTML e API entram por aqui — se divergissem, a tela e o
+    agente passariam a discordar sobre o que aconteceu."""
+    codigo = (codigo or "").strip().upper()
     a = db.q1("SELECT * FROM asset WHERE upper(codigo) = %s", (codigo,))
     if not a:
-        return RedirectResponse(f"/saidas/{rid}?erro=Código+{codigo}+não+existe", 303)
+        return False, f"Código {codigo} não existe", None
 
     if momento == "saida":
         if a["proprietario"] == "sublocado":
-            return RedirectResponse(
-                f"/saidas/{rid}?erro={a['codigo']}+é+sublocado:+cote+com+o+fornecedor+antes", 303)
+            return False, f"{a['codigo']} é sublocado: cote com o fornecedor antes", None
         ja = db.q1("SELECT id FROM rental_line WHERE rental_id=%s AND asset_id=%s", (rid, a["id"]))
         if not ja:
             r = db.q1("SELECT inicio, fim FROM rental WHERE id = %s", (rid,))
+            if not r:
+                return False, "Saída não encontrada", None
             try:
                 db.exec_("""INSERT INTO rental_line (rental_id, asset_id, during, status, valor_diaria)
                             VALUES (%s, %s, tstzrange(%s, %s), 'em_campo', %s)""",
                          (rid, a["id"], r["inicio"], r["fim"], a["valor_diaria"]))
-            except Exception:                                # constraint de exclusão do banco
-                return RedirectResponse(
-                    f"/saidas/{rid}?erro={a['codigo']}+já+está+reservado+nesse+período", 303)
+            except Exception:                            # constraint de exclusão do banco
+                return False, f"{a['codigo']} já está reservado nesse período", None
             db.exec_("UPDATE asset SET status='em_campo' WHERE id=%s", (a["id"],))
     else:
         rl = db.q1("SELECT id FROM rental_line WHERE rental_id=%s AND asset_id=%s", (rid, a["id"]))
         if not rl:
-            return RedirectResponse(f"/saidas/{rid}?erro={a['codigo']}+não+saiu+nesta+saída", 303)
+            return False, f"{a['codigo']} não saiu nesta saída", None
         db.exec_("UPDATE rental_line SET status='devolvido' WHERE id=%s", (rl["id"],))
         db.exec_("UPDATE asset SET status='disponivel' WHERE id=%s", (a["id"],))
 
+    # client_uuid vem do celular: a mesma bipada reenviada depois de operar offline
+    # não vira duas conferências.
     db.exec_("""INSERT INTO conference_check (rental_id, asset_id, momento, estado, operador, client_uuid)
                 VALUES (%s, %s, %s, 'ok', 'web', %s)
-                ON CONFLICT (rental_id, asset_id, momento) DO NOTHING""",
-             (rid, a["id"], momento, str(uuid.uuid4())))
-    return RedirectResponse(f"/saidas/{rid}?ok={a['codigo']}+{'conferido' if momento=='retorno' else 'adicionado'}", 303)
+                ON CONFLICT (client_uuid) DO NOTHING""",
+             (rid, a["id"], momento, client_uuid or str(uuid.uuid4())))
+    return True, f"{a['codigo']} {'conferido' if momento == 'retorno' else 'adicionado'}", a
+
+
+@app.post("/saidas/{rid}/bipar")
+def bipar(rid: str, codigo: str = Form(...), momento: str = Form("saida")):
+    ok, msg, _ = _bipar(rid, codigo, momento)
+    chave = "ok" if ok else "erro"
+    return RedirectResponse(f"/saidas/{rid}?{chave}={msg.replace(' ', '+')}", 303)
+
+
+@app.post("/api/saidas/{rid}/bipar")
+def api_bipar(rid: str, dados: dict):
+    """Usado pelo scanner. Idempotente por client_uuid — reenviar não duplica."""
+    ok, msg, a = _bipar(rid, dados.get("codigo", ""), dados.get("momento", "saida"),
+                        dados.get("client_uuid"))
+    return JSONResponse({"ok": ok, "mensagem": msg,
+                         "item": {"codigo": a["codigo"], "nome": a["nome"],
+                                  "categoria": a["categoria"],
+                                  "valor_diaria": float(a["valor_diaria"] or 0)} if a else None},
+                        status_code=200 if ok else 409)
 
 
 @app.post("/saidas/{rid}/fechar")
@@ -311,6 +341,264 @@ def precos(request: Request):
           FROM asset WHERE proprietario = 'proprio' AND valor_diaria IS NOT NULL
          GROUP BY categoria ORDER BY sum(valor_diaria) DESC""")
     return pag(request, "precos.html", ativo="precos", grupos=grupos, locacao=locacao)
+
+
+# ------------------------------------------------------------ propostas
+
+@app.get("/propostas", response_class=HTMLResponse)
+def propostas(request: Request):
+    linhas = db.q("""SELECT q.*, d.titulo, co.nome AS empresa, count(qi.*) itens
+                       FROM quote q
+                       LEFT JOIN deal d ON d.id = q.deal_id
+                       LEFT JOIN company co ON co.id = d.company_id
+                       LEFT JOIN quote_item qi ON qi.quote_id = q.id
+                      GROUP BY q.id, d.titulo, co.nome ORDER BY q.criado_em DESC""")
+    return pag(request, "propostas.html", ativo="propostas", linhas=linhas,
+               negocios=db.q("""SELECT d.id, d.titulo, co.nome AS empresa FROM deal d
+                                LEFT JOIN company co ON co.id = d.company_id
+                                WHERE d.estagio NOT IN ('ganho','perdido')
+                                ORDER BY d.criado_em DESC"""))
+
+
+@app.post("/propostas/nova")
+def proposta_nova(deal_id: str = Form(...), validade_dias: int = Form(15)):
+    q = db.q1("""INSERT INTO quote (deal_id, numero, validade, criado_por)
+                 VALUES (%s, to_char(now(),'YYMM')||'-'||lpad((SELECT count(*)+1 FROM quote)::text,3,'0'),
+                         (now() + make_interval(days => %s))::date, 'humano')
+                 RETURNING id""", (deal_id, validade_dias))
+    return RedirectResponse(f"/propostas/{q['id']}", 303)
+
+
+@app.get("/propostas/{qid}", response_class=HTMLResponse)
+def proposta(request: Request, qid: str, erro: str = ""):
+    q = db.q1("""SELECT q.*, d.titulo, d.data_evento, co.nome AS empresa, c.nome AS contato
+                   FROM quote q LEFT JOIN deal d ON d.id = q.deal_id
+                   LEFT JOIN company co ON co.id = d.company_id
+                   LEFT JOIN contact c ON c.id = d.contact_id WHERE q.id = %s""", (qid,))
+    if not q:
+        return HTMLResponse("Proposta não encontrada", status_code=404)
+    return pag(request, "proposta.html", ativo="propostas", q=q, erro=erro,
+               itens=db.q("SELECT * FROM quote_item WHERE quote_id=%s ORDER BY descricao", (qid,)),
+               precos=db.q("SELECT * FROM price_list WHERE ativo ORDER BY categoria, codigo"),
+               kits=db.q("SELECT id, nome, valor_diaria FROM kit ORDER BY valor_diaria DESC"))
+
+
+@app.post("/propostas/{qid}/item")
+def proposta_item(qid: str, origem: str = Form(...), referencia: str = Form(""),
+                  descricao: str = Form(""), quantidade: float = Form(1),
+                  valor_unitario: str = Form("")):
+    if origem == "tabela" and referencia:
+        p = db.q1("SELECT * FROM price_list WHERE id = %s", (referencia,))
+        if not p:
+            return RedirectResponse(f"/propostas/{qid}?erro=Item+de+tabela+não+encontrado", 303)
+        db.exec_("""INSERT INTO quote_item (quote_id, price_list_id, descricao, quantidade, valor_unitario)
+                    VALUES (%s, %s, %s, %s, %s)""",
+                 (qid, p["id"], p["descricao"], quantidade, p["valor"]))
+    elif origem == "equipamento" and referencia:
+        a = db.q1("SELECT * FROM asset WHERE upper(codigo) = upper(%s)", (referencia.strip(),))
+        if not a:
+            return RedirectResponse(f"/propostas/{qid}?erro=Código+não+encontrado", 303)
+        if a["requer_cotacao"]:
+            return RedirectResponse(
+                f"/propostas/{qid}?erro={a['codigo']}+é+sublocado:+cote+antes+de+incluir", 303)
+        db.exec_("""INSERT INTO quote_item (quote_id, descricao, quantidade, valor_unitario)
+                    VALUES (%s, %s, %s, %s)""",
+                 (qid, f"Locação — {a['nome']} ({a['codigo']})", quantidade, a["valor_diaria"]))
+    elif origem == "kit" and referencia:
+        k = db.q1("SELECT * FROM kit WHERE id = %s", (referencia,))
+        db.exec_("""INSERT INTO quote_item (quote_id, descricao, quantidade, valor_unitario)
+                    VALUES (%s, %s, %s, %s)""",
+                 (qid, f"Locação — kit {k['nome']}", quantidade, k["valor_diaria"]))
+    else:
+        # Item fora de tabela fica com price_list_id nulo de propósito: é o sinal de que
+        # alguém inventou um preço, e é isso que a revisão precisa ver.
+        db.exec_("""INSERT INTO quote_item (quote_id, descricao, quantidade, valor_unitario)
+                    VALUES (%s, %s, %s, NULLIF(%s,'')::numeric)""",
+                 (qid, descricao.strip() or "Item avulso", quantidade, valor_unitario))
+    _recalcular(qid)
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/remover/{iid}")
+def proposta_remover(qid: str, iid: str):
+    db.exec_("DELETE FROM quote_item WHERE id=%s AND quote_id=%s", (iid, qid))
+    _recalcular(qid)
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/desconto")
+def proposta_desconto(qid: str, desconto: str = Form("0")):
+    db.exec_("UPDATE quote SET desconto = coalesce(NULLIF(%s,'')::numeric, 0) WHERE id=%s",
+             (desconto, qid))
+    _recalcular(qid)
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+def _recalcular(qid):
+    db.exec_("""UPDATE quote SET subtotal = s.t,
+                                 total = greatest(s.t - coalesce(desconto, 0), 0)
+                  FROM (SELECT coalesce(sum(total), 0) t FROM quote_item WHERE quote_id=%s) s
+                 WHERE quote.id = %s""", (qid, qid))
+
+
+@app.get("/propostas/{qid}/imprimir", response_class=HTMLResponse)
+def proposta_imprimir(request: Request, qid: str):
+    q = db.q1("""SELECT q.*, d.titulo, d.data_evento, co.nome AS empresa, c.nome AS contato
+                   FROM quote q LEFT JOIN deal d ON d.id = q.deal_id
+                   LEFT JOIN company co ON co.id = d.company_id
+                   LEFT JOIN contact c ON c.id = d.contact_id WHERE q.id = %s""", (qid,))
+    itens = db.q("SELECT * FROM quote_item WHERE quote_id=%s ORDER BY descricao", (qid,))
+    return tpl.TemplateResponse(request, "proposta_imprimir.html", {"q": q, "itens": itens})
+
+
+# ------------------------------------------------------------- clientes
+
+@app.get("/clientes", response_class=HTMLResponse)
+def clientes(request: Request, busca: str = ""):
+    onde, args = "", []
+    if busca:
+        onde = "WHERE co.nome ILIKE %s OR c.nome ILIKE %s OR c.email ILIKE %s"
+        args = [f"%{busca}%"] * 3
+    linhas = db.q(f"""
+        SELECT co.id, co.nome, co.tipo, co.cnpj, co.criado_em,
+               count(DISTINCT d.id) AS negocios,
+               count(DISTINCT r.id) AS locacoes,
+               coalesce(sum(DISTINCT p.valor_contrato), 0) AS contratado
+          FROM company co
+          LEFT JOIN contact c ON c.company_id = co.id
+          LEFT JOIN deal d    ON d.company_id = co.id
+          LEFT JOIN rental r  ON r.company_id = co.id
+          LEFT JOIN project p ON p.company_id = co.id
+          {onde}
+         GROUP BY co.id ORDER BY co.nome""", args)
+    soltos = db.q("""SELECT id, nome, email, telefone_e164, origem FROM contact
+                      WHERE company_id IS NULL ORDER BY criado_em DESC LIMIT 50""")
+    return pag(request, "clientes.html", ativo="clientes", linhas=linhas, soltos=soltos, busca=busca)
+
+
+@app.post("/clientes/novo")
+def cliente_novo(nome: str = Form(...), tipo: str = Form("cliente"),
+                 contato: str = Form(""), email: str = Form(""), telefone: str = Form("")):
+    co = db.q1("INSERT INTO company (nome, tipo) VALUES (%s, %s) RETURNING id",
+               (nome.strip(), tipo))
+    if contato.strip():
+        db.exec_("""INSERT INTO contact (company_id, nome, email, telefone_e164, origem)
+                    VALUES (%s, %s, NULLIF(%s,''), NULLIF(%s,''), 'manual')
+                    ON CONFLICT DO NOTHING""",
+                 (co["id"], contato.strip(), email.strip(), telefone.strip()))
+    return RedirectResponse(f"/clientes/{co['id']}", 303)
+
+
+@app.get("/clientes/{cid}", response_class=HTMLResponse)
+def cliente(request: Request, cid: str):
+    co = db.q1("SELECT * FROM company WHERE id = %s", (cid,))
+    if not co:
+        return HTMLResponse("Cliente não encontrado", status_code=404)
+    return pag(request, "cliente.html", ativo="clientes", co=co,
+               contatos=db.q("SELECT * FROM contact WHERE company_id = %s ORDER BY nome", (cid,)),
+               negocios=db.q("""SELECT * FROM deal WHERE company_id = %s
+                                 ORDER BY criado_em DESC""", (cid,)),
+               locacoes=db.q("""SELECT r.*, count(rl.*) itens FROM rental r
+                                LEFT JOIN rental_line rl ON rl.rental_id = r.id
+                                WHERE r.company_id = %s GROUP BY r.id
+                                ORDER BY r.criado_em DESC LIMIT 20""", (cid,)),
+               atividades=db.q("""SELECT * FROM activity WHERE entidade_tipo='company'
+                                   AND entidade_id=%s ORDER BY criado_em DESC LIMIT 40""", (cid,)))
+
+
+@app.post("/clientes/{cid}/nota")
+def cliente_nota(cid: str, texto: str = Form(...)):
+    db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                VALUES ('company', %s, 'nota', %s, 'humano')""", (cid, texto.strip()))
+    return RedirectResponse(f"/clientes/{cid}", 303)
+
+
+# ----------------------------------------------------------------- funil
+
+ESTAGIOS = ["novo", "qualificado", "proposta_enviada", "negociacao", "ganho", "perdido"]
+
+
+@app.get("/funil", response_class=HTMLResponse)
+def funil(request: Request):
+    linhas = db.q("""
+        SELECT d.*, co.nome AS empresa, c.nome AS contato,
+               (SELECT max(criado_em) FROM activity a
+                 WHERE a.entidade_tipo='deal' AND a.entidade_id = d.id) AS ultimo_toque
+          FROM deal d
+          LEFT JOIN company co ON co.id = d.company_id
+          LEFT JOIN contact c  ON c.id = d.contact_id
+         ORDER BY d.atualizado_em DESC""")
+    colunas = {e: [] for e in ESTAGIOS}
+    for l in linhas:
+        colunas.setdefault(l["estagio"], []).append(l)
+    return pag(request, "funil.html", ativo="funil", colunas=colunas, estagios=ESTAGIOS,
+               empresas=db.q("SELECT id, nome FROM company ORDER BY nome"))
+
+
+@app.post("/funil/novo")
+def funil_novo(titulo: str = Form(...), tipo_servico: str = Form("filmagem"),
+               company_id: str = Form(""), valor: str = Form(""), data_evento: str = Form("")):
+    db.exec_("""INSERT INTO deal (titulo, tipo_servico, company_id, valor_estimado, data_evento)
+                VALUES (%s, %s, NULLIF(%s,'')::uuid, NULLIF(%s,'')::numeric, NULLIF(%s,'')::date)""",
+             (titulo.strip(), tipo_servico, company_id, valor, data_evento))
+    return RedirectResponse("/funil", 303)
+
+
+@app.post("/funil/{did}/estagio")
+def funil_estagio(did: str, estagio: str = Form(...), motivo: str = Form("")):
+    if estagio == "perdido" and not motivo.strip():
+        return RedirectResponse("/funil?erro=Motivo+da+perda+é+obrigatório", 303)
+    db.exec_("UPDATE deal SET estagio=%s, motivo_perda=NULLIF(%s,'') WHERE id=%s",
+             (estagio, motivo.strip(), did))
+    db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                VALUES ('deal', %s, 'evento_sistema', %s, 'humano')""",
+             (did, f"movido para {estagio}" + (f" — {motivo}" if motivo.strip() else "")))
+    return RedirectResponse("/funil", 303)
+
+
+# -------------------------------------------------------------- projetos
+
+@app.get("/projetos", response_class=HTMLResponse)
+def projetos(request: Request):
+    linhas = db.q("""SELECT p.*, co.nome AS empresa,
+                            count(DISTINCT sd.id) AS diarias,
+                            count(DISTINCT mo.id) AS offloads
+                       FROM project p
+                       LEFT JOIN company co ON co.id = p.company_id
+                       LEFT JOIN shoot_day sd ON sd.project_id = p.id
+                       LEFT JOIN media_offload mo ON mo.project_id = p.id
+                      GROUP BY p.id, co.nome ORDER BY p.criado_em DESC""")
+    return pag(request, "projetos.html", ativo="projetos", linhas=linhas,
+               empresas=db.q("SELECT id, nome FROM company ORDER BY nome"))
+
+
+@app.post("/projetos/novo")
+def projeto_novo(nome: str = Form(...), slug: str = Form(...), company_id: str = Form(""),
+                 valor_contrato: str = Form(""), data_entrega: str = Form("")):
+    db.exec_("""INSERT INTO project (nome, slug, company_id, valor_contrato, data_entrega)
+                VALUES (%s, %s, NULLIF(%s,'')::uuid, NULLIF(%s,'')::numeric, NULLIF(%s,'')::date)
+                ON CONFLICT (slug) DO NOTHING""",
+             (nome.strip(), slug.strip().lower(), company_id, valor_contrato, data_entrega))
+    return RedirectResponse("/projetos", 303)
+
+
+# --------------------------------------------------------------- agentes
+
+@app.get("/agentes", response_class=HTMLResponse)
+def agentes(request: Request):
+    return pag(request, "agentes.html", ativo="agentes",
+               pendentes=db.q("""SELECT * FROM approval_request WHERE status='pendente'
+                                  ORDER BY criado_em DESC"""),
+               execucoes=db.q("""SELECT ar.*, count(aa.*) acoes FROM agent_run ar
+                                 LEFT JOIN agent_action aa ON aa.run_id = ar.id
+                                 GROUP BY ar.id ORDER BY ar.iniciado_em DESC LIMIT 20"""))
+
+
+@app.post("/agentes/aprovacao/{aid}")
+def aprovacao(aid: str, decisao: str = Form(...)):
+    db.exec_("""UPDATE approval_request SET status=%s, decidido_por='humano', decidido_em=now()
+                 WHERE id=%s""", ("aprovado" if decisao == "sim" else "rejeitado", aid))
+    return RedirectResponse("/agentes", 303)
 
 
 # -------------------------------------------------------------------- API

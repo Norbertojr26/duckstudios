@@ -43,12 +43,27 @@
       <button class="ds-btn" onclick="mom('saida')"   id="b-saida">Adicionar na saída</button>
       <button class="ds-btn ds-btn--fantasma" onclick="mom('retorno')" id="b-retorno">Conferir retorno</button>
     </div>
-    <form method="post" action="/saidas/{{ r.id }}/bipar" class="scanner">
-      <div style="font-size:1.0625rem;font-weight:700" id="rot">Bipe ou digite o código</div>
+    <form id="form-bipe" class="scanner" autocomplete="off">
+      <div style="font-size:1.0625rem;font-weight:700" id="rot">Bipe, aponte a câmera ou digite</div>
       <div class="meta" id="dica">O leitor de código de barras digita e dá Enter sozinho</div>
-      <input class="ds-campo" name="codigo" placeholder="0000" autofocus autocomplete="off">
-      <input type="hidden" name="momento" id="momento" value="saida">
+      <input class="ds-campo" id="campo-codigo" placeholder="0000" autofocus inputmode="numeric">
+      <div style="margin-top:var(--ds-e-3)">
+        <button type="button" class="ds-btn ds-btn--fantasma mini" id="btn-camera">
+          ◉ Ler pela câmera</button>
+      </div>
+      <div id="resposta" class="meta" style="margin-top:10px;min-height:18px"></div>
     </form>
+
+    <div id="ds-camera" hidden class="ds-card" style="padding:0;overflow:hidden;
+         margin-bottom:var(--ds-e-4);position:relative">
+      <video id="ds-video" playsinline muted
+             style="width:100%;max-height:340px;object-fit:cover;display:block"></video>
+      <div style="position:absolute;inset:22% 18%;border:2px solid var(--ds-acao);
+                  border-radius:16px;pointer-events:none"></div>
+      <button type="button" data-fechar class="ds-btn ds-btn--fantasma mini"
+              style="position:absolute;top:10px;right:10px">Fechar</button>
+      <div id="ds-camera-aviso" class="meta" style="padding:10px 14px"></div>
+    </div>
     {% endif %}
 
     <h2>Itens</h2>
@@ -90,13 +105,44 @@
 </div>
 
 <script>
+let MOMENTO = 'saida';
+const RID = '{{ r.id }}';
+
 function mom(m){
-  document.getElementById('momento').value = m;
+  MOMENTO = m;
   document.getElementById('b-saida').className   = m=='saida'   ? 'ds-btn' : 'ds-btn ds-btn--fantasma';
   document.getElementById('b-retorno').className = m=='retorno' ? 'ds-btn' : 'ds-btn ds-btn--fantasma';
   document.getElementById('rot').textContent = m=='retorno'
-      ? 'Bipe o item que voltou' : 'Bipe ou digite o código';
-  document.querySelector('.scanner input').focus();
+      ? 'Bipe o item que voltou' : 'Bipe, aponte a câmera ou digite';
+  document.getElementById('campo-codigo').focus();
 }
+
+const campo = document.getElementById('campo-codigo');
+const resposta = document.getElementById('resposta');
+let ultimaLeitura = 0;
+
+async function processar(codigo){
+  if (!codigo) return;
+  const agora = Date.now();
+  if (agora - ultimaLeitura < 700) return;          // leitor USB às vezes dispara duas vezes
+  ultimaLeitura = agora;
+  resposta.textContent = 'conferindo…';
+  const r = await DS.enviar(RID, codigo, MOMENTO);
+  campo.value = '';
+  if (r.offline){
+    resposta.style.color = 'var(--ds-atencao)';
+    resposta.textContent = codigo + ' guardado — sobe quando a rede voltar';
+    return;
+  }
+  resposta.style.color = r.ok ? 'var(--ds-ok)' : 'var(--ds-erro)';
+  resposta.textContent = (r.ok ? '✓ ' : '✕ ') + r.mensagem;
+  if (r.ok) setTimeout(() => location.reload(), 550);
+}
+
+document.getElementById('form-bipe').addEventListener('submit', e => {
+  e.preventDefault();
+  processar(campo.value.trim());
+});
+document.getElementById('btn-camera').addEventListener('click', () => DS.abrirCamera(processar));
 </script>
 {% endblock %}

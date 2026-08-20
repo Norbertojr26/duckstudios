@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% block titulo %}Projetos — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
+  .form label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Projetos</h1>
+  <div class="sub">O <code>slug</code> é o nome da pasta na mídia — é ele que liga o projeto ao bruto ingerido</div></div></div>
+
+<section class="ds-card" style="margin-bottom:var(--ds-e-4)">
+  <h2>Novo projeto</h2>
+  <form method="post" action="/projetos/novo" class="form">
+    <div><label>Nome</label><input class="ds-campo" name="nome" required></div>
+    <div><label>Slug (pasta)</label><input class="ds-campo" name="slug" required
+         placeholder="campanha-2026" pattern="[a-z0-9\-]+"></div>
+    <div><label>Cliente</label><select class="ds-campo" name="company_id"><option value="">—</option>
+      {% for e in empresas %}<option value="{{ e.id }}">{{ e.nome }}</option>{% endfor %}</select></div>
+    <div><label>Valor do contrato</label><input class="ds-campo" name="valor_contrato" type="number" step="0.01"></div>
+    <div><label>Entrega</label><input class="ds-campo" name="data_entrega" type="date"></div>
+    <button class="ds-btn">Criar</button>
+  </form>
+</section>
+
+<section class="ds-card ds-card--alto">
+{% if linhas %}
+<table><thead><tr><th>Projeto</th><th>Cliente</th><th>Status</th><th class="num">Diárias</th>
+  <th class="num">Cartões</th><th class="num">Contrato</th><th>Entrega</th></tr></thead>
+<tbody>{% for p in linhas %}<tr>
+  <td><b>{{ p.nome }}</b><div class="meta">{{ p.slug }}</div></td>
+  <td>{{ p.empresa or '—' }}</td>
+  <td><span class="ds-chip">{{ p.status }}</span></td>
+  <td class="num">{{ p.diarias }}</td><td class="num">{{ p.offloads }}</td>
+  <td class="num">{{ p.valor_contrato|brl }}</td>
+  <td class="meta">{{ p.data_entrega.strftime('%d/%m/%y') if p.data_entrega else '—' }}</td>
+</tr>{% endfor %}</tbody></table>
+{% else %}
+<div class="meta" style="padding:var(--ds-e-6) 0;text-align:center;line-height:1.7">
+  Nenhum projeto ainda.<br>A coluna <b>Cartões</b> se preenche sozinha quando a ingestão de mídia
+  entrar — cada offload verificado vira uma linha ligada ao projeto.</div>
+{% endif %}
+</section>
+{% endblock %}
