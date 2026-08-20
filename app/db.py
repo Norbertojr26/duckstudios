@@ -17,9 +17,20 @@ CANDIDATAS = ("DATABASE_URL", "DATABASE_PRIVATE_URL", "POSTGRES_URL",
 NAO_RESOLVIDA = "${{"
 
 
+def _limpar(v):
+    """Aceita o que a pessoa realmente cola. O painel do Railway oferece a URL crua, mas também
+    um comando psql pronto — e colar o comando inteiro é o erro mais fácil de cometer."""
+    v = (v or "").strip().strip(";").strip()
+    if v[:5].lower() == "psql ":                      # 'psql "postgresql://..."'
+        v = v[5:].strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1].strip()                            # aspas em volta
+    return v
+
+
 def _achar_url():
     for nome in CANDIDATAS:
-        v = (os.environ.get(nome) or "").strip()
+        v = _limpar(os.environ.get(nome))
         if v.startswith(("postgres://", "postgresql://")) and NAO_RESOLVIDA not in v:
             return nome, v
     # Sem URL utilizável, tenta montar a partir das peças (PGHOST/PGUSER/...), que é a
@@ -39,6 +50,27 @@ def _achar_url():
         porta = f":{peca['PGPORT']}" if peca["PGPORT"] else ""
         return "PG* (peças)", f"postgresql://{usuario}{senha}@{peca['PGHOST']}{porta}/{banco}"
     return None, None
+
+
+def diagnostico_url():
+    """Descreve o que chegou em cada candidata SEM revelar a senha: só tamanho e o começo do
+    valor, que é sempre o esquema (postgresql://) e nunca a credencial."""
+    fora = []
+    for nome in CANDIDATAS:
+        bruto = os.environ.get(nome)
+        if bruto is None:
+            continue
+        v = _limpar(bruto)
+        if not v:
+            causa = "VAZIA (referência do Railway que não resolveu)"
+        elif NAO_RESOLVIDA in v:
+            causa = "contém ${{...}} — é o template, não o valor"
+        elif v.startswith(("postgres://", "postgresql://")):
+            continue                                   # esta serve
+        else:
+            causa = f"não começa com postgresql:// — começa com {v[:10]!r}"
+        fora.append(f"{nome}: {causa} (tamanho {len(bruto)})")
+    return fora
 
 
 def referencias_nao_resolvidas():

@@ -17,6 +17,8 @@ def rodar():
         print(f"[migrar] procurei em: {', '.join(db.CANDIDATAS)}", file=sys.stderr)
         print(f"[migrar] variáveis parecidas com banco presentes: "
               f"{db.variaveis_de_banco() or 'NENHUMA'}", file=sys.stderr)
+        for linha in db.diagnostico_url():
+            print(f"[migrar] {linha}", file=sys.stderr)
         nao = db.referencias_nao_resolvidas()
         if nao:
             print(f"[migrar] ATENÇÃO: {nao} ainda contêm '${{{{...}}}}' — você copiou o TEMPLATE "

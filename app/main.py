@@ -84,6 +84,7 @@ def healthz():
                              "procurei_em": list(db.CANDIDATAS),
                              "variaveis_presentes": db.variaveis_de_banco(),
                              "referencias_nao_resolvidas": db.referencias_nao_resolvidas(),
+                             "por_que_recusei": db.diagnostico_url(),
                              "dica": "referência do Railway que não resolve chega vazia — "
                                      "confira o nome do serviço de banco"},
                             status_code=503)
