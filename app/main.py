@@ -66,7 +66,11 @@ async def exigir_senha(request: Request, call_next):
 @app.on_event("startup")
 def _startup():
     db.abrir()
-    print(f"[app] banco: {db.onde() if db.TEM_URL else 'DATABASE_URL AUSENTE'}")
+    if db.TEM_URL:
+        print(f"[app] banco: {db.onde()} (via {db.ORIGEM})")
+    else:
+        print(f"[app] SEM banco. Variáveis parecidas com banco no container: "
+              f"{db.variaveis_de_banco() or 'NENHUMA'}")
     if not SENHA:
         print("[ATENÇÃO] APP_SENHA não definida — a aplicação está aberta a quem tiver a URL.")
 
@@ -76,12 +80,15 @@ def healthz():
     """Diz o que está errado, não só que está errado. Sem senha e sem credencial no corpo."""
     if not db.TEM_URL:
         return JSONResponse({"ok": False, "banco": None,
-                             "erro": "DATABASE_URL não definida",
-                             "dica": "Variables do serviço → DATABASE_URL = ${{Postgres.DATABASE_URL}}"},
+                             "erro": "nenhuma URL de banco válida no ambiente",
+                             "procurei_em": list(db.CANDIDATAS),
+                             "variaveis_presentes": db.variaveis_de_banco(),
+                             "dica": "referência do Railway que não resolve chega vazia — "
+                                     "confira o nome do serviço de banco"},
                             status_code=503)
     try:
         n = db.q1("SELECT count(*) AS n FROM asset")
-        return {"ok": True, "banco": db.onde(), "itens": n["n"]}
+        return {"ok": True, "banco": db.onde(), "via": db.ORIGEM, "itens": n["n"]}
     except Exception as e:                                  # noqa: BLE001
         return JSONResponse({"ok": False, "banco": db.onde(),
                              "erro": f"{type(e).__name__}: {e}"}, status_code=503)

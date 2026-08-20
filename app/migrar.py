@@ -13,15 +13,19 @@ SEEDS = ["db/seed_inventario.sql", "db/seed_02_regras.sql",
 
 def rodar():
     if not db.TEM_URL:
-        print("[migrar] DATABASE_URL não está definida. No Railway, adicione a variável do "
-              "serviço apontando para o Postgres: DATABASE_URL = ${{Postgres.DATABASE_URL}} "
-              "(troque 'Postgres' pelo nome real do serviço de banco).", file=sys.stderr)
+        print("[migrar] nenhuma URL de banco válida chegou no container.", file=sys.stderr)
+        print(f"[migrar] procurei em: {', '.join(db.CANDIDATAS)}", file=sys.stderr)
+        print(f"[migrar] variáveis parecidas com banco presentes: "
+              f"{db.variaveis_de_banco() or 'NENHUMA'}", file=sys.stderr)
+        print("[migrar] uma referência do Railway que não resolve chega VAZIA. Se o nome acima "
+              "aparece na lista mas o valor não vale, a referência está apontando para um "
+              "serviço com outro nome — ou cole a connection string literal.", file=sys.stderr)
         return False
 
-    print(f"[migrar] banco: {db.onde()}")
+    print(f"[migrar] banco: {db.onde()} (via {db.ORIGEM})")
     ok, erro = db.esperar()
     if not ok:
-        print(f"[migrar] banco não respondeu em 90s: {erro}", file=sys.stderr)
+        print(f"[migrar] banco não respondeu em {db.ESPERA_SEG}s: {erro}", file=sys.stderr)
         return False
 
     with psycopg.connect(db.DSN, autocommit=True) as conn:

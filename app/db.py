@@ -6,8 +6,30 @@ from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 
 # Railway injeta DATABASE_URL no serviço quando o Postgres está anexado.
-TEM_URL = bool(os.environ.get("DATABASE_URL"))
-DSN = os.environ.get("DATABASE_URL") or "postgresql:///duck"
+# O Railway pode expor a conexão com nomes diferentes conforme como o banco foi ligado.
+# Uma referência que não resolve chega como string VAZIA, não ausente — por isso o filtro.
+CANDIDATAS = ("DATABASE_URL", "DATABASE_PRIVATE_URL", "POSTGRES_URL",
+              "POSTGRESQL_URL", "PG_URL", "DATABASE_PUBLIC_URL")
+
+
+def _achar_url():
+    for nome in CANDIDATAS:
+        v = (os.environ.get(nome) or "").strip()
+        if v.startswith(("postgres://", "postgresql://")):
+            return nome, v
+    return None, None
+
+
+def variaveis_de_banco():
+    """Nomes (nunca valores) das variáveis parecidas com banco que chegaram no container.
+    É o que responde 'o Railway injetou alguma coisa?' sem vazar senha em log."""
+    return sorted(k for k in os.environ
+                  if any(t in k.upper() for t in ("DATABASE", "POSTGRES", "PG")))
+
+
+ORIGEM, _url = _achar_url()
+TEM_URL = bool(_url)
+DSN = _url or "postgresql:///duck"
 if DSN.startswith("postgres://"):          # forma antiga que o psycopg3 não aceita
     DSN = DSN.replace("postgres://", "postgresql://", 1)
 
