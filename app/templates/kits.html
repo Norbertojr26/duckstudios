@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% block titulo %}Kits — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  details{margin-bottom:var(--ds-e-3)}
+  summary{list-style:none;cursor:pointer;display:grid;
+          grid-template-columns:1fr 92px 118px 128px;gap:var(--ds-e-4);align-items:center;
+          padding:var(--ds-e-4);border-radius:var(--ds-r-card);
+          background:var(--ds-grad-surface);border:1px solid var(--ds-border);
+          box-shadow:var(--ds-elev-1)}
+  summary::-webkit-details-marker{display:none}
+  summary:hover{border-color:var(--ds-border-forte)}
+  .kn{font-weight:700;font-size:.9375rem}
+  .num{font-variant-numeric:tabular-nums;text-align:right;font-size:.875rem;color:var(--ds-txt-2)}
+  .num b{display:block;color:var(--ds-txt)}
+  .conteudo{padding:var(--ds-e-3) var(--ds-e-4) var(--ds-e-5)}
+  .li{display:grid;grid-template-columns:56px 1fr 100px 96px;gap:var(--ds-e-3);
+      align-items:center;padding:9px 0;font-size:.8125rem}
+  .li+.li{border-top:1px solid var(--ds-border)}
+  .cod{color:var(--ds-txt-3);font-variant-numeric:tabular-nums}
+  @media (max-width:800px){summary{grid-template-columns:1fr}.li{grid-template-columns:56px 1fr}}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><h1>Kits</h1>
+    <div class="sub">{{ linhas|length }} kits · o preço do kit já embute o case, com 10% de desconto sobre a soma dos itens</div></div>
+</div>
+
+<div class="aviso aviso--at">⚠︎ <div>Kit <b>não tem disponibilidade própria</b>: alugar um kit
+  reserva cada item individualmente. Se uma peça está em campo ou em manutenção, o sistema sabe
+  <b>qual</b> falta — e pode sugerir substituto em vez de recusar o kit inteiro.</div></div>
+
+{% for k in linhas %}
+<details {% if loop.first %}open{% endif %}>
+  <summary>
+    <div><div class="kn">{{ k.nome }}</div><div class="meta">{{ k.descricao }}</div></div>
+    <div class="num"><b>{{ k.itens }}</b>itens</div>
+    <div class="num"><b>{{ k.valor_diaria|brl }}</b>diária do kit</div>
+    <div class="num"><b>{{ k.patrimonio|brl }}</b>patrimônio</div>
+  </summary>
+  <div class="conteudo">
+    {% for i in por_kit.get(k.id, []) %}
+    <div class="li">
+      <span class="cod">{{ i.codigo }}</span>
+      <a href="/equipamento/{{ i.codigo }}" style="color:var(--ds-txt);text-decoration:none">{{ i.nome }}</a>
+      <span class="num">{{ i.valor_diaria|brl }}</span>
+      <span>{% if i.status == 'disponivel' %}<span class="ds-chip ds-chip--ok">disponível</span>
+            {% else %}<span class="ds-chip ds-chip--info">{{ i.status|replace('_',' ') }}</span>{% endif %}</span>
+    </div>
+    {% endfor %}
+    <div class="meta" style="margin-top:var(--ds-e-4)">
+      Soma das diárias avulsas: {{ k.soma_diarias|brl }} · como kit: <b>{{ k.valor_diaria|brl }}</b>
+      {% if k.indisponiveis %} · <span style="color:var(--ds-atencao)">{{ k.indisponiveis }} item(ns) fora</span>{% endif %}
+    </div>
+  </div>
+</details>
+{% endfor %}
+{% endblock %}

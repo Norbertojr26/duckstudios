@@ -21,6 +21,12 @@
   .nav .ic{width:20px;text-align:center;opacity:.85}
   .nav .grupo{font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;
               color:var(--ds-txt-3);padding:var(--ds-e-4) var(--ds-e-3) var(--ds-e-2)}
+  .futuro{display:flex;align-items:center;gap:var(--ds-e-3);min-height:38px;
+          padding:0 var(--ds-e-3);color:var(--ds-txt-3);font-size:.875rem;opacity:.55;
+          cursor:default}
+  .futuro i{margin-left:auto;font-style:normal;font-size:.625rem;letter-spacing:.06em;
+            text-transform:uppercase;border:1px solid var(--ds-border);border-radius:999px;
+            padding:2px 7px}
   .badge{margin-left:auto;background:var(--ds-erro-bg);color:var(--ds-erro);font-size:.6875rem;
          font-weight:700;padding:2px 8px;border-radius:999px}
   main{padding:var(--ds-e-6) var(--ds-e-6) var(--ds-e-7);max-width:1400px;min-width:0}
@@ -57,10 +63,21 @@
   <div class="logo"><a href="/"><img src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios"></a></div>
   <nav class="nav">
     <a href="/"            class="{{ 'on' if ativo=='painel' }}"><span class="ic">◧</span> Painel</a>
-    <a href="/equipamento" class="{{ 'on' if ativo=='equipamento' }}"><span class="ic">▤</span> Equipamento</a>
+    <div class="grupo">Equipamento</div>
+    <a href="/equipamento" class="{{ 'on' if ativo=='equipamento' }}"><span class="ic">▤</span> Inventário</a>
+    <a href="/kits"        class="{{ 'on' if ativo=='kits' }}"><span class="ic">◫</span> Kits</a>
     <a href="/saidas"      class="{{ 'on' if ativo=='saidas' }}"><span class="ic">↗</span> Saídas</a>
+    <a href="/conferencia" class="{{ 'on' if ativo=='conferencia' }}"><span class="ic">◎</span> Conferência</a>
+    <div class="grupo">Comercial</div>
+    <a href="/precos"      class="{{ 'on' if ativo=='precos' }}"><span class="ic">$</span> Preços</a>
+    <span class="futuro">☺ Clientes<i>em breve</i></span>
+    <span class="futuro">◈ Propostas<i>em breve</i></span>
+    <div class="grupo">Operação</div>
+    <span class="futuro">▦ Projetos<i>em breve</i></span>
+    <span class="futuro">◐ Mídia<i>em breve</i></span>
+    <span class="futuro">✦ Agentes<i>em breve</i></span>
     <div class="grupo">Dados</div>
-    <a href="/api/docs"><span class="ic">✦</span> API dos agentes</a>
+    <a href="/api/docs"><span class="ic">⌁</span> API dos agentes</a>
   </nav>
 </aside>
 <main>

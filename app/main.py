@@ -250,6 +250,69 @@ def fechar(rid: str):
     return RedirectResponse(f"/saidas/{rid}?ok=Saída+encerrada", 303)
 
 
+# ------------------------------------------------------------ conferência
+
+@app.get("/conferencia", response_class=HTMLResponse)
+def conferencia(request: Request):
+    abertas = db.q("""
+        SELECT r.id, r.numero, r.tipo, r.checkout_at, r.previsao_devolucao,
+               coalesce(r.responsavel_nome, c.nome, co.nome, 'Sem responsável') AS responsavel,
+               count(rl.*) AS itens,
+               count(*) FILTER (WHERE rl.status = 'devolvido') AS devolvidos,
+               (r.previsao_devolucao IS NOT NULL AND r.previsao_devolucao < now()) AS atrasado,
+               coalesce(sum(a.valor_reposicao), 0) AS exposicao
+          FROM rental r
+          JOIN rental_line rl ON rl.rental_id = r.id
+          JOIN asset a        ON a.id = rl.asset_id
+          LEFT JOIN contact c ON c.id = r.contact_id
+          LEFT JOIN company co ON co.id = r.company_id
+         WHERE r.status = 'em_campo'
+         GROUP BY r.id, c.nome, co.nome
+         ORDER BY atrasado DESC, r.previsao_devolucao NULLS LAST""")
+    return pag(request, "conferencia.html", ativo="conferencia", abertas=abertas)
+
+
+# ------------------------------------------------------------------ kits
+
+@app.get("/kits", response_class=HTMLResponse)
+def kits(request: Request):
+    linhas = db.q("""
+        SELECT k.id, k.nome, k.descricao, k.valor_diaria,
+               count(ki.*) AS itens,
+               sum(a.valor_aquisicao) AS patrimonio,
+               sum(a.valor_diaria)    AS soma_diarias,
+               count(*) FILTER (WHERE a.status <> 'disponivel') AS indisponiveis
+          FROM kit k
+          JOIN kit_item ki ON ki.kit_id = k.id
+          JOIN asset a     ON a.id = ki.asset_id
+         GROUP BY k.id ORDER BY sum(a.valor_aquisicao) DESC""")
+    itens = db.q("""SELECT ki.kit_id, a.codigo, a.nome, a.status, a.valor_diaria
+                      FROM kit_item ki JOIN asset a ON a.id = ki.asset_id
+                     ORDER BY a.valor_aquisicao DESC NULLS LAST""")
+    por_kit = {}
+    for i in itens:
+        por_kit.setdefault(i["kit_id"], []).append(i)
+    return pag(request, "kits.html", ativo="kits", linhas=linhas, por_kit=por_kit)
+
+
+# ---------------------------------------------------------------- preços
+
+@app.get("/precos", response_class=HTMLResponse)
+def precos(request: Request):
+    servico = db.q("""SELECT categoria, codigo, descricao, unidade, valor
+                        FROM price_list WHERE ativo ORDER BY categoria, codigo""")
+    grupos = {}
+    for l in servico:
+        grupos.setdefault(l["categoria"] or "outros", []).append(l)
+    locacao = db.q("""
+        SELECT categoria, count(*) n,
+               round(avg(100 * valor_diaria / NULLIF(valor_aquisicao, 0))::numeric, 2) pct,
+               sum(valor_diaria) diaria, sum(valor_semanal) semanal, sum(valor_mensal) mensal
+          FROM asset WHERE proprietario = 'proprio' AND valor_diaria IS NOT NULL
+         GROUP BY categoria ORDER BY sum(valor_diaria) DESC""")
+    return pag(request, "precos.html", ativo="precos", grupos=grupos, locacao=locacao)
+
+
 # -------------------------------------------------------------------- API
 # Mesma verdade da interface, em JSON. É por aqui que os agentes leem e escrevem.
 

@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% block titulo %}Preços — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1080px){.grade{grid-template-columns:1fr}}
+  .grupo{font-size:.6875rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ds-txt-3);
+         padding:var(--ds-e-5) 0 var(--ds-e-2)}
+  .grupo:first-child{padding-top:0}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .cod{color:var(--ds-txt-3);font-size:.75rem}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><h1>Preços</h1>
+    <div class="sub">Locação calculada por percentual do valor do item · serviço e licenciamento em tabela</div></div>
+</div>
+
+<div class="aviso aviso--at">⚠︎ <div>Os valores de <b>serviço, licenciamento e retainer</b> são
+  proposta minha, para calibrar — não preço fechado. O que vale aqui é a estrutura: com a tabela
+  cadastrada, um orçamento sai sem ninguém inventar número. Edite pela planilha
+  (<code>exportar_planilha.py</code> → aba <b>Precos_servico</b>).</div></div>
+
+<div class="grade">
+  <section class="ds-card ds-card--alto">
+    <h2>Locação de equipamento</h2>
+    <div class="meta" style="margin-bottom:var(--ds-e-4)">
+      A regra real: 3,5% câmera principal · 3% premium · 2,5% médio · 2% case.
+      Semana = 4 diárias · mês = 10 diárias. Acessório herda o percentual do item-mãe.</div>
+    <table><thead><tr><th>Categoria</th><th class="num">Itens</th><th class="num">% dia</th>
+      <th class="num">Diária</th><th class="num">Mensal</th></tr></thead>
+    <tbody>{% for l in locacao %}<tr>
+      <td>{{ l.categoria }}</td>
+      <td class="num">{{ l.n }}</td>
+      <td class="num">{{ '%.2f'|format(l.pct) if l.pct else '—' }}%</td>
+      <td class="num">{{ l.diaria|brl }}</td>
+      <td class="num">{{ l.mensal|brl }}</td>
+    </tr>{% endfor %}</tbody></table>
+  </section>
+
+  <section class="ds-card ds-card--alto">
+    <h2>Serviço, pós e licenciamento</h2>
+    {% for cat, linhas in grupos.items() %}
+      <div class="grupo">{{ cat }}</div>
+      <table><tbody>{% for l in linhas %}<tr>
+        <td>{{ l.descricao }}<div class="cod">{{ l.codigo }}</div></td>
+        <td class="num">{% if l.unidade == 'percentual' %}{{ '%.0f'|format(l.valor) }}%
+            {% else %}{{ l.valor|brl }}{% endif %}
+          <div class="cod">{{ l.unidade if l.unidade != 'percentual' else 's/ produção' }}</div></td>
+      </tr>{% endfor %}</tbody></table>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

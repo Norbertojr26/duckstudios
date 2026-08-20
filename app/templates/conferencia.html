@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% block titulo %}Conferência — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .cartoes{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:var(--ds-e-4)}
+  .prog{height:8px;border-radius:999px;background:#0E1615;box-shadow:var(--ds-elev-afundado);
+        overflow:hidden;margin:var(--ds-e-3) 0 6px}
+  .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--ds-teal),var(--ds-acao))}
+  .prog i.tarde{background:linear-gradient(90deg,#B45309,var(--ds-atencao))}
+  .par{display:flex;justify-content:space-between;padding:9px 0;font-size:.8125rem;
+       color:var(--ds-txt-2)}
+  .par+.par{border-top:1px solid var(--ds-border)}
+  .par b{color:var(--ds-txt);font-variant-numeric:tabular-nums}
+  .vazio{padding:var(--ds-e-7) 0;text-align:center;color:var(--ds-txt-3);line-height:1.7}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><h1>Conferência</h1>
+    <div class="sub">{{ abertas|length }} saída(s) aguardando retorno</div></div>
+</div>
+
+{% if abertas %}
+<div class="cartoes">
+  {% for s in abertas %}
+  <section class="ds-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div><h2 style="margin-bottom:2px">{{ s.responsavel }}</h2>
+        <div class="meta">{{ s.numero }} · {{ s.tipo|replace('_',' ') }}</div></div>
+      {% if s.atrasado %}<span class="ds-chip ds-chip--erro">atrasado</span>
+      {% else %}<span class="ds-chip ds-chip--info">em campo</span>{% endif %}
+    </div>
+
+    <div class="prog"><i class="{{ 'tarde' if s.atrasado }}"
+      style="width:{{ (100*s.devolvidos/s.itens)|round }}%"></i></div>
+    <div class="meta">{{ s.devolvidos }} de {{ s.itens }} itens conferidos</div>
+
+    <div style="margin-top:var(--ds-e-4)">
+      <div class="par"><span>Saiu em</span>
+        <b>{{ s.checkout_at.strftime('%d/%m %H:%M') if s.checkout_at else '—' }}</b></div>
+      <div class="par"><span>Previsão</span>
+        <b>{{ s.previsao_devolucao.strftime('%d/%m %H:%M') if s.previsao_devolucao else '—' }}</b></div>
+      <div class="par"><span>Exposição</span><b>{{ s.exposicao|brl }}</b></div>
+    </div>
+
+    <a class="ds-btn" style="width:100%;margin-top:var(--ds-e-4);text-decoration:none"
+       href="/saidas/{{ s.id }}">Conferir retorno</a>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<section class="ds-card ds-card--alto"><div class="vazio">
+  Nada em campo agora.<br>
+  Quando houver equipamento fora, cada saída aparece aqui com o quanto já voltou —<br>
+  é a tela que substitui lembrar de cabeça o que ainda falta.
+</div></section>
+{% endif %}
+{% endblock %}
