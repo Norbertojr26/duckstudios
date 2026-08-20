@@ -1,0 +1,22 @@
+/* Satoshi — Indian Type Foundry, via Fontshare.
+ * A variável cobre 300–900 num arquivo só; os pesos estáticos são fallback para navegador antigo.
+ * Os arquivos .woff2 NÃO estão no repositório — ver README.md nesta pasta.
+ */
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("Satoshi-Variable.woff2") format("woff2-variations");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Fallback estático (usado só se woff2-variations não for suportado) */
+@font-face { font-family: "Satoshi Static"; src: url("Satoshi-Regular.woff2") format("woff2");
+             font-weight: 400; font-display: swap; }
+@font-face { font-family: "Satoshi Static"; src: url("Satoshi-Medium.woff2") format("woff2");
+             font-weight: 500; font-display: swap; }
+@font-face { font-family: "Satoshi Static"; src: url("Satoshi-Bold.woff2") format("woff2");
+             font-weight: 700; font-display: swap; }
+@font-face { font-family: "Satoshi Static"; src: url("Satoshi-Black.woff2") format("woff2");
+             font-weight: 900; font-display: swap; }

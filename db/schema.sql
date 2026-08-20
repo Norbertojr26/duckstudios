@@ -209,6 +209,13 @@ CREATE TABLE asset (
     -- avisa quando o valor ainda não foi confirmado por um humano.
     valor_reposicao_confirmado boolean NOT NULL DEFAULT false,
     data_aquisicao      date,
+    -- Próprio ou sublocado de terceiro. Muda tudo: sublocado não entra no patrimônio, não
+    -- recebe etiqueta, não tem valor de reposição seu, e o preço depende de cotação.
+    proprietario        text NOT NULL DEFAULT 'proprio'
+                        CHECK (proprietario IN ('proprio','sublocado')),
+    fornecedor_id       uuid REFERENCES company(id),
+    custo_diaria        numeric(12,2),          -- o que o fornecedor cobra de você
+    requer_cotacao      boolean NOT NULL DEFAULT false,
     -- Case/maleta que contém este item. Permite conferir "o case 0074" e expandir no conteúdo.
     container_id        uuid REFERENCES asset(id),
     e_container         boolean NOT NULL DEFAULT false,
@@ -220,6 +227,15 @@ CREATE TABLE asset (
     origem_import       text                    -- ex: 'assettiger:2026-08' para rastrear a carga
 );
 CREATE INDEX ON asset (container_id) WHERE container_id IS NOT NULL;
+CREATE INDEX ON asset (proprietario);
+
+-- Margem da sublocação: só existe quando há custo e preço.
+CREATE OR REPLACE VIEW margem_sublocacao AS
+SELECT codigo, nome, fornecedor_id, custo_diaria, valor_diaria,
+       valor_diaria - custo_diaria                                    AS margem_dia,
+       round(100 * (valor_diaria - custo_diaria) / NULLIF(custo_diaria, 0), 1) AS margem_pct
+FROM asset
+WHERE proprietario = 'sublocado';
 
 CREATE TABLE kit (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

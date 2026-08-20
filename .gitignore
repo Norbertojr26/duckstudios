@@ -4,3 +4,10 @@ __pycache__/
 etiquetas.html
 etiquetas.pdf
 *.xlsx
+design/fonts/*.woff2
+design/fonts/*.woff
+design/fonts/*.ttf
+design/fonts/*.otf
+design/fonts/*.eot
+db/seed_05_edicoes.sql
+duck-editavel.xlsx

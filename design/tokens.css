@@ -1,27 +1,63 @@
 /* Duck Studios — tokens de identidade
- * Extraídos do catálogo "Equipamentos para locação · Fevereiro 2026".
- * Fonte única de verdade visual: app de conferência, painel, propostas e etiquetas
- * importam daqui em vez de repetir cor na mão.
+ * Fontes: arquivo vetorial da marca (Duck_logo.ai) + catálogo "Equipamentos para locação · fev/2026".
+ * Fonte única de verdade visual: app de conferência, painel, propostas e etiquetas importam
+ * daqui em vez de repetir cor na mão.
  */
 
+@import url("fonts/satoshi.css");
+
 :root {
+  /* ---- Marca --------------------------------------------------------------
+     Valores lidos direto dos vetores do logotipo. O catálogo usa a versão
+     monocromática, mas a marca TEM cor — e é ela que manda. */
+  --ds-petroleo:      #082D2A;   /* fundo institucional da marca */
+  --ds-petroleo-esc:  #0B1E1C;
+  --ds-teal:          #018682;   /* cabeça do marreco — cor primária */
+  --ds-laranja:       #F18E25;   /* bico — cor secundária, usar com parcimônia */
+
   /* ---- Superfícies -------------------------------------------------------
      O catálogo é monocromático por decisão, não por falta de cor. 59% dos
      pixels são #161616 e 14% são #272727 — o sistema inteiro vive nesses dois. */
-  --ds-bg:            #161616;   /* fundo de página */
-  --ds-surface:       #1E1E1E;   /* card sobre o fundo */
-  --ds-surface-2:     #272727;   /* chip, campo, cabeçalho de tabela */
-  --ds-border:        #333333;
-  --ds-border-forte:  #4A4A4A;
+  --ds-bg:            #0A100F;   /* quase preto, puxado para o petróleo da marca */
+  --ds-surface:       #131C1A;   /* card */
+  --ds-surface-2:     #1B2725;   /* chip, campo, cabeçalho de tabela */
+  --ds-surface-3:     #24322F;   /* estado ativo, hover de linha */
+  --ds-border:        rgba(255,255,255,.07);   /* hairline, não linha */
+  --ds-border-forte:  rgba(255,255,255,.14);
+
+  /* Elevação: sombra difusa para baixo + fio de luz no topo. É esse par que dá a
+     sensação de superfície macia — sombra sozinha só deixa o card "colado". */
+  --ds-elev-1: 0 1px 2px rgba(0,0,0,.4),
+               0 8px 24px -8px rgba(0,0,0,.55),
+               inset 0 1px 0 rgba(255,255,255,.05);
+  --ds-elev-2: 0 2px 4px rgba(0,0,0,.45),
+               0 18px 48px -12px rgba(0,0,0,.7),
+               inset 0 1px 0 rgba(255,255,255,.07);
+  --ds-elev-afundado: inset 0 2px 6px rgba(0,0,0,.5),
+                      inset 0 -1px 0 rgba(255,255,255,.04);
+
+  /* Superfícies levam um gradiente quase imperceptível (topo mais claro).
+     Card chapado em fundo escuro fica sem volume. */
+  --ds-grad-surface:   linear-gradient(180deg, #182220 0%, #121A19 100%);
+  --ds-grad-surface-2: linear-gradient(180deg, #1F2C29 0%, #182321 100%);
+
+  /* Neutros do catálogo, para peças que precisam ficar idênticas a ele */
+  --ds-cat-bg:        #161616;
+  --ds-cat-surface:   #272727;
 
   /* ---- Texto ---- */
   --ds-txt:           #FFFFFF;
   --ds-txt-2:         rgba(255,255,255,.72);  /* subtítulo, descrição */
   --ds-txt-3:         rgba(255,255,255,.48);  /* rodapé, metadado */
 
-  /* ---- Estado ------------------------------------------------------------
-     A marca não tem cor de acento. Cor aqui é semântica, não decoração:
-     aparece só quando comunica estado, e por isso é lida na hora. */
+  /* ---- Ação e estado -----------------------------------------------------
+     O teal da marca é a cor de ação (botão, link, item selecionado).
+     O laranja do bico é acento raro — destaque pontual, nunca área grande.
+     As demais são semânticas: aparecem só quando comunicam estado. */
+  --ds-acao:          #2DBDB8;   /* teal clareado: 8,4:1 no fundo — o #018682 puro reprova como texto */
+  --ds-acao-fundo:    var(--ds-teal);
+  --ds-acao-hover:    #3ED3CE;
+  --ds-acento:        var(--ds-laranja);
   --ds-ok:            #4ADE80;   /* conferido, disponível */
   --ds-atencao:       #FBBF24;   /* pendente, valor não confirmado, devolução hoje */
   --ds-erro:          #F87171;   /* faltando, danificado, atrasado */
@@ -33,11 +69,12 @@
   --ds-info-bg:       rgba(96,165,250,.14);
 
   /* ---- Tipografia --------------------------------------------------------
-     O catálogo usa uma grotesca geométrica: títulos largos em peso regular,
-     corpo pequeno e neutro. O logotipo é mais pesado e mais redondo.
-     Stack livre que chega perto e não depende de licença. */
-  --ds-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --ds-font-marca: "Poppins", "Inter", var(--ds-font);
+     Satoshi (Indian Type Foundry / Fontshare) — a fonte real da marca.
+     Variável de 300 a 900 num arquivo só. Títulos largos em peso 500,
+     corpo em 400, logotipo em 700. Arquivos não versionados: ver fonts/README.md. */
+  --ds-font: "Satoshi", "Satoshi Static", -apple-system, BlinkMacSystemFont, "Segoe UI",
+             Helvetica, Arial, sans-serif;
+  --ds-font-marca: var(--ds-font);   /* a marca usa a mesma família, em peso maior */
 
   --ds-t-hero:   clamp(2rem, 5vw, 3.5rem);  /* "Departamento de Fotografia" */
   --ds-t-titulo: 1.5rem;
@@ -49,12 +86,14 @@
 
   /* ---- Forma ---- */
   --ds-r-chip:  999px;
-  --ds-r-card:  12px;
-  --ds-r-campo: 8px;
+  --ds-r-card:  22px;   /* canto largo é a assinatura desse estilo — 12px lê como painel de admin */
+  --ds-r-card-g: 28px;  /* card grande / folha */
+  --ds-r-campo: 14px;
+  --ds-r-btn:   999px;
 
   /* ---- Espaço ---- */
   --ds-e-1: 4px;  --ds-e-2: 8px;  --ds-e-3: 12px;
-  --ds-e-4: 16px; --ds-e-5: 24px; --ds-e-6: 40px;
+  --ds-e-4: 16px; --ds-e-5: 24px; --ds-e-6: 40px; --ds-e-7: 64px;
 
   /* ---- Alvo de toque -----------------------------------------------------
      44px é o mínimo. O app é usado com pressa, carregando case, de luva,
@@ -62,8 +101,9 @@
   --ds-toque-min: 44px;
 }
 
-/* O catálogo é dark-only. O app segue: tela escura cansa menos em set noturno
-   e não estoura a visão de quem acabou de olhar um monitor calibrado. */
+/* Dark-only, como o catálogo. Tela escura cansa menos em set noturno e não estoura a visão de
+   quem acabou de olhar um monitor calibrado. O fundo puxa para o petróleo da marca em vez do
+   cinza neutro — a diferença é sutil na tela e faz o app parecer da mesma casa que o logotipo. */
 body {
   background: var(--ds-bg);
   color: var(--ds-txt);
@@ -76,22 +116,56 @@ body {
 .ds-chip {
   display: inline-flex; align-items: center; gap: var(--ds-e-2);
   padding: 6px 12px; border-radius: var(--ds-r-chip);
-  background: var(--ds-surface-2); color: var(--ds-txt-2);
+  background: var(--ds-grad-surface-2); border: 1px solid var(--ds-border);
+  color: var(--ds-txt-2);
   font-size: var(--ds-t-meta); letter-spacing: .02em; white-space: nowrap;
 }
 .ds-chip--ok      { background: var(--ds-ok-bg);      color: var(--ds-ok); }
 .ds-chip--atencao { background: var(--ds-atencao-bg); color: var(--ds-atencao); }
 .ds-chip--erro    { background: var(--ds-erro-bg);    color: var(--ds-erro); }
 .ds-chip--info    { background: var(--ds-info-bg);    color: var(--ds-info); }
+.ds-chip--marca   { background: rgba(1,134,130,.16);  color: var(--ds-teal); }
+
+/* Botão: pílula, elevado, teal da marca com texto branco (4,4:1 — só para texto grande/semibold) */
+.ds-btn {
+  min-height: var(--ds-toque-min); padding: 0 var(--ds-e-5);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-e-2);
+  border: 0; border-radius: var(--ds-r-btn); cursor: pointer;
+  background: var(--ds-acao-fundo); color: #fff;
+  font-family: inherit; font-size: var(--ds-t-corpo); font-weight: 700;
+  box-shadow: var(--ds-elev-1);
+}
+.ds-btn:hover { background: #01A29D; }
+.ds-btn--fantasma {
+  background: var(--ds-surface-2); color: var(--ds-txt);
+  border: 1px solid var(--ds-border); box-shadow: var(--ds-elev-1);
+}
 
 .ds-card {
-  background: var(--ds-surface); border: 1px solid var(--ds-border);
-  border-radius: var(--ds-r-card); padding: var(--ds-e-4);
+  background: var(--ds-grad-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-r-card);
+  padding: var(--ds-e-5);
+  box-shadow: var(--ds-elev-1);
 }
+.ds-card--alto { box-shadow: var(--ds-elev-2); border-radius: var(--ds-r-card-g); }
+
+/* Campo de entrada parece afundado, botão parece elevado. É o que faz "onde eu clico"
+   ser óbvio sem precisar de instrução. */
+.ds-campo {
+  min-height: var(--ds-toque-min); width: 100%;
+  padding: 0 var(--ds-e-4); border: 1px solid var(--ds-border);
+  border-radius: var(--ds-r-campo); background: #0E1615; color: var(--ds-txt);
+  font: inherit; box-shadow: var(--ds-elev-afundado);
+}
+.ds-campo:focus { outline: 2px solid var(--ds-acao); outline-offset: 1px; }
 
 .ds-hero { font-size: var(--ds-t-hero); font-weight: var(--ds-peso-titulo); line-height: 1.05; }
 .ds-meta { font-size: var(--ds-t-meta); color: var(--ds-txt-3); }
 
-/* Etiquetas QR são a exceção: impressão é sempre preto sobre branco.
-   QR invertido (claro sobre escuro) derruba a leitura de muitos scanners. */
-@media print { :root { --ds-bg: #fff; --ds-txt: #000; } }
+/* Impressão é sempre preto sobre branco. Etiqueta QR invertida (claro sobre escuro) derruba a
+   leitura de muitos scanners, e termo assinado tem que sair legível em qualquer impressora. */
+@media print {
+  :root { --ds-bg: #fff; --ds-surface: #fff; --ds-surface-2: #f4f4f4;
+          --ds-txt: #000; --ds-txt-2: #333; --ds-txt-3: #666; --ds-border: #ccc; }
+}

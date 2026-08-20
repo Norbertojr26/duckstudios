@@ -32,16 +32,17 @@ Responder direto neste arquivo (editar e commitar).
 
 9. ~~Quantos itens no inventário?~~ ✅ **156 itens, R$ 519.110** — importado e validado.
     Ver [`13-analise-inventario.md`](13-analise-inventario.md). Restam destas:
-    - 9a. O AssetTiger tem **número de série** preenchido? (156/156 vieram vazios) 🔴
+    - 9a. ~~AssetTiger tem número de série?~~ ✅ **Não tem.** Captura vira trabalho manual, na
+      mesma passada da etiquetagem. Coluna `numero_serie` está na planilha editável 🔴
     - 9b. `0103` Aputure LS 600d: R$ 10.779,61 ou R$ 15.000? E `0104`: R$ 8.000 ou R$ 6.000? 🔴
     - 9c. Data de aquisição do `0145` Laowa 12mm 🟡
     - 9d. **Valor de reposição** dos ~30 itens de maior valor (é o que vai no termo) 🔴
       — o seed usa o valor de compra como piso, marcado como NÃO confirmado
     - 9e. O que mora dentro dos cases? 7 resolvidos pelo nome; faltam Pelican, DeWalt, SKB e
       Worldview 🟡
-    - 9f. **Os 14 itens do catálogo sem cadastro** são seus, foram vendidos, ou você subloca?
-      Ver [`15-catalogo-vs-inventario.md`](15-catalogo-vs-inventario.md) 🔴
-    - 9g. `0091` Dolly Slider: é ProAim Breeza (catálogo) ou Jingmei a R$ 360 (cadastro)? 🔴
+    - 9f. ~~Os 14 itens do catálogo~~ ✅ **sublocados**. Falta: de quem e por quanto
+      (aba *Sublocados* da planilha) 🔴
+    - 9g. ~~`0091` Dolly Slider~~ ✅ **é o ProAim Breeza**. Falta o valor de compra 🔴
 10. **O que é controlado por número de série** vs. por quantidade? (cabo e bateria por serial é o
     jeito mais rápido de abandonar o sistema) 🔴 bloqueia P0
 11. **Trabalha com kits fechados** ou monta item a item? 🔴 bloqueia P0
@@ -61,8 +62,8 @@ Responder direto neste arquivo (editar e commitar).
     - 17c. ~~Case como linha separada~~ ✅ embutido no preço dos 10 kits (desconto de 10%). Confirmar 🟡
     - 17d. ~~Tabela de serviço~~ ✅ criada em `seed_04_precos_servico.sql` — **21 linhas, todas
       proposta**. Calibrar os valores 🔴
-    - 17e. **Licenciamento de uso** entrou como linha própria (digital 12m +30%, TV/OOH +80%,
-      perpétuo +150%). Você cobra isso hoje? Em publicidade é onde está a margem 🔴
+    - 17e. ~~Licenciamento de uso~~ ✅ **não cobra hoje, quer começar.** As linhas `LIC-*` já
+      estão na tabela; ver [`16-licenciamento-de-uso.md`](16-licenciamento-de-uso.md) 🟡
     - 17f. **Retainer mensal** entrou a partir de R$ 25.000 (4 peças/mês). É o formato do cliente
       que você disse querer, e não existia na tabela 🔴
 18. **Acima de que valor** você quer aprovar pessoalmente?

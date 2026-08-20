@@ -26,7 +26,8 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/12-mvp-conferencia-equipamento.md`](docs/12-mvp-conferencia-equipamento.md) | **P0: spec do app de conferência com scan** |
 | [`docs/13-analise-inventario.md`](docs/13-analise-inventario.md) | **Análise do parque real** — 156 itens, R$ 519.110, e o que está errado nas planilhas |
 | [`docs/14-identidade-visual.md`](docs/14-identidade-visual.md) | **Identidade** extraída do catálogo → tokens do produto |
-| [`docs/15-catalogo-vs-inventario.md`](docs/15-catalogo-vs-inventario.md) | **14 itens que o catálogo vende e o patrimônio não conhece** |
+| [`docs/15-catalogo-vs-inventario.md`](docs/15-catalogo-vs-inventario.md) | **14 itens sublocados** que o catálogo vende e não são seus |
+| [`docs/16-licenciamento-de-uso.md`](docs/16-licenciamento-de-uso.md) | **Como começar a cobrar cessão de uso** — receita recorrente sem produção nova |
 | [`design/README.md`](design/README.md) | Logotipo, marca e `tokens.css` |
 | [`scripts/README.md`](scripts/README.md) | Importador do AssetTiger e gerador de etiquetas QR |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |
@@ -52,8 +53,13 @@ mecânica há três camadas de decisão — correções de preço, tarifa mensal
 patrimônio), e a tabela de preços de serviço/licenciamento/retainer que não existia.
 Ordem de aplicação em [`db/README.md`](db/README.md).
 
-A identidade visual foi extraída do catálogo e virou [`design/tokens.css`](design/tokens.css) —
-o app, as propostas e os termos herdam dali.
+A identidade está completa: paleta da marca (teal `#018682`, laranja `#F18E25`), **Satoshi**,
+9 SVGs do logotipo e o sistema de superfície escura macia — tudo em
+[`design/tokens.css`](design/tokens.css). Telas de referência em
+[`design/mock/`](design/mock/) usam os tokens reais e os dados reais do parque.
+
+**Nada de valor mora em SQL.** Valor de reposição, número de série, custo de sublocação e preço
+saem numa planilha editável e voltam para o banco — ver [`db/README.md`](db/README.md).
 
 ## Por onde começar
 

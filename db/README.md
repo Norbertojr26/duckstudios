@@ -24,8 +24,24 @@ psql -d duck -v ON_ERROR_STOP=1 \
 | `seed_02_regras.sql` | correções de %, tarifa mensal, valor de reposição, cases, 10 kits, nomes do catálogo | **julgamento** |
 | `seed_03_catalogo.sql` | 14 itens do catálogo sem cadastro, entram bloqueados | catálogo |
 | `seed_04_precos_servico.sql` | 21 linhas de preço de serviço, pós, licenciamento e retainer | **proposta** |
+| `seed_05_edicoes.sql` | o que você editou na planilha | gerado, não versionado |
 
 Tudo é idempotente: rodar de novo atualiza e preserva ids e histórico.
+
+## Editar sem escrever SQL
+
+Valor de reposição, número de série, custo de sublocação e preço não moram em SQL — moram numa
+planilha que você edita e devolve:
+
+```bash
+python scripts/exportar_planilha.py --db duck --out duck-editavel.xlsx   # exporta
+#   ... edite as colunas AMARELAS no Excel/Numbers ...
+python scripts/import_edicoes.py --xlsx duck-editavel.xlsx               # gera seed_05
+psql -d duck -f db/seed_05_edicoes.sql                                   # aplica
+```
+
+A chave é sempre o `codigo` do item — não apague linhas nem mexa nessa coluna. As abas são
+**Itens**, **Sublocados**, **Precos_locacao** e **Precos_servico**, com instruções na primeira aba.
 
 ## Testar
 

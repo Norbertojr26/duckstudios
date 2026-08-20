@@ -1,16 +1,37 @@
 # Identidade
 
-| Arquivo | O que é |
+| Caminho | O que é |
 |---|---|
-| `tokens.css` | cores, tipografia, forma e espaçamento — importar em todo produto |
-| `logo-duck-studios-branco.png` | logotipo completo, branco, fundo transparente (3934×1342) |
-| `marca-marreco-branco.png` | só a marca, para favicon e ícone do PWA (1334×1342) |
+| `tokens.css` | cores, tipografia, forma, elevação — importar em todo produto |
+| `logo/` | 9 SVGs do logotipo, gerados do `.ai` original |
+| `fonts/` | Satoshi — **os arquivos não são versionados**, ver `fonts/README.md` |
+| `mock/` | telas de referência em HTML, com tokens e dados reais |
 
-Os PNGs foram **extraídos do catálogo em PDF a 600 dpi** com o fundo removido — servem para tela e
-para impressão em tamanho moderado, mas **não são vetor**. Para aplicação grande (adesivo de van,
-backdrop, impressão A2+) use o arquivo original da marca; se ele não existir, vale vetorizar.
+## Logotipo
 
-Não existe versão para fundo claro. Documentos impressos (termo de responsabilidade, proposta)
-precisam de uma — hoje o jeito é usar o logo branco sobre uma faixa escura no cabeçalho.
+Gerado por [`../scripts/extrair_logos.py`](../scripts/extrair_logos.py) a partir de `Duck_logo.ai`.
+Fundo transparente, texto já em curvas — não dependem da fonte instalada e escalam sem perder.
+
+| Variante | Quando usar |
+|---|---|
+| `logo-horizontal-{cor,branco,preto}.svg` | topo de tela, cabeçalho de documento |
+| `logo-empilhado-{cor,branco,preto}.svg` | espaço estreito, capa, assinatura |
+| `marca-{cor,branco,preto}.svg` | favicon, ícone do PWA, avatar |
+
+**cor** sobre fundo claro ou petróleo · **branco** sobre fundo escuro · **preto** em impressão
+monocromática.
+
+## Cores da marca
+
+| Token | Hex |
+|---|---|
+| `--ds-teal` (primária) | `#018682` |
+| `--ds-laranja` (acento) | `#F18E25` |
+| `--ds-petroleo` | `#082D2A` |
+
+## Telas de referência
+
+`mock/painel.html` e `mock/saida.html` abrem no navegador e usam `tokens.css` de verdade —
+são o ponto de partida do código do app, não imagem de apresentação.
 
 Guia de uso e decisões: [`../docs/14-identidade-visual.md`](../docs/14-identidade-visual.md).
