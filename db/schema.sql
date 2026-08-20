@@ -199,15 +199,21 @@ CREATE TABLE asset (
     marca               text,
     modelo              text,
     numero_serie        text,
-    valor_reposicao     numeric(12,2),          -- entra no termo de responsabilidade
+    valor_aquisicao     numeric(12,2),          -- o que custou (vem do AssetTiger)
+    valor_reposicao     numeric(12,2),          -- quanto custa repor HOJE — é este que vai no termo
     valor_diaria        numeric(12,2),
     data_aquisicao      date,
+    -- Case/maleta que contém este item. Permite conferir "o case 0074" e expandir no conteúdo.
+    container_id        uuid REFERENCES asset(id),
+    e_container         boolean NOT NULL DEFAULT false,
     status              text NOT NULL DEFAULT 'disponivel'
                         CHECK (status IN ('disponivel','em_campo','manutencao','bloqueado','baixado')),
     serializado         boolean NOT NULL DEFAULT true,   -- false = consumível controlado por qtd
     quantidade          int NOT NULL DEFAULT 1,
-    observacoes         text
+    observacoes         text,
+    origem_import       text                    -- ex: 'assettiger:2026-08' para rastrear a carga
 );
+CREATE INDEX ON asset (container_id) WHERE container_id IS NOT NULL;
 
 CREATE TABLE kit (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

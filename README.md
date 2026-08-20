@@ -24,6 +24,8 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/10-como-funciona-hoje.md`](docs/10-como-funciona-hoje.md) | **Retrato da operação atual** — receita, comercial, controle de equipamento |
 | [`docs/11-necessidades-priorizadas.md`](docs/11-necessidades-priorizadas.md) | **Necessidades organizadas e priorizadas** (P0→P4) |
 | [`docs/12-mvp-conferencia-equipamento.md`](docs/12-mvp-conferencia-equipamento.md) | **P0: spec do app de conferência com scan** |
+| [`docs/13-analise-inventario.md`](docs/13-analise-inventario.md) | **Análise do parque real** — 156 itens, R$ 519.110, e o que está errado nas planilhas |
+| [`scripts/README.md`](scripts/README.md) | Importador do AssetTiger e gerador de etiquetas QR |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |
 | [`sops/README.md`](sops/README.md) | **Como capturar e escrever SOPs** (o método, não só o formato) |
 | [`sops/_TEMPLATE-SOP.md`](sops/_TEMPLATE-SOP.md) | Template v2 (o seu, corrigido e expandido) |
@@ -38,6 +40,12 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [SOP-003](sops/SOP-003-orcamento-comercial.md) | Lead → orçamento → follow-up | Rascunho |
 
 Rascunhos marcam com `<!-- PREENCHER -->` tudo que depende da sua operação real.
+
+## Estado da carga
+
+O inventário real já está importado e validado: **156 itens, R$ 519.110** de patrimônio, gerado por
+[`scripts/import_inventario.py`](scripts/import_inventario.py) a partir do export do AssetTiger e da
+planilha de aluguel. Seed em [`db/seed_inventario.sql`](db/seed_inventario.sql).
 
 ## Por onde começar
 

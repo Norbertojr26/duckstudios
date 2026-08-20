@@ -30,7 +30,13 @@ Responder direto neste arquivo (editar e commitar).
 
 ## Locação (bloqueia SOP-002)
 
-9. **Quantos itens** no inventário? — exportar o **CSV do AssetTiger**; é a carga inicial. 🔴 bloqueia P0
+9. ~~Quantos itens no inventário?~~ ✅ **156 itens, R$ 519.110** — importado e validado.
+    Ver [`13-analise-inventario.md`](13-analise-inventario.md). Restam destas:
+    - 9a. O AssetTiger tem **número de série** preenchido? (156/156 vieram vazios) 🔴
+    - 9b. `0103` Aputure LS 600d: R$ 10.779,61 ou R$ 15.000? E `0104`: R$ 8.000 ou R$ 6.000? 🔴
+    - 9c. Data de aquisição do `0145` Laowa 12mm 🟡
+    - 9d. **Valor de reposição** dos ~30 itens de maior valor (é o que vai no termo) 🔴
+    - 9e. O que mora dentro de cada um dos 15 cases? 🟡
 10. **O que é controlado por número de série** vs. por quantidade? (cabo e bateria por serial é o
     jeito mais rápido de abandonar o sistema) 🔴 bloqueia P0
 11. **Trabalha com kits fechados** ou monta item a item? 🔴 bloqueia P0
@@ -43,8 +49,12 @@ Responder direto neste arquivo (editar e commitar).
 ## Comercial e financeiro (bloqueia SOP-003)
 
 16. **Por onde chegam os leads**, em ordem de volume?
-17. **Tabela de preços:** diária de filmagem, hora de edição, diária por equipamento, deslocamento,
-    urgência. (anexar ou cadastrar)
+17. ~~Tabela de preços de equipamento~~ ✅ recebida e decodificada (3,5% / 3% / 2,5% / 2% da diária,
+    semanal = 4× diária, acessório herda o % do item-mãe). Restam:
+    - 17a. Confirmar as 4 exceções fora da regra — principalmente `0023` DJI RC PRO 2 🔴
+    - 17b. **Tarifa mensal** não existe. Qual? (padrão: mês ≈ 3× semana) 🔴
+    - 17c. Case deve continuar sendo linha separada na proposta, ou embutir no kit? 🟡
+    - 17d. Falta a tabela de **serviço**: diária de filmagem, hora de edição, deslocamento, urgência 🔴
 18. **Acima de que valor** você quer aprovar pessoalmente?
 19. **Prazo mínimo operacional** para aceitar um job?
 20. **Quantos orçamentos por mês** e qual a taxa de fechamento aproximada?
