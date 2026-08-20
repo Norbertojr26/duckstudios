@@ -1,0 +1,97 @@
+/* Duck Studios — tokens de identidade
+ * Extraídos do catálogo "Equipamentos para locação · Fevereiro 2026".
+ * Fonte única de verdade visual: app de conferência, painel, propostas e etiquetas
+ * importam daqui em vez de repetir cor na mão.
+ */
+
+:root {
+  /* ---- Superfícies -------------------------------------------------------
+     O catálogo é monocromático por decisão, não por falta de cor. 59% dos
+     pixels são #161616 e 14% são #272727 — o sistema inteiro vive nesses dois. */
+  --ds-bg:            #161616;   /* fundo de página */
+  --ds-surface:       #1E1E1E;   /* card sobre o fundo */
+  --ds-surface-2:     #272727;   /* chip, campo, cabeçalho de tabela */
+  --ds-border:        #333333;
+  --ds-border-forte:  #4A4A4A;
+
+  /* ---- Texto ---- */
+  --ds-txt:           #FFFFFF;
+  --ds-txt-2:         rgba(255,255,255,.72);  /* subtítulo, descrição */
+  --ds-txt-3:         rgba(255,255,255,.48);  /* rodapé, metadado */
+
+  /* ---- Estado ------------------------------------------------------------
+     A marca não tem cor de acento. Cor aqui é semântica, não decoração:
+     aparece só quando comunica estado, e por isso é lida na hora. */
+  --ds-ok:            #4ADE80;   /* conferido, disponível */
+  --ds-atencao:       #FBBF24;   /* pendente, valor não confirmado, devolução hoje */
+  --ds-erro:          #F87171;   /* faltando, danificado, atrasado */
+  --ds-info:          #60A5FA;   /* em campo */
+
+  --ds-ok-bg:         rgba(74,222,128,.14);
+  --ds-atencao-bg:    rgba(251,191,36,.14);
+  --ds-erro-bg:       rgba(248,113,113,.14);
+  --ds-info-bg:       rgba(96,165,250,.14);
+
+  /* ---- Tipografia --------------------------------------------------------
+     O catálogo usa uma grotesca geométrica: títulos largos em peso regular,
+     corpo pequeno e neutro. O logotipo é mais pesado e mais redondo.
+     Stack livre que chega perto e não depende de licença. */
+  --ds-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --ds-font-marca: "Poppins", "Inter", var(--ds-font);
+
+  --ds-t-hero:   clamp(2rem, 5vw, 3.5rem);  /* "Departamento de Fotografia" */
+  --ds-t-titulo: 1.5rem;
+  --ds-t-corpo:  0.9375rem;
+  --ds-t-meta:   0.75rem;
+
+  --ds-peso-titulo: 500;   /* títulos do catálogo NÃO são bold — são regular/medium largos */
+  --ds-peso-marca:  700;
+
+  /* ---- Forma ---- */
+  --ds-r-chip:  999px;
+  --ds-r-card:  12px;
+  --ds-r-campo: 8px;
+
+  /* ---- Espaço ---- */
+  --ds-e-1: 4px;  --ds-e-2: 8px;  --ds-e-3: 12px;
+  --ds-e-4: 16px; --ds-e-5: 24px; --ds-e-6: 40px;
+
+  /* ---- Alvo de toque -----------------------------------------------------
+     44px é o mínimo. O app é usado com pressa, carregando case, de luva,
+     no sol — em campo, botão pequeno é botão que não funciona. */
+  --ds-toque-min: 44px;
+}
+
+/* O catálogo é dark-only. O app segue: tela escura cansa menos em set noturno
+   e não estoura a visão de quem acabou de olhar um monitor calibrado. */
+body {
+  background: var(--ds-bg);
+  color: var(--ds-txt);
+  font-family: var(--ds-font);
+  font-size: var(--ds-t-corpo);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Chip — o padrão de rótulo do catálogo (as pílulas "Câmeras · Drones · Iluminação") */
+.ds-chip {
+  display: inline-flex; align-items: center; gap: var(--ds-e-2);
+  padding: 6px 12px; border-radius: var(--ds-r-chip);
+  background: var(--ds-surface-2); color: var(--ds-txt-2);
+  font-size: var(--ds-t-meta); letter-spacing: .02em; white-space: nowrap;
+}
+.ds-chip--ok      { background: var(--ds-ok-bg);      color: var(--ds-ok); }
+.ds-chip--atencao { background: var(--ds-atencao-bg); color: var(--ds-atencao); }
+.ds-chip--erro    { background: var(--ds-erro-bg);    color: var(--ds-erro); }
+.ds-chip--info    { background: var(--ds-info-bg);    color: var(--ds-info); }
+
+.ds-card {
+  background: var(--ds-surface); border: 1px solid var(--ds-border);
+  border-radius: var(--ds-r-card); padding: var(--ds-e-4);
+}
+
+.ds-hero { font-size: var(--ds-t-hero); font-weight: var(--ds-peso-titulo); line-height: 1.05; }
+.ds-meta { font-size: var(--ds-t-meta); color: var(--ds-txt-3); }
+
+/* Etiquetas QR são a exceção: impressão é sempre preto sobre branco.
+   QR invertido (claro sobre escuro) derruba a leitura de muitos scanners. */
+@media print { :root { --ds-bg: #fff; --ds-txt: #000; } }

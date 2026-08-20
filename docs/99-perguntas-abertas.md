@@ -36,7 +36,12 @@ Responder direto neste arquivo (editar e commitar).
     - 9b. `0103` Aputure LS 600d: R$ 10.779,61 ou R$ 15.000? E `0104`: R$ 8.000 ou R$ 6.000? 🔴
     - 9c. Data de aquisição do `0145` Laowa 12mm 🟡
     - 9d. **Valor de reposição** dos ~30 itens de maior valor (é o que vai no termo) 🔴
-    - 9e. O que mora dentro de cada um dos 15 cases? 🟡
+      — o seed usa o valor de compra como piso, marcado como NÃO confirmado
+    - 9e. O que mora dentro dos cases? 7 resolvidos pelo nome; faltam Pelican, DeWalt, SKB e
+      Worldview 🟡
+    - 9f. **Os 14 itens do catálogo sem cadastro** são seus, foram vendidos, ou você subloca?
+      Ver [`15-catalogo-vs-inventario.md`](15-catalogo-vs-inventario.md) 🔴
+    - 9g. `0091` Dolly Slider: é ProAim Breeza (catálogo) ou Jingmei a R$ 360 (cadastro)? 🔴
 10. **O que é controlado por número de série** vs. por quantidade? (cabo e bateria por serial é o
     jeito mais rápido de abandonar o sistema) 🔴 bloqueia P0
 11. **Trabalha com kits fechados** ou monta item a item? 🔴 bloqueia P0
@@ -52,9 +57,14 @@ Responder direto neste arquivo (editar e commitar).
 17. ~~Tabela de preços de equipamento~~ ✅ recebida e decodificada (3,5% / 3% / 2,5% / 2% da diária,
     semanal = 4× diária, acessório herda o % do item-mãe). Restam:
     - 17a. Confirmar as 4 exceções fora da regra — principalmente `0023` DJI RC PRO 2 🔴
-    - 17b. **Tarifa mensal** não existe. Qual? (padrão: mês ≈ 3× semana) 🔴
-    - 17c. Case deve continuar sendo linha separada na proposta, ou embutir no kit? 🟡
-    - 17d. Falta a tabela de **serviço**: diária de filmagem, hora de edição, deslocamento, urgência 🔴
+    - 17b. ~~Tarifa mensal~~ ✅ criada: **mês = 2,5× semana = 10 diárias**. Confirmar 🟡
+    - 17c. ~~Case como linha separada~~ ✅ embutido no preço dos 10 kits (desconto de 10%). Confirmar 🟡
+    - 17d. ~~Tabela de serviço~~ ✅ criada em `seed_04_precos_servico.sql` — **21 linhas, todas
+      proposta**. Calibrar os valores 🔴
+    - 17e. **Licenciamento de uso** entrou como linha própria (digital 12m +30%, TV/OOH +80%,
+      perpétuo +150%). Você cobra isso hoje? Em publicidade é onde está a margem 🔴
+    - 17f. **Retainer mensal** entrou a partir de R$ 25.000 (4 peças/mês). É o formato do cliente
+      que você disse querer, e não existia na tabela 🔴
 18. **Acima de que valor** você quer aprovar pessoalmente?
 19. **Prazo mínimo operacional** para aceitar um job?
 20. **Quantos orçamentos por mês** e qual a taxa de fechamento aproximada?

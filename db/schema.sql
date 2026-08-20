@@ -59,9 +59,10 @@ CREATE TABLE price_list (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo          text UNIQUE NOT NULL,
     descricao       text NOT NULL,
-    unidade         text NOT NULL,              -- diaria | hora | km | unidade | pacote
+    unidade         text NOT NULL,              -- diaria | hora | km | mes | unidade | pacote | percentual
     valor           numeric(12,2) NOT NULL,
-    categoria       text,                       -- servico | locacao | deslocamento | extra
+    categoria       text,                       -- servico | pos | locacao | deslocamento
+                                                -- | licenciamento | extra | retainer
     ativo           boolean NOT NULL DEFAULT true
 );
 
@@ -195,13 +196,18 @@ CREATE TABLE asset (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo              text UNIQUE NOT NULL,   -- etiqueta física: DS-CAM-001
     nome                text NOT NULL,
-    categoria           text NOT NULL,          -- camera | lente | audio | luz | grip | acessorio
+    categoria           text NOT NULL,          -- categorias reais do studio; ver db/seed_inventario.sql
     marca               text,
     modelo              text,
     numero_serie        text,
     valor_aquisicao     numeric(12,2),          -- o que custou (vem do AssetTiger)
     valor_reposicao     numeric(12,2),          -- quanto custa repor HOJE — é este que vai no termo
     valor_diaria        numeric(12,2),
+    valor_semanal       numeric(12,2),
+    valor_mensal        numeric(12,2),
+    -- false enquanto valor_reposicao for estimativa. O termo de responsabilidade
+    -- avisa quando o valor ainda não foi confirmado por um humano.
+    valor_reposicao_confirmado boolean NOT NULL DEFAULT false,
     data_aquisicao      date,
     -- Case/maleta que contém este item. Permite conferir "o case 0074" e expandir no conteúdo.
     container_id        uuid REFERENCES asset(id),

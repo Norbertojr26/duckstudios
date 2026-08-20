@@ -5,10 +5,27 @@
 
 ## Aplicar
 
+**A ordem importa.** `seed_inventario.sql` é carga mecânica das planilhas; os demais são camadas de
+decisão aplicadas por cima. Reimportar as planilhas sem reaplicar as camadas desfaz as correções.
+
 ```bash
 createdb duck
-psql -d duck -v ON_ERROR_STOP=1 -f db/schema.sql
+psql -d duck -v ON_ERROR_STOP=1 \
+  -f db/schema.sql \
+  -f db/seed_inventario.sql \
+  -f db/seed_02_regras.sql \
+  -f db/seed_03_catalogo.sql \
+  -f db/seed_04_precos_servico.sql
 ```
+
+| Arquivo | O que é | Origem |
+|---|---|---|
+| `seed_inventario.sql` | 156 itens | gerado das planilhas — não editar à mão |
+| `seed_02_regras.sql` | correções de %, tarifa mensal, valor de reposição, cases, 10 kits, nomes do catálogo | **julgamento** |
+| `seed_03_catalogo.sql` | 14 itens do catálogo sem cadastro, entram bloqueados | catálogo |
+| `seed_04_precos_servico.sql` | 21 linhas de preço de serviço, pós, licenciamento e retainer | **proposta** |
+
+Tudo é idempotente: rodar de novo atualiza e preserva ids e histórico.
 
 ## Testar
 

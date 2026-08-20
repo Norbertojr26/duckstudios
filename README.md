@@ -25,6 +25,9 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/11-necessidades-priorizadas.md`](docs/11-necessidades-priorizadas.md) | **Necessidades organizadas e priorizadas** (P0→P4) |
 | [`docs/12-mvp-conferencia-equipamento.md`](docs/12-mvp-conferencia-equipamento.md) | **P0: spec do app de conferência com scan** |
 | [`docs/13-analise-inventario.md`](docs/13-analise-inventario.md) | **Análise do parque real** — 156 itens, R$ 519.110, e o que está errado nas planilhas |
+| [`docs/14-identidade-visual.md`](docs/14-identidade-visual.md) | **Identidade** extraída do catálogo → tokens do produto |
+| [`docs/15-catalogo-vs-inventario.md`](docs/15-catalogo-vs-inventario.md) | **14 itens que o catálogo vende e o patrimônio não conhece** |
+| [`design/README.md`](design/README.md) | Logotipo, marca e `tokens.css` |
 | [`scripts/README.md`](scripts/README.md) | Importador do AssetTiger e gerador de etiquetas QR |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |
 | [`sops/README.md`](sops/README.md) | **Como capturar e escrever SOPs** (o método, não só o formato) |
@@ -43,9 +46,14 @@ Rascunhos marcam com `<!-- PREENCHER -->` tudo que depende da sua operação rea
 
 ## Estado da carga
 
-O inventário real já está importado e validado: **156 itens, R$ 519.110** de patrimônio, gerado por
-[`scripts/import_inventario.py`](scripts/import_inventario.py) a partir do export do AssetTiger e da
-planilha de aluguel. Seed em [`db/seed_inventario.sql`](db/seed_inventario.sql).
+O inventário real está importado e validado em PostgreSQL 16: **156 itens, R$ 519.110** de
+patrimônio, mais **14 itens bloqueados** que o catálogo vende sem cadastro. Em cima da carga
+mecânica há três camadas de decisão — correções de preço, tarifa mensal, 10 kits (46% do
+patrimônio), e a tabela de preços de serviço/licenciamento/retainer que não existia.
+Ordem de aplicação em [`db/README.md`](db/README.md).
+
+A identidade visual foi extraída do catálogo e virou [`design/tokens.css`](design/tokens.css) —
+o app, as propostas e os termos herdam dali.
 
 ## Por onde começar
 

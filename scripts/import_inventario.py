@@ -120,12 +120,14 @@ def main():
 
         cat = (pi or {}).get("cat") or "Sem categoria"
         diaria = num(pi["diaria"]) if pi else None
+        semanal = num(pi["semanal"]) if pi else None
         e_container = bool(CONTAINER_RE.search(desc)) or cat == "Case/Proteção"
 
         linhas.append(
             f"  ({sqlstr(tag)}, {sqlstr(desc)}, {sqlstr(cat)}, {sqlstr(marca)}, "
             f"{custo if custo is not None else 'NULL'}, "
             f"{diaria if diaria is not None else 'NULL'}, "
+            f"{semanal if semanal is not None else 'NULL'}, "
             f"{sqlstr(data)}::date, {str(e_container).lower()})")
 
     out = Path(a.out)
@@ -137,11 +139,12 @@ def main():
         "-- valor_reposicao fica NULL de propósito: é o valor que vai no termo de\n"
         "-- responsabilidade e precisa ser o custo de repor HOJE, não o de compra.\n\n"
         "INSERT INTO asset (codigo, nome, categoria, marca, valor_aquisicao, valor_diaria,\n"
-        "                   data_aquisicao, e_container, serializado, origem_import) \n"
+        "                   valor_semanal, data_aquisicao, e_container, serializado, origem_import)\n"
         "VALUES\n" + ",\n".join(l[:-1] + ", true, 'assettiger:2026-08')" for l in linhas) + "\n"
         "ON CONFLICT (codigo) DO UPDATE SET\n"
         "  nome = EXCLUDED.nome, categoria = EXCLUDED.categoria, marca = EXCLUDED.marca,\n"
         "  valor_aquisicao = EXCLUDED.valor_aquisicao, valor_diaria = EXCLUDED.valor_diaria,\n"
+        "  valor_semanal = EXCLUDED.valor_semanal,\n"
         "  data_aquisicao = EXCLUDED.data_aquisicao, e_container = EXCLUDED.e_container;\n",
         encoding="utf-8")
 
