@@ -17,6 +17,11 @@ def rodar():
         print(f"[migrar] procurei em: {', '.join(db.CANDIDATAS)}", file=sys.stderr)
         print(f"[migrar] variáveis parecidas com banco presentes: "
               f"{db.variaveis_de_banco() or 'NENHUMA'}", file=sys.stderr)
+        nao = db.referencias_nao_resolvidas()
+        if nao:
+            print(f"[migrar] ATENÇÃO: {nao} ainda contêm '${{{{...}}}}' — você copiou o TEMPLATE "
+                  "em vez do valor. No serviço Postgres use o botão Connect e copie a "
+                  "connection string já resolvida.", file=sys.stderr)
         print("[migrar] uma referência do Railway que não resolve chega VAZIA. Se o nome acima "
               "aparece na lista mas o valor não vale, a referência está apontando para um "
               "serviço com outro nome — ou cole a connection string literal.", file=sys.stderr)
@@ -26,6 +31,11 @@ def rodar():
     ok, erro = db.esperar()
     if not ok:
         print(f"[migrar] banco não respondeu em {db.ESPERA_SEG}s: {erro}", file=sys.stderr)
+        if "password authentication failed" in str(erro):
+            print("[migrar] O host respondeu, então a URL está quase certa — o que não bate é a "
+                  "SENHA. Causa mais comum: o valor colado ainda tem ${{POSTGRES_PASSWORD}} "
+                  "literal, ou veio truncado. No serviço Postgres, use Connect e copie a "
+                  "connection string resolvida.", file=sys.stderr)
         return False
 
     with psycopg.connect(db.DSN, autocommit=True) as conn:

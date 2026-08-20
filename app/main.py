@@ -83,6 +83,7 @@ def healthz():
                              "erro": "nenhuma URL de banco válida no ambiente",
                              "procurei_em": list(db.CANDIDATAS),
                              "variaveis_presentes": db.variaveis_de_banco(),
+                             "referencias_nao_resolvidas": db.referencias_nao_resolvidas(),
                              "dica": "referência do Railway que não resolve chega vazia — "
                                      "confira o nome do serviço de banco"},
                             status_code=503)

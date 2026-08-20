@@ -12,12 +12,39 @@ CANDIDATAS = ("DATABASE_URL", "DATABASE_PRIVATE_URL", "POSTGRES_URL",
               "POSTGRESQL_URL", "PG_URL", "DATABASE_PUBLIC_URL")
 
 
+# Marca de referência do Railway que não foi resolvida. Se isso chega dentro do valor,
+# o que temos é o TEMPLATE, não a senha — e o Postgres responde "password authentication failed".
+NAO_RESOLVIDA = "${{"
+
+
 def _achar_url():
     for nome in CANDIDATAS:
         v = (os.environ.get(nome) or "").strip()
-        if v.startswith(("postgres://", "postgresql://")):
+        if v.startswith(("postgres://", "postgresql://")) and NAO_RESOLVIDA not in v:
             return nome, v
+    # Sem URL utilizável, tenta montar a partir das peças (PGHOST/PGUSER/...), que é a
+    # outra forma comum de o Railway expor a conexão.
+    peca = {k: (os.environ.get(k) or "").strip() for k in
+            ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE")}
+    if peca["PGHOST"] and peca["PGUSER"] and NAO_RESOLVIDA not in "".join(peca.values()):
+        from urllib.parse import quote
+        senha = f":{quote(peca['PGPASSWORD'], safe='')}" if peca["PGPASSWORD"] else ""
+        banco = peca["PGDATABASE"] or "railway"
+        usuario = quote(peca["PGUSER"], safe="")
+        if peca["PGHOST"].startswith("/"):      # socket local: host vai como parâmetro
+            extra = f"?host={quote(peca['PGHOST'], safe='')}"
+            if peca["PGPORT"]:
+                extra += f"&port={peca['PGPORT']}"
+            return "PG* (peças)", f"postgresql://{usuario}{senha}@/{banco}{extra}"
+        porta = f":{peca['PGPORT']}" if peca["PGPORT"] else ""
+        return "PG* (peças)", f"postgresql://{usuario}{senha}@{peca['PGHOST']}{porta}/{banco}"
     return None, None
+
+
+def referencias_nao_resolvidas():
+    """Variáveis cujo valor ainda contém ${{...}} — o Railway não substituiu."""
+    return sorted(k for k in CANDIDATAS + ("PGPASSWORD", "PGHOST", "PGUSER", "PGDATABASE")
+                  if NAO_RESOLVIDA in (os.environ.get(k) or ""))
 
 
 def variaveis_de_banco():
