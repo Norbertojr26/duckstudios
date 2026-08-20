@@ -66,17 +66,25 @@ async def exigir_senha(request: Request, call_next):
 @app.on_event("startup")
 def _startup():
     db.abrir()
+    print(f"[app] banco: {db.onde() if db.TEM_URL else 'DATABASE_URL AUSENTE'}")
     if not SENHA:
         print("[ATENÇÃO] APP_SENHA não definida — a aplicação está aberta a quem tiver a URL.")
 
 
 @app.get("/healthz")
 def healthz():
+    """Diz o que está errado, não só que está errado. Sem senha e sem credencial no corpo."""
+    if not db.TEM_URL:
+        return JSONResponse({"ok": False, "banco": None,
+                             "erro": "DATABASE_URL não definida",
+                             "dica": "Variables do serviço → DATABASE_URL = ${{Postgres.DATABASE_URL}}"},
+                            status_code=503)
     try:
-        db.q1("SELECT 1 AS ok")
-        return {"ok": True}
+        n = db.q1("SELECT count(*) AS n FROM asset")
+        return {"ok": True, "banco": db.onde(), "itens": n["n"]}
     except Exception as e:                                  # noqa: BLE001
-        return JSONResponse({"ok": False, "erro": str(e)}, status_code=503)
+        return JSONResponse({"ok": False, "banco": db.onde(),
+                             "erro": f"{type(e).__name__}: {e}"}, status_code=503)
 
 
 def pag(request, nome, **ctx):

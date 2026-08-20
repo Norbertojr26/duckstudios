@@ -6,15 +6,53 @@ from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 
 # Railway injeta DATABASE_URL no serviço quando o Postgres está anexado.
+TEM_URL = bool(os.environ.get("DATABASE_URL"))
 DSN = os.environ.get("DATABASE_URL") or "postgresql:///duck"
 if DSN.startswith("postgres://"):          # forma antiga que o psycopg3 não aceita
     DSN = DSN.replace("postgres://", "postgresql://", 1)
+
+
+def onde():
+    """Host e banco, sem a senha — para aparecer em log e no /healthz sem vazar credencial."""
+    try:
+        resto = DSN.split("://", 1)[1]
+        if "@" in resto:
+            resto = resto.split("@", 1)[1]
+        host, _, caminho = resto.partition("/")
+        return f"{host}/{caminho.split('?')[0] or '?'}"
+    except Exception:                                        # noqa: BLE001
+        return "desconhecido"
+
 
 _pool = ConnectionPool(DSN, min_size=1, max_size=8, kwargs={"row_factory": dict_row}, open=False)
 
 
 def abrir():
-    _pool.open(wait=True, timeout=30)
+    # wait=False de propósito: se o Postgres ainda não estiver de pé, o servidor sobe assim mesmo
+    # e o /healthz explica o que está errado. Morrer no boot só produz um container em loop.
+    _pool.open(wait=False)
+
+
+ESPERA_SEG = int(os.environ.get("DB_ESPERA_SEG", "90"))
+
+
+def esperar(segundos=None):
+    """Aguarda o banco aceitar conexão. A rede privada da Railway leva alguns segundos para
+    ficar pronta depois que o container inicia — tentar uma vez só falha por milésimos."""
+    import time
+    import psycopg
+    segundos = ESPERA_SEG if segundos is None else segundos
+    limite, espera, ultimo = time.time() + segundos, 1.0, None
+    while time.time() < limite:
+        try:
+            with psycopg.connect(DSN, connect_timeout=5) as c:
+                c.execute("SELECT 1")
+            return True, None
+        except Exception as e:                               # noqa: BLE001
+            ultimo = e
+            time.sleep(espera)
+            espera = min(espera * 1.6, 8)
+    return False, ultimo
 
 
 @contextmanager
