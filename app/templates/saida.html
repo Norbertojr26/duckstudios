@@ -1,0 +1,102 @@
+{% extends "base.html" %}{% block titulo %}Saída {{ r.numero }}{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 340px;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1100px){.grade{grid-template-columns:1fr}}
+  .scanner{border:2px dashed var(--ds-border-forte);border-radius:var(--ds-r-card);
+           padding:var(--ds-e-5);text-align:center;background:#0E1615;
+           box-shadow:var(--ds-elev-afundado);margin-bottom:var(--ds-e-4)}
+  .scanner input{margin:var(--ds-e-4) auto 0;max-width:260px;text-align:center;
+                 font-variant-numeric:tabular-nums;letter-spacing:.15em;font-weight:700;
+                 font-size:1.25rem}
+  .li{display:grid;grid-template-columns:24px 1fr 120px 100px;gap:var(--ds-e-3);
+      align-items:center;padding:12px 14px;border-radius:16px;margin-bottom:8px;
+      background:var(--ds-grad-surface-2);border:1px solid var(--ds-border)}
+  .dot{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;
+       font-size:.75rem;font-weight:700}
+  .dot--ok{background:var(--ds-ok);color:#062B14}
+  .dot--esp{background:var(--ds-surface-3);color:var(--ds-txt-3);border:1px solid var(--ds-border-forte)}
+  .prog{height:8px;border-radius:999px;background:#0E1615;box-shadow:var(--ds-elev-afundado);
+        overflow:hidden;margin:var(--ds-e-3) 0}
+  .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--ds-teal),var(--ds-acao))}
+  .par{display:flex;justify-content:space-between;padding:11px 0;font-size:.875rem;color:var(--ds-txt-2)}
+  .par+.par{border-top:1px solid var(--ds-border)}
+  .par b{color:var(--ds-txt);font-variant-numeric:tabular-nums}
+  .abas{display:flex;gap:6px;margin-bottom:var(--ds-e-4)}
+</style>{% endblock %}
+{% block conteudo %}
+{% set devolvidos = itens|selectattr('status','equalto','devolvido')|list|length %}
+{% set aberto = r.status != 'devolvido' %}
+<div class="topo">
+  <div><div class="meta">Saída {{ r.numero }} · {{ r.tipo|replace('_',' ') }}</div>
+    <h1>{{ r.responsavel }}</h1>
+    <div class="sub">{{ itens|length }} itens · {{ devolvidos }} devolvidos</div></div>
+  <a class="ds-btn ds-btn--fantasma" href="/saidas">Todas as saídas</a>
+</div>
+
+{% if erro %}<div class="aviso aviso--erro">✕ <div>{{ erro }}</div></div>{% endif %}
+{% if ok %}<div class="aviso aviso--ok">✓ <div>{{ ok }}</div></div>{% endif %}
+
+<div class="grade">
+  <section class="ds-card ds-card--alto">
+    {% if aberto %}
+    <div class="abas">
+      <button class="ds-btn" onclick="mom('saida')"   id="b-saida">Adicionar na saída</button>
+      <button class="ds-btn ds-btn--fantasma" onclick="mom('retorno')" id="b-retorno">Conferir retorno</button>
+    </div>
+    <form method="post" action="/saidas/{{ r.id }}/bipar" class="scanner">
+      <div style="font-size:1.0625rem;font-weight:700" id="rot">Bipe ou digite o código</div>
+      <div class="meta" id="dica">O leitor de código de barras digita e dá Enter sozinho</div>
+      <input class="ds-campo" name="codigo" placeholder="0000" autofocus autocomplete="off">
+      <input type="hidden" name="momento" id="momento" value="saida">
+    </form>
+    {% endif %}
+
+    <h2>Itens</h2>
+    {% for i in itens %}
+    <div class="li">
+      <span class="dot {{ 'dot--ok' if i.status=='devolvido' else 'dot--esp' }}">
+        {{ '✓' if i.status=='devolvido' else '·' }}</span>
+      <div><a href="/equipamento/{{ i.codigo }}" style="color:var(--ds-txt);text-decoration:none;font-weight:600">{{ i.nome }}</a>
+        <div class="meta">{{ i.codigo }} · {{ i.categoria }}
+          {% if not i.valor_reposicao_confirmado %} · reposição estimada{% endif %}</div></div>
+      <div class="meta">{{ i.valor_diaria|brl }}/dia</div>
+      <div>{% if i.status=='devolvido' %}<span class="ds-chip ds-chip--ok">devolvido</span>
+           {% else %}<span class="ds-chip ds-chip--info">em campo</span>{% endif %}</div>
+    </div>
+    {% else %}
+    <div class="meta" style="padding:var(--ds-e-5) 0">Nenhum item ainda. Bipe o primeiro acima —
+      tente <b>0118</b> (Sony FX6) ou <b>0001</b> (Sony FX3).</div>
+    {% endfor %}
+  </section>
+
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
+    <section class="ds-card">
+      <h2>Conferência</h2>
+      <div class="meta">{{ devolvidos }} de {{ itens|length }} conferidos</div>
+      <div class="prog"><i style="width:{{ (100*devolvidos/itens|length)|round if itens else 0 }}%"></i></div>
+      <div class="par"><span>Reposição no termo</span>
+        <b>{{ itens|sum(attribute='valor_reposicao')|brl }}</b></div>
+      <div class="par"><span>Diária somada</span>
+        <b>{{ itens|sum(attribute='valor_diaria')|brl }}</b></div>
+      {% if aberto %}
+      <form method="post" action="/saidas/{{ r.id }}/fechar">
+        <button class="ds-btn" style="width:100%;margin-top:var(--ds-e-4)">Encerrar saída</button>
+      </form>
+      <div class="meta" style="margin-top:10px;line-height:1.5">Não fecha com item pendente —
+        a regra é do servidor, não da tela.</div>
+      {% else %}<div class="aviso aviso--ok" style="margin:var(--ds-e-4) 0 0">✓ <div>Encerrada</div></div>{% endif %}
+    </section>
+  </div>
+</div>
+
+<script>
+function mom(m){
+  document.getElementById('momento').value = m;
+  document.getElementById('b-saida').className   = m=='saida'   ? 'ds-btn' : 'ds-btn ds-btn--fantasma';
+  document.getElementById('b-retorno').className = m=='retorno' ? 'ds-btn' : 'ds-btn ds-btn--fantasma';
+  document.getElementById('rot').textContent = m=='retorno'
+      ? 'Bipe o item que voltou' : 'Bipe ou digite o código';
+  document.querySelector('.scanner input').focus();
+}
+</script>
+{% endblock %}

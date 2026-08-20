@@ -1,0 +1,11 @@
+.git
+.gitignore
+docs/
+sops/
+design/mock/
+app/static/tokens.css
+app/static/logo/
+app/static/fonts/
+**/__pycache__
+*.xlsx
+venv/

@@ -1,0 +1,71 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block titulo %}Duck Studios{% endblock %}</title>
+<link rel="icon" href="/static/logo/marca-cor.svg">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+  .rail{background:var(--ds-grad-surface);border-right:1px solid var(--ds-border);
+        padding:var(--ds-e-5) var(--ds-e-4);display:flex;flex-direction:column;
+        gap:var(--ds-e-6);min-height:100vh}
+  .rail .logo{padding:0 var(--ds-e-3)}.rail .logo img{width:142px;display:block}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;align-items:center;gap:var(--ds-e-3);min-height:var(--ds-toque-min);
+         padding:0 var(--ds-e-3);border-radius:var(--ds-r-campo);color:var(--ds-txt-2);
+         text-decoration:none;font-size:.875rem}
+  .nav a:hover{background:var(--ds-surface-2);color:var(--ds-txt)}
+  .nav a.on{background:var(--ds-grad-surface-2);color:var(--ds-txt);font-weight:700;
+            border:1px solid var(--ds-border);box-shadow:var(--ds-elev-1)}
+  .nav .ic{width:20px;text-align:center;opacity:.85}
+  .nav .grupo{font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;
+              color:var(--ds-txt-3);padding:var(--ds-e-4) var(--ds-e-3) var(--ds-e-2)}
+  .badge{margin-left:auto;background:var(--ds-erro-bg);color:var(--ds-erro);font-size:.6875rem;
+         font-weight:700;padding:2px 8px;border-radius:999px}
+  main{padding:var(--ds-e-6) var(--ds-e-6) var(--ds-e-7);max-width:1400px;min-width:0}
+  h1{font-size:2.25rem;font-weight:500;margin:0 0 4px;letter-spacing:-.02em}
+  h2{font-size:1.0625rem;font-weight:700;margin:0 0 var(--ds-e-4)}
+  .topo{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--ds-e-5);
+        margin-bottom:var(--ds-e-6);flex-wrap:wrap}
+  .sub{font-size:.875rem;color:var(--ds-txt-2)}
+  .meta{font-size:.8125rem;color:var(--ds-txt-3)}
+  a{color:var(--ds-acao)}
+  table{width:100%;border-collapse:collapse;font-size:.875rem}
+  th{text-align:left;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;
+     color:var(--ds-txt-3);font-weight:600;padding:0 var(--ds-e-3) var(--ds-e-3)}
+  td{padding:var(--ds-e-3);border-top:1px solid var(--ds-border);vertical-align:middle}
+  tbody tr:hover{background:var(--ds-surface-2)}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+  .aviso{display:flex;gap:10px;padding:12px 16px;border-radius:14px;font-size:.875rem;
+         margin-bottom:var(--ds-e-4)}
+  .aviso--erro{background:var(--ds-erro-bg);color:var(--ds-erro)}
+  .aviso--ok{background:var(--ds-ok-bg);color:var(--ds-ok)}
+  .aviso--at{background:var(--ds-atencao-bg);color:var(--ds-atencao)}
+  @media (max-width:860px){
+    body{grid-template-columns:1fr}
+    .rail{min-height:0;flex-direction:row;align-items:center;gap:var(--ds-e-4);
+          overflow-x:auto;border-right:0;border-bottom:1px solid var(--ds-border);
+          padding:var(--ds-e-3)}
+    .rail .logo img{width:104px}.nav{flex-direction:row}.nav .grupo{display:none}
+    main{padding:var(--ds-e-4)}h1{font-size:1.625rem}
+  }
+</style>
+{% block estilo %}{% endblock %}
+</head><body>
+<aside class="rail">
+  <div class="logo"><a href="/"><img src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios"></a></div>
+  <nav class="nav">
+    <a href="/"            class="{{ 'on' if ativo=='painel' }}"><span class="ic">◧</span> Painel</a>
+    <a href="/equipamento" class="{{ 'on' if ativo=='equipamento' }}"><span class="ic">▤</span> Equipamento</a>
+    <a href="/saidas"      class="{{ 'on' if ativo=='saidas' }}"><span class="ic">↗</span> Saídas</a>
+    <div class="grupo">Dados</div>
+    <a href="/api/docs"><span class="ic">✦</span> API dos agentes</a>
+  </nav>
+</aside>
+<main>
+{% if sem_senha %}<div class="aviso aviso--erro">⚠︎ <div><b>Sem senha.</b>
+  Qualquer pessoa com a URL vê seu patrimônio, seus valores e seus clientes.
+  Defina <code>APP_SENHA</code> nas variáveis do serviço.</div></div>{% endif %}
+{% block conteudo %}{% endblock %}</main>
+</body></html>

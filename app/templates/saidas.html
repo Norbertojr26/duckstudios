@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block titulo %}Saídas — Duck Studios{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Saídas</h1><div class="sub">{{ linhas|length }} registros</div></div></div>
+<section class="ds-card ds-card--alto">
+{% if linhas %}
+<table><thead><tr><th>Nº</th><th>Responsável</th><th>Tipo</th><th class="num">Itens</th>
+  <th>Saiu</th><th>Devolve</th><th>Status</th></tr></thead>
+<tbody>{% for s in linhas %}<tr>
+  <td class="meta">{{ s.numero or '—' }}</td>
+  <td><a href="/saidas/{{ s.id }}" style="color:var(--ds-txt);text-decoration:none;font-weight:600">{{ s.responsavel or '—' }}</a></td>
+  <td class="meta">{{ s.tipo|replace('_',' ') }}</td>
+  <td class="num">{{ s.devolvidos }}/{{ s.itens }}</td>
+  <td class="meta">{{ s.checkout_at.strftime('%d/%m %H:%M') if s.checkout_at else '—' }}</td>
+  <td class="meta">{{ s.previsao_devolucao.strftime('%d/%m') if s.previsao_devolucao else '—' }}</td>
+  <td>{% if s.atrasado %}<span class="ds-chip ds-chip--erro">atrasado</span>
+      {% elif s.status == 'devolvido' %}<span class="ds-chip ds-chip--ok">devolvido</span>
+      {% else %}<span class="ds-chip ds-chip--info">{{ s.status }}</span>{% endif %}</td>
+</tr>{% endfor %}</tbody></table>
+{% else %}<div class="meta" style="padding:var(--ds-e-6) 0;text-align:center">
+  Nenhuma saída ainda. Crie a primeira no painel.</div>{% endif %}
+</section>
+{% endblock %}

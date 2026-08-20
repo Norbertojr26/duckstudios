@@ -1,0 +1,84 @@
+{% extends "base.html" %}{% block titulo %}Painel — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+         gap:var(--ds-e-4);margin-bottom:var(--ds-e-5)}
+  .stat .rot{font-size:var(--ds-t-meta);color:var(--ds-txt-3);letter-spacing:.04em;
+             text-transform:uppercase}
+  .stat .n{font-size:2rem;font-weight:700;letter-spacing:-.02em;margin:10px 0 2px;
+           font-variant-numeric:tabular-nums}
+  .grade{display:grid;grid-template-columns:1fr 340px;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1100px){.grade{grid-template-columns:1fr}}
+  .ini{width:38px;height:38px;border-radius:13px;display:grid;place-items:center;
+       background:var(--ds-grad-surface-2);border:1px solid var(--ds-border);
+       font-size:.75rem;font-weight:700;color:var(--ds-txt-2)}
+  .lista{font-size:.8125rem;color:var(--ds-txt-3);margin-top:3px;
+         display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .vazio{padding:var(--ds-e-6) 0;text-align:center;color:var(--ds-txt-3)}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><h1>Painel</h1><div class="sub">{{ r.total_proprios }} itens próprios · dados reais do parque</div></div>
+  <form method="post" action="/saidas/nova" style="display:flex;gap:8px;flex-wrap:wrap">
+    <input class="ds-campo" name="responsavel" placeholder="Quem leva" required style="width:190px">
+    <select class="ds-campo" name="tipo" style="width:auto">
+      <option value="emprestimo">Empréstimo</option>
+      <option value="locacao_paga">Locação paga</option>
+      <option value="uso_interno">Uso interno</option>
+      <option value="subcontratacao">Subcontratação</option>
+    </select>
+    <input class="ds-campo" name="dias" type="number" value="3" min="1" style="width:74px">
+    <button class="ds-btn">＋ Nova saída</button>
+  </form>
+</div>
+
+<section class="stats">
+  <div class="ds-card stat"><div class="rot">Em campo</div><div class="n">{{ r.em_campo }}</div>
+    <div class="sub">{{ r.valor_em_campo|brl }} em equipamento</div></div>
+  <div class="ds-card stat"><div class="rot">Atrasados</div>
+    <div class="n" {% if r.atrasadas %}style="color:var(--ds-erro)"{% endif %}>{{ r.atrasadas }}</div>
+    <div class="sub">saídas vencidas</div></div>
+  <div class="ds-card stat"><div class="rot">Disponíveis</div><div class="n">{{ r.disponiveis }}</div>
+    <div class="sub">de {{ r.total_proprios }} itens próprios</div></div>
+  <div class="ds-card stat"><div class="rot">Patrimônio</div><div class="n">{{ r.patrimonio|curto }}</div>
+    <div class="sub">{{ r.a_confirmar }} valores a confirmar</div></div>
+</section>
+
+{% if r.sem_serie %}
+<div class="aviso aviso--at">⚠︎ <div><b>{{ r.sem_serie }} itens sem número de série.</b>
+  Sem série, seguro e B.O. ficam muito mais difíceis — capture junto com a etiquetagem.</div></div>
+{% endif %}
+
+<div class="grade">
+  <section class="ds-card ds-card--alto">
+    <h2>O que está fora agora</h2>
+    {% if saidas %}
+    <table><thead><tr><th></th><th>Responsável</th><th>Tipo</th><th>Desde</th><th>Devolve</th><th></th></tr></thead>
+    <tbody>{% for s in saidas %}
+      <tr>
+        <td><div class="ini">{{ s.responsavel[:2]|upper }}</div></td>
+        <td><a href="/saidas/{{ s.id }}" style="font-weight:700;text-decoration:none;color:var(--ds-txt)">{{ s.responsavel }}</a>
+            <div class="lista">{{ s.itens }} itens · {{ s.lista }}</div></td>
+        <td><span class="ds-chip">{{ s.tipo|replace('_',' ') }}</span></td>
+        <td class="meta">{{ s.checkout_at.strftime('%d/%m') if s.checkout_at else '—' }}</td>
+        <td class="meta">{{ s.previsao_devolucao.strftime('%d/%m') if s.previsao_devolucao else '—' }}</td>
+        <td>{% if s.atrasado %}<span class="ds-chip ds-chip--erro">Atrasado</span>
+            {% else %}<span class="ds-chip ds-chip--info">Em campo</span>{% endif %}</td>
+      </tr>{% endfor %}</tbody></table>
+    {% else %}
+      <div class="vazio">Nada fora. Crie uma saída para testar o fluxo de conferência.</div>
+    {% endif %}
+  </section>
+
+  <section class="ds-card">
+    <h2>Precisa de você</h2>
+    {% if pendentes %}
+      {% for p in pendentes %}<div style="padding:10px 0;border-top:1px solid var(--ds-border)">
+        <b>{{ p.titulo }}</b><div class="meta">{{ p.descricao }}</div></div>{% endfor %}
+    {% else %}
+      <div class="meta" style="line-height:1.6">Nenhuma aprovação pendente.<br><br>
+        Quando os agentes entrarem, é aqui que eles pedem autorização antes de qualquer
+        coisa que chegue no cliente ou mexa em dinheiro.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

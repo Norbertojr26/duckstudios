@@ -4,7 +4,8 @@
  * daqui em vez de repetir cor na mão.
  */
 
-@import url("fonts/satoshi.css");
+/* A fonte é carregada pelo HTML (link para o Fontshare, ou fonts/satoshi.css local quando
+   os arquivos estiverem presentes) — ver design/fonts/README.md. */
 
 :root {
   /* ---- Marca --------------------------------------------------------------

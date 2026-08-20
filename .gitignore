@@ -11,3 +11,6 @@ design/fonts/*.otf
 design/fonts/*.eot
 db/seed_05_edicoes.sql
 duck-editavel.xlsx
+app/static/tokens.css
+app/static/logo/
+app/static/fonts/

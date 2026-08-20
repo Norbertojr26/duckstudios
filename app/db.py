@@ -1,0 +1,74 @@
+"""Conexão e consultas. Toda leitura da interface tem par em /api — a tela e o agente
+leem exatamente a mesma coisa, então não existe dado que só o humano enxerga."""
+import os
+from contextlib import contextmanager
+from psycopg_pool import ConnectionPool
+from psycopg.rows import dict_row
+
+# Railway injeta DATABASE_URL no serviço quando o Postgres está anexado.
+DSN = os.environ.get("DATABASE_URL") or "postgresql:///duck"
+if DSN.startswith("postgres://"):          # forma antiga que o psycopg3 não aceita
+    DSN = DSN.replace("postgres://", "postgresql://", 1)
+
+_pool = ConnectionPool(DSN, min_size=1, max_size=8, kwargs={"row_factory": dict_row}, open=False)
+
+
+def abrir():
+    _pool.open(wait=True, timeout=30)
+
+
+@contextmanager
+def cur():
+    with _pool.connection() as conn, conn.cursor() as c:
+        yield c
+
+
+def q(sql, params=None):
+    with cur() as c:
+        c.execute(sql, params or ())
+        return c.fetchall()
+
+
+def q1(sql, params=None):
+    r = q(sql, params)
+    return r[0] if r else None
+
+
+def exec_(sql, params=None):
+    with cur() as c:
+        c.execute(sql, params or ())
+        return c.rowcount
+
+
+# ---------------------------------------------------------------- consultas
+
+RESUMO = """
+SELECT
+  (SELECT count(*) FROM rental_line WHERE status = 'em_campo')                       AS em_campo,
+  (SELECT coalesce(sum(a.valor_reposicao), 0) FROM rental_line rl
+     JOIN asset a ON a.id = rl.asset_id WHERE rl.status = 'em_campo')                AS valor_em_campo,
+  (SELECT count(*) FROM rental r WHERE r.status = 'em_campo'
+     AND r.previsao_devolucao < now())                                               AS atrasadas,
+  (SELECT count(*) FROM asset WHERE proprietario = 'proprio' AND status = 'disponivel') AS disponiveis,
+  (SELECT count(*) FROM asset WHERE proprietario = 'proprio')                        AS total_proprios,
+  (SELECT coalesce(sum(valor_aquisicao), 0) FROM asset WHERE proprietario = 'proprio') AS patrimonio,
+  (SELECT count(*) FROM asset WHERE proprietario = 'proprio'
+     AND NOT valor_reposicao_confirmado)                                             AS a_confirmar,
+  (SELECT count(*) FROM asset WHERE proprietario = 'proprio' AND numero_serie IS NULL) AS sem_serie
+"""
+
+EM_CAMPO = """
+SELECT r.id, r.numero, r.tipo, r.checkout_at, r.previsao_devolucao,
+       coalesce(r.responsavel_nome, c.nome, co.nome, 'Sem responsável') AS responsavel,
+       (r.previsao_devolucao IS NOT NULL AND r.previsao_devolucao < now()) AS atrasado,
+       count(rl.*) AS itens,
+       string_agg(a.nome, ' · ' ORDER BY a.valor_aquisicao DESC NULLS LAST) AS lista
+  FROM rental r
+  JOIN rental_line rl ON rl.rental_id = r.id AND rl.status = 'em_campo'
+  JOIN asset a        ON a.id = rl.asset_id
+  LEFT JOIN contact c ON c.id = r.contact_id
+  LEFT JOIN company co ON co.id = r.company_id
+ WHERE r.status = 'em_campo'
+ GROUP BY r.id, c.nome, co.nome
+ ORDER BY atrasado DESC, r.checkout_at
+"""

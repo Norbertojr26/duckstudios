@@ -28,6 +28,7 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/14-identidade-visual.md`](docs/14-identidade-visual.md) | **Identidade** extraída do catálogo → tokens do produto |
 | [`docs/15-catalogo-vs-inventario.md`](docs/15-catalogo-vs-inventario.md) | **14 itens sublocados** que o catálogo vende e não são seus |
 | [`docs/16-licenciamento-de-uso.md`](docs/16-licenciamento-de-uso.md) | **Como começar a cobrar cessão de uso** — receita recorrente sem produção nova |
+| [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md) | **Deploy** — Postgres, senha, domínio e o que testar |
 | [`design/README.md`](design/README.md) | Logotipo, marca e `tokens.css` |
 | [`scripts/README.md`](scripts/README.md) | Importador do AssetTiger e gerador de etiquetas QR |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |
@@ -44,6 +45,17 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [SOP-003](sops/SOP-003-orcamento-comercial.md) | Lead → orçamento → follow-up | Rascunho |
 
 Rascunhos marcam com `<!-- PREENCHER -->` tudo que depende da sua operação real.
+
+## Aplicação
+
+Existe app rodando: FastAPI + PostgreSQL, com painel, busca de equipamento, conferência de saída e
+retorno por scan, e **API em `/api/docs` — a mesma verdade da tela, que é por onde os agentes vão
+ler e escrever.** Deploy em [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md).
+
+```bash
+createdb duck && export DATABASE_URL=postgresql:///duck
+pip install -r requirements.txt && python -m app.migrar && uvicorn app.main:app --reload
+```
 
 ## Estado da carga
 

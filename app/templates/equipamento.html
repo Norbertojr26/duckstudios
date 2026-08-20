@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% block titulo %}Equipamento — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--ds-e-4)}
+  .filtros .ds-campo{width:auto;min-width:200px}
+  .cod{font-variant-numeric:tabular-nums;color:var(--ds-txt-3);font-size:.8125rem}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><h1>Equipamento</h1><div class="sub">{{ itens|length }} itens</div></div>
+</div>
+
+<form class="filtros" method="get">
+  <input class="ds-campo" name="busca" value="{{ busca }}" placeholder="Buscar nome, código ou marca">
+  <select class="ds-campo" name="cat">
+    <option value="">Todas as categorias</option>
+    {% for c in cats %}<option value="{{ c.categoria }}" {{ 'selected' if c.categoria==cat }}>
+      {{ c.categoria }} ({{ c.n }})</option>{% endfor %}
+  </select>
+  <select class="ds-campo" name="dono">
+    <option value="proprio"   {{ 'selected' if dono=='proprio' }}>Próprios</option>
+    <option value="sublocado" {{ 'selected' if dono=='sublocado' }}>Sublocados</option>
+  </select>
+  <button class="ds-btn ds-btn--fantasma">Filtrar</button>
+</form>
+
+<section class="ds-card ds-card--alto">
+  <table><thead><tr>
+    <th>Código</th><th>Item</th><th>Categoria</th><th class="num">Diária</th>
+    <th class="num">Reposição</th><th>Série</th><th>Situação</th></tr></thead>
+  <tbody>{% for a in itens %}
+    <tr>
+      <td class="cod">{{ a.codigo }}</td>
+      <td><a href="/equipamento/{{ a.codigo }}" style="color:var(--ds-txt);text-decoration:none;font-weight:600">{{ a.nome }}</a>
+          <div class="meta">{{ a.marca or '' }}</div></td>
+      <td class="meta">{{ a.categoria }}</td>
+      <td class="num">{{ a.valor_diaria|brl if a.valor_diaria else ('cotar' if a.requer_cotacao else '—') }}</td>
+      <td class="num">{{ a.valor_reposicao|brl }}
+        {% if a.valor_reposicao and not a.valor_reposicao_confirmado %}
+          <span class="ds-chip ds-chip--atencao" style="font-size:.625rem">estimado</span>{% endif %}</td>
+      <td class="meta">{{ a.numero_serie or '—' }}</td>
+      <td>{% if a.situacao == 'em_campo' %}
+            <span class="ds-chip ds-chip--info">com {{ a.com_quem or '—' }}</span>
+          {% elif a.requer_cotacao %}<span class="ds-chip ds-chip--marca">sublocado</span>
+          {% elif a.status == 'disponivel' %}<span class="ds-chip ds-chip--ok">disponível</span>
+          {% else %}<span class="ds-chip">{{ a.status }}</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table>
+</section>
+{% endblock %}
