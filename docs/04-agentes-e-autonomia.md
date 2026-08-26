@@ -90,3 +90,8 @@ agent_action: cada tool call, argumentos, resultado, quem aprovou, quando
 
 Sem isso você não consegue responder "por que o agente mandou essa proposta para esse cliente?" —
 e um dia essa pergunta vai aparecer.
+
+**Meta-análise (quando houver volume):** com `agent_run`/`agent_action` acumulados, um agente
+revisor periódico analisa as últimas N execuções procurando erro recorrente, pedido ineficiente e
+aprovação sempre-idêntica (candidata a subir de A2→A3 por evidência). A auditoria já é o substrato;
+o revisor é só mais um agente lendo a mesma base.

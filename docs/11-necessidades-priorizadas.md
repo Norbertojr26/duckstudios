@@ -98,6 +98,13 @@ distribuição — e é o único que já provou converter.
 
 Quatro movimentos, em ordem de retorno esperado:
 
+**0. Reativação da base (o quick win que o CRM já viabiliza)**
+Padrão RFM clássico — recência, frequência, valor: quem já alugou ou fechou job e sumiu há
+N meses recebe um contato pessoal. Num case recente de CRM assistido por IA, uma campanha de
+reengajamento assim foi a recomendação de maior retorno (R$ 40k). A sua versão: o banco já tem
+`rental` e `deal` por cliente — uma consulta lista "clientes sem movimento há 90 dias" e o
+agente Rental/Comercial redige o contato (A2, como sempre). Custo quase zero, base quente.
+
 **1. Sistematizar a indicação (maior retorno, menor esforço)**
 Hoje ela é passiva. Vira ativa com três coisas: lista nominal de quem já indicou ou poderia indicar;
 uma frase clara e específica do que você procura ("produtora que precise de um diretor de fotografia
