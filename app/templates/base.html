@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap">
 <style>
   *{box-sizing:border-box}
+  [hidden]{display:none !important}   /* classes com display próprio não podem vencer o hidden */
   body{margin:0;display:grid;grid-template-columns:236px 1fr;min-height:100vh}
   .rail{background:var(--ds-grad-surface);border-right:1px solid var(--ds-border);
         padding:var(--ds-e-5) var(--ds-e-4);display:flex;flex-direction:column;
@@ -51,7 +52,6 @@
   .aviso--erro{background:var(--ds-erro-bg);color:var(--ds-erro)}
   .aviso--ok{background:var(--ds-ok-bg);color:var(--ds-ok)}
   .aviso--at{background:var(--ds-atencao-bg);color:var(--ds-atencao)}
-  #ds-pendentes:not([hidden]){display:block}
   @media (max-width:860px){
     body{grid-template-columns:1fr}
     .rail{min-height:0;flex-direction:row;align-items:center;gap:var(--ds-e-4);
@@ -79,7 +79,8 @@
     <a href="/propostas" class="{{ 'on' if ativo=='propostas' }}"><span class="ic">◈</span> Propostas</a>
     <div class="grupo">Operação</div>
     <a href="/projetos"  class="{{ 'on' if ativo=='projetos' }}"><span class="ic">▦</span> Projetos</a>
-    <a href="/agentes"   class="{{ 'on' if ativo=='agentes' }}"><span class="ic">✦</span> Agentes</a>
+    <a href="/agentes/sala" class="{{ 'on' if ativo=='sala' }}"><span class="ic">✦</span> Sala dos agentes</a>
+    <a href="/agentes"   class="{{ 'on' if ativo=='agentes' }}"><span class="ic">☑</span> Aprovações</a>
     <span class="futuro">◐ Mídia<i>em breve</i></span>
     <div class="grupo">Dados</div>
     <a href="/api/docs"><span class="ic">⌁</span> API dos agentes</a>

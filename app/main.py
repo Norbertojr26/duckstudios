@@ -690,6 +690,80 @@ def api_qualificar(dados: dict):
         return JSONResponse({"ok": False, "erro": f"{type(e).__name__}: {e}"}, 500)
 
 
+# --------------------------------------------------- agentes: sala ao vivo
+
+# O "ambiente" dos agentes é o banco + a API: o mundo deles é o CRM. Esta sala torna esse
+# trabalho visível — cada agente é uma mesa, cada tool call vira um evento na esteira.
+MESAS = [
+    {"chave": "rental", "nome": "Rental", "papel": "Régua de devoluções e atrasos",
+     "sop": "SOP-002", "cor": "#60A5FA", "origem": "agendado"},
+    {"chave": "comercial", "nome": "Comercial", "papel": "Qualificação de leads",
+     "sop": "SOP-003", "cor": "#2DBDB8", "origem": "evento"},
+    {"chave": "dit", "nome": "DIT / Mídia", "papel": "Ingestão e proxies",
+     "sop": "SOP-001", "cor": "#FBBF24", "origem": "futuro",
+     "motivo": "precisa do Mac Mini (acesso físico aos volumes)"},
+    {"chave": "entrega", "nome": "Entrega", "papel": "Review, masters e portfólio",
+     "sop": "SOP-005", "cor": "#F87171", "origem": "futuro",
+     "motivo": "depende de credenciais Vimeo/Drive"},
+]
+
+
+@app.get("/agentes/sala", response_class=HTMLResponse)
+def sala(request: Request):
+    return pag(request, "sala.html", ativo="sala")
+
+
+@app.get("/api/agentes/estado")
+def api_agentes_estado():
+    from .agentes import comercial as ag_comercial
+    from .agentes.agenda import ATIVO, INTERVALO
+
+    stats = {r["agente"]: r for r in db.q("""
+        SELECT agente,
+               count(*) FILTER (WHERE iniciado_em::date = current_date)          AS hoje,
+               count(*) FILTER (WHERE status = 'em_progresso'
+                                AND iniciado_em > now() - interval '10 minutes') AS ativos,
+               max(iniciado_em)                                                   AS ultima,
+               coalesce(sum(tokens_entrada) FILTER
+                        (WHERE iniciado_em::date = current_date), 0)              AS tok_in,
+               coalesce(sum(tokens_saida) FILTER
+                        (WHERE iniciado_em::date = current_date), 0)              AS tok_out
+          FROM agent_run GROUP BY agente""")}
+    pendentes = {r["agente"]: r["n"] for r in db.q("""
+        SELECT ar.agente, count(*) n
+          FROM approval_request a JOIN agent_run ar ON ar.id = a.run_id
+         WHERE a.status = 'pendente' GROUP BY ar.agente""")}
+    feed = db.q("""
+        SELECT aa.executado_em, ar.agente, aa.tool, aa.nivel_autonomia, aa.resultado, aa.erro
+          FROM agent_action aa JOIN agent_run ar ON ar.id = aa.run_id
+         ORDER BY aa.executado_em DESC LIMIT 20""")
+
+    mesas = []
+    for m in MESAS:
+        st = stats.get(m["chave"], {})
+        pend = pendentes.get(m["chave"], 0)
+        if m["origem"] == "futuro":
+            estado, detalhe = "futuro", m.get("motivo", "")
+        elif m["chave"] == "comercial" and not ag_comercial.configurado():
+            estado, detalhe = "sem_chave", "aguardando ANTHROPIC_API_KEY"
+        elif st.get("ativos"):
+            estado, detalhe = "trabalhando", "executando agora"
+        elif pend:
+            estado, detalhe = "aguardando", f"{pend} aprovação(ões) para você"
+        else:
+            estado = "plantao"
+            detalhe = (f"de plantão · passa a cada {INTERVALO // 60} min"
+                       if m["chave"] == "rental" and ATIVO else "de plantão · acionado por evento")
+        mesas.append({**m, "estado": estado, "detalhe": detalhe,
+                      "hoje": st.get("hoje", 0), "pendentes": pend,
+                      "ultima": st["ultima"].isoformat() if st.get("ultima") else None,
+                      "tokens": (st.get("tok_in", 0) or 0) + (st.get("tok_out", 0) or 0)})
+    return {"mesas": mesas,
+            "feed": [{"quando": f["executado_em"].isoformat(), "agente": f["agente"],
+                      "tool": f["tool"], "nivel": f["nivel_autonomia"],
+                      "resultado": f["resultado"], "erro": f["erro"]} for f in feed]}
+
+
 # -------------------------------------------------------------------- API
 # Mesma verdade da interface, em JSON. É por aqui que os agentes leem e escrevem.
 
