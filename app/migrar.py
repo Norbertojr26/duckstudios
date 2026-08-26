@@ -10,6 +10,13 @@ SEEDS = ["db/seed_inventario.sql", "db/seed_02_regras.sql",
          "db/seed_03_catalogo.sql", "db/seed_04_precos_servico.sql",
          "db/seed_05_edicoes.sql"]          # o último só existe se você exportou/editou
 
+# Mudanças de schema pós-lançamento. O schema.sql cria o banco do zero; um banco que já
+# existe precisa destes ALTERs. Todos idempotentes — rodar de novo é sempre seguro.
+MIGRACOES = [
+    "ALTER TABLE rental ADD COLUMN IF NOT EXISTS assinante_nome text",
+    "ALTER TABLE rental ADD COLUMN IF NOT EXISTS assinante_documento text",
+]
+
 
 def rodar():
     if not db.TEM_URL:
@@ -45,6 +52,8 @@ def rodar():
         if not existe:
             print("[migrar] criando schema")
             conn.execute((RAIZ / "db/schema.sql").read_text(encoding="utf-8"))
+        for ddl in MIGRACOES:
+            conn.execute(ddl)
         for s in SEEDS:
             f = RAIZ / s
             if not f.exists():

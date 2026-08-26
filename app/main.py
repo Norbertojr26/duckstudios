@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import db
+from .agentes import agenda as agentes_agenda
 
 RAIZ = Path(__file__).resolve().parent
 app = FastAPI(title="Duck Studios", docs_url="/api/docs", openapi_url="/api/openapi.json")
@@ -81,6 +82,7 @@ def _startup():
               f"{db.variaveis_de_banco() or 'NENHUMA'}")
     if not SENHA:
         print("[ATENÇÃO] APP_SENHA não definida — a aplicação está aberta a quem tiver a URL.")
+    agentes_agenda.iniciar()
 
 
 @app.get("/healthz")
@@ -278,6 +280,54 @@ def fechar(rid: str):
             f"/saidas/{rid}?erro=Faltam+{faltando['n']}+item(ns)+para+conferir", 303)
     db.exec_("UPDATE rental SET status='devolvido', checkin_at=now() WHERE id=%s", (rid,))
     return RedirectResponse(f"/saidas/{rid}?ok=Saída+encerrada", 303)
+
+
+# ------------------------------------------------------------------ termo
+
+def _dados_termo(rid):
+    r = db.q1("""SELECT r.*, coalesce(r.responsavel_nome, c.nome, co.nome) AS responsavel,
+                        co.nome AS empresa, c.cpf, c.telefone_e164
+                   FROM rental r LEFT JOIN contact c ON c.id = r.contact_id
+                   LEFT JOIN company co ON co.id = r.company_id WHERE r.id = %s""", (rid,))
+    if not r:
+        return None, None
+    itens = db.q("""SELECT a.codigo, a.nome, a.marca, a.numero_serie,
+                           a.valor_reposicao, a.valor_reposicao_confirmado, a.valor_diaria
+                      FROM rental_line rl JOIN asset a ON a.id = rl.asset_id
+                     WHERE rl.rental_id = %s
+                     ORDER BY a.valor_reposicao DESC NULLS LAST, a.codigo""", (rid,))
+    return r, itens
+
+
+@app.get("/saidas/{rid}/termo", response_class=HTMLResponse)
+def termo(request: Request, rid: str):
+    r, itens = _dados_termo(rid)
+    if not r:
+        return HTMLResponse("Saída não encontrada", status_code=404)
+    total_reposicao = sum(float(i["valor_reposicao"] or 0) for i in itens)
+    estimados = sum(1 for i in itens if not i["valor_reposicao_confirmado"])
+    return tpl.TemplateResponse(request, "termo.html",
+                                {"r": r, "itens": itens, "total_reposicao": total_reposicao,
+                                 "estimados": estimados})
+
+
+@app.post("/saidas/{rid}/assinar")
+def assinar(rid: str, assinatura: str = Form(...), assinante_nome: str = Form(...),
+            assinante_documento: str = Form("")):
+    # A assinatura chega como data-URI PNG do canvas. Validar o prefixo evita gravar
+    # qualquer outra coisa no lugar de uma imagem.
+    if not assinatura.startswith("data:image/png;base64,") or len(assinatura) < 200:
+        return RedirectResponse(f"/saidas/{rid}/termo?erro=assinatura+vazia", 303)
+    if len(assinatura) > 400_000:
+        return RedirectResponse(f"/saidas/{rid}/termo?erro=assinatura+grande+demais", 303)
+    db.exec_("""UPDATE rental SET assinatura_path = %s, assinante_nome = %s,
+                assinante_documento = NULLIF(%s, ''), termo_assinado_em = now()
+                 WHERE id = %s AND termo_assinado_em IS NULL""",
+             (assinatura, assinante_nome.strip(), assinante_documento.strip(), rid))
+    db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                VALUES ('rental', %s, 'evento_sistema', %s, 'humano')""",
+             (rid, f"termo assinado por {assinante_nome.strip()}"))
+    return RedirectResponse(f"/saidas/{rid}/termo", 303)
 
 
 # ------------------------------------------------------------ conferência
@@ -596,9 +646,48 @@ def agentes(request: Request):
 
 @app.post("/agentes/aprovacao/{aid}")
 def aprovacao(aid: str, decisao: str = Form(...)):
-    db.exec_("""UPDATE approval_request SET status=%s, decidido_por='humano', decidido_em=now()
-                 WHERE id=%s""", ("aprovado" if decisao == "sim" else "rejeitado", aid))
+    novo = "aprovado" if decisao == "sim" else "rejeitado"
+    a = db.q1("""UPDATE approval_request SET status=%s, decidido_por='humano', decidido_em=now()
+                  WHERE id=%s AND status='pendente' RETURNING payload, descricao""", (novo, aid))
+    # Aprovar uma mensagem = ela entra na outbox já autorizada. O envio em si acontece
+    # quando houver canal configurado (e-mail/WhatsApp) — nada sai por baixo dos panos.
+    if a and novo == "aprovado":
+        p = a["payload"] if isinstance(a["payload"], dict) else {}
+        if p.get("acao") == "enviar_mensagem":
+            db.exec_("""INSERT INTO outbox (canal, destino, corpo, aprovado_por)
+                        VALUES (%s, %s, %s, 'humano')""",
+                     (p.get("canal", "whatsapp"), p.get("destinatario", "a definir"),
+                      p.get("corpo", a["descricao"])))
     return RedirectResponse("/agentes", 303)
+
+
+# ------------------------------------------------------ agentes: ações
+
+@app.post("/agentes/rental/rodar")
+def rental_rodar_agora():
+    from .agentes import rental as ag_rental
+    resumo = ag_rental.rodar()
+    return RedirectResponse("/agentes", 303)
+
+
+@app.post("/api/agentes/comercial/qualificar")
+def api_qualificar(dados: dict):
+    """Entrada de lead (WhatsApp/Instagram/site → webhook). O agente extrai, cria contato e
+    negócio, e devolve um rascunho que fica AGUARDANDO APROVAÇÃO — nada é enviado daqui."""
+    from .agentes import comercial as ag_comercial
+    if not dados.get("mensagem"):
+        return JSONResponse({"ok": False, "erro": "campo 'mensagem' é obrigatório"}, 400)
+    if not ag_comercial.configurado():
+        return JSONResponse({"ok": False,
+                             "erro": "ANTHROPIC_API_KEY não configurada no serviço",
+                             "dica": "Railway → duckstudios → Variables → ANTHROPIC_API_KEY"},
+                            503)
+    try:
+        return ag_comercial.qualificar(
+            mensagem=dados["mensagem"], nome=dados.get("nome"),
+            telefone=dados.get("telefone"), canal=dados.get("canal", "whatsapp"))
+    except Exception as e:                                           # noqa: BLE001
+        return JSONResponse({"ok": False, "erro": f"{type(e).__name__}: {e}"}, 500)
 
 
 # -------------------------------------------------------------------- API

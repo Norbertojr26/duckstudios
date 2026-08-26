@@ -29,6 +29,7 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/15-catalogo-vs-inventario.md`](docs/15-catalogo-vs-inventario.md) | **14 itens sublocados** que o catálogo vende e não são seus |
 | [`docs/16-licenciamento-de-uso.md`](docs/16-licenciamento-de-uso.md) | **Como começar a cobrar cessão de uso** — receita recorrente sem produção nova |
 | [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md) | **Deploy** — Postgres, senha, domínio e o que testar |
+| [`docs/18-analise-sop-oficial.md`](docs/18-analise-sop-oficial.md) | **Análise do SOP oficial** e o mapa módulo→agente |
 | [`design/README.md`](design/README.md) | Logotipo, marca e `tokens.css` |
 | [`scripts/README.md`](scripts/README.md) | Importador do AssetTiger e gerador de etiquetas QR |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |
@@ -51,9 +52,14 @@ Rascunhos marcam com `<!-- PREENCHER -->` tudo que depende da sua operação rea
 No ar em `crm.duckstudios.com.br`. FastAPI + PostgreSQL, instalável como PWA e **funcionando sem
 rede**: a bipada offline entra numa fila local e sobe sozinha, sem duplicar.
 
-Módulos: painel · equipamento e kits · saídas e conferência por scan (câmera, leitor ou digitação) ·
-funil, clientes e propostas com PDF · projetos · agentes. E **`/api/docs` — a mesma verdade das
-telas, que é por onde os agentes leem e escrevem.**
+Módulos: painel · equipamento e kits · saídas e conferência por scan (câmera, leitor ou digitação)
+· **termo de responsabilidade com assinatura na tela** · funil, clientes e propostas com PDF ·
+projetos · agentes. E **`/api/docs` — a mesma verdade das telas.**
+
+**Agentes rodando:** Rental (régua de devoluções, determinístico, a cada 15 min) e Comercial
+(qualificação de leads com LLM — exige `ANTHROPIC_API_KEY`). Ambos em autonomia A2: redigem e
+pedem aprovação em `/agentes`; nada chega ao cliente sem humano aprovar. Auditoria completa em
+`agent_run`/`agent_action`.
 
 Deploy em [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md).
 

@@ -47,14 +47,14 @@
 <tbody>{% for i in itens %}<tr>
   <td>{{ i.descricao }}</td>
   <td class="num">{{ i.quantidade|qtd }}</td>
-  <td class="num">R$ {{ '%.2f'|format(i.valor_unitario or 0)|replace('.', ',') }}</td>
-  <td class="num">R$ {{ '%.2f'|format(i.total or 0)|replace('.', ',') }}</td>
+  <td class="num">{{ i.valor_unitario|brl }}</td>
+  <td class="num">{{ i.total|brl }}</td>
 </tr>{% endfor %}</tbody></table>
 
 <div class="totais">
-  <div class="tl"><span>Subtotal</span><span>R$ {{ '%.2f'|format(q.subtotal or 0)|replace('.', ',') }}</span></div>
-  {% if q.desconto %}<div class="tl"><span>Desconto</span><span>− R$ {{ '%.2f'|format(q.desconto)|replace('.', ',') }}</span></div>{% endif %}
-  <div class="tl forte"><span>Total</span><span>R$ {{ '%.2f'|format(q.total or 0)|replace('.', ',') }}</span></div>
+  <div class="tl"><span>Subtotal</span><span>{{ q.subtotal|brl }}</span></div>
+  {% if q.desconto %}<div class="tl"><span>Desconto</span><span>− {{ q.desconto|brl }}</span></div>{% endif %}
+  <div class="tl forte"><span>Total</span><span>{{ q.total|brl }}</span></div>
 </div>
 
 <footer>

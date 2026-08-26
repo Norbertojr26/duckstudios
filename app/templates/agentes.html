@@ -12,7 +12,10 @@
 {% block conteudo %}
 <div class="topo"><div><h1>Agentes</h1>
   <div class="sub">Nada que chegue ao cliente ou mexa em dinheiro passa sem aprovação</div></div>
-  <a class="ds-btn ds-btn--fantasma" href="/api/docs">Documentação da API</a></div>
+  <div style="display:flex;gap:8px">
+    <form method="post" action="/agentes/rental/rodar">
+      <button class="ds-btn ds-btn--fantasma">▶ Rodar régua de devoluções</button></form>
+    <a class="ds-btn ds-btn--fantasma" href="/api/docs">Documentação da API</a></div></div>
 
 <div class="grade">
   <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
@@ -64,6 +67,7 @@
     <div class="rota"><span class="verbo">GET</span><code>/api/disponibilidade?codigo=&inicio=&fim=</code></div>
     <div class="rota"><span class="verbo">GET</span><code>/api/precos</code></div>
     <div class="rota"><span class="verbo post">POST</span><code>/api/saidas/{id}/bipar</code></div>
+    <div class="rota"><span class="verbo post">POST</span><code>/api/agentes/comercial/qualificar</code></div>
     <div class="meta" style="margin-top:var(--ds-e-4);line-height:1.55">
       <b>Sublocado nunca vira preço.</b> <code>/api/disponibilidade</code> devolve
       <code>requer_cotacao</code>, e o agente responde "preciso cotar" em vez de inventar valor.</div>

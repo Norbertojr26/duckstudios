@@ -93,9 +93,13 @@
         <b>{{ itens|sum(attribute='valor_reposicao')|brl }}</b></div>
       <div class="par"><span>Diária somada</span>
         <b>{{ itens|sum(attribute='valor_diaria')|brl }}</b></div>
+      <a class="ds-btn {{ 'ds-btn--fantasma' if r.termo_assinado_em }}"
+         style="width:100%;margin-top:var(--ds-e-4);text-decoration:none;box-sizing:border-box"
+         href="/saidas/{{ r.id }}/termo">
+         {{ '✓ Termo assinado — ver' if r.termo_assinado_em else 'Gerar termo e assinar' }}</a>
       {% if aberto %}
       <form method="post" action="/saidas/{{ r.id }}/fechar">
-        <button class="ds-btn" style="width:100%;margin-top:var(--ds-e-4)">Encerrar saída</button>
+        <button class="ds-btn ds-btn--fantasma" style="width:100%;margin-top:8px">Encerrar saída</button>
       </form>
       <div class="meta" style="margin-top:10px;line-height:1.5">Não fecha com item pendente —
         a regra é do servidor, não da tela.</div>

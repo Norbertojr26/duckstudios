@@ -272,6 +272,8 @@ CREATE TABLE rental (
     termo_path      text,
     termo_assinado_em timestamptz,
     assinatura_path text,                             -- assinatura coletada na tela do celular
+    assinante_nome  text,                             -- quem assinou (pode não ser o contato)
+    assinante_documento text,                         -- CPF/RG declarado na assinatura
     checkout_at     timestamptz,
     checkin_at      timestamptz,
     criado_em       timestamptz NOT NULL DEFAULT now(),

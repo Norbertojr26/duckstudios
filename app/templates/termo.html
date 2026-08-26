@@ -1,0 +1,181 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Termo {{ r.numero }} — Duck Studios</title>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
+<style>
+  @page{size:A4;margin:16mm 15mm}
+  *{box-sizing:border-box}
+  body{font-family:Satoshi,Helvetica,Arial,sans-serif;color:#111;background:#fff;margin:0;
+       font-size:10.5pt;line-height:1.55}
+  header{display:flex;justify-content:space-between;align-items:flex-start;
+         border-bottom:2px solid #082D2A;padding-bottom:12px;margin-bottom:20px}
+  .marca{background:#082D2A;padding:11px 15px;border-radius:10px}
+  .marca img{height:30px;display:block}
+  h1{font-size:17pt;margin:0 0 3px;font-weight:500}
+  h2{font-size:11pt;margin:20px 0 8px;font-weight:700}
+  .meta{color:#666;font-size:9pt}
+  .partes{display:flex;gap:36px;margin-bottom:4px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;margin:10px 0}
+  th{text-align:left;font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;color:#666;
+     border-bottom:1px solid #ccc;padding:0 6px 6px}
+  td{padding:7px 6px;border-bottom:1px solid #eee;vertical-align:top}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tot td{border-bottom:none;border-top:2px solid #082D2A;font-weight:700;font-size:11.5pt}
+  ol{padding-left:18px;margin:6px 0}
+  ol li{margin-bottom:6px}
+  .alerta{background:#FEF6E0;border:1px solid #E8CF8C;border-radius:8px;padding:10px 14px;
+          font-size:9.5pt;margin:12px 0}
+  .assinatura-area{margin-top:26px}
+  .quadro{border:1px dashed #999;border-radius:12px;min-height:130px;position:relative;
+          display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .quadro img{max-height:120px}
+  canvas{touch-action:none;display:block;width:100%;height:160px;border:1px dashed #999;
+         border-radius:12px;background:#fff}
+  .linha-ass{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+  input{font:inherit;width:100%;padding:10px 12px;border:1px solid #bbb;border-radius:8px}
+  label{font-size:8.5pt;color:#666;display:block;margin-bottom:4px;text-transform:uppercase;
+        letter-spacing:.05em}
+  .acoes{display:flex;gap:10px;margin-top:14px}
+  button,.btn{font:inherit;font-weight:700;padding:12px 22px;border:0;border-radius:999px;
+       cursor:pointer;background:#018682;color:#fff;text-decoration:none;display:inline-block}
+  .btn--claro{background:#eee;color:#111}
+  footer{margin-top:26px;padding-top:12px;border-top:1px solid #ddd;color:#666;font-size:8.5pt}
+  .selo{display:flex;gap:22px;align-items:flex-end;margin-top:8px}
+  .selo .dados{font-size:9.5pt}
+  @media screen{body{max-width:210mm;margin:20px auto;padding:16mm 15mm;
+                     box-shadow:0 2px 24px rgba(0,0,0,.15)}}
+  @media print{.no-print{display:none !important}}
+</style></head><body>
+
+<header>
+  <div><h1>Termo de responsabilidade<br>e retirada de equipamentos</h1>
+    <div class="meta">Saída {{ r.numero }} · emitido em {{ r.criado_em.strftime('%d/%m/%Y') }}</div></div>
+  <div class="marca"><img src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios"></div>
+</header>
+
+<div class="partes">
+  <div><div class="meta">Cedente</div><b>Duck Studios</b>
+    <div class="meta">duckcineproducoes@gmail.com · (61) 99663-6353</div></div>
+  <div><div class="meta">Responsável pela retirada</div>
+    <b>{{ r.assinante_nome or r.responsavel }}</b>
+    <div class="meta">{{ r.assinante_documento or r.cpf or 'documento a informar' }}
+      {% if r.telefone_e164 %} · {{ r.telefone_e164 }}{% endif %}</div></div>
+  <div><div class="meta">Modalidade</div><b>{{ r.tipo|replace('_',' ')|title }}</b></div>
+  <div><div class="meta">Período</div>
+    <b>{{ r.checkout_at.strftime('%d/%m/%Y %H:%M') if r.checkout_at else '—' }}
+       → {{ r.previsao_devolucao.strftime('%d/%m/%Y %H:%M') if r.previsao_devolucao else 'a combinar' }}</b></div>
+</div>
+
+<h2>1. Equipamentos sob responsabilidade</h2>
+<table><thead><tr><th>Código</th><th>Equipamento</th><th>Nº de série</th>
+  <th class="num">Valor de reposição</th></tr></thead>
+<tbody>
+{% for i in itens %}<tr>
+  <td>{{ i.codigo }}</td>
+  <td>{{ i.nome }}{% if i.marca %} <span class="meta">· {{ i.marca }}</span>{% endif %}</td>
+  <td>{{ i.numero_serie or '—' }}</td>
+  <td class="num">{{ i.valor_reposicao|brl }}{% if not i.valor_reposicao_confirmado %}*{% endif %}</td>
+</tr>{% endfor %}
+<tr class="tot"><td colspan="3">Total de reposição</td>
+  <td class="num">{{ total_reposicao|brl }}</td></tr>
+</tbody></table>
+
+{% if estimados %}<div class="alerta">* {{ estimados }} item(ns) com valor de reposição
+  <b>estimado</b> (valor de aquisição, pendente de confirmação). Em caso de sinistro prevalece o
+  custo efetivo de reposição do mesmo modelo ou equivalente atual.</div>{% endif %}
+
+<h2>2. Condições</h2>
+<ol>
+  <li>O responsável declara ter recebido os equipamentos listados <b>em perfeito estado de
+      funcionamento e conservação</b>, conferidos item a item no ato da retirada.</li>
+  <li>O responsável assume integral responsabilidade por <b>perda, furto, roubo ou dano</b>,
+      de qualquer natureza, do momento da retirada até a devolução conferida, obrigando-se a
+      ressarcir o valor de reposição indicado ou o custo de reparo, o que for aplicável.</li>
+  <li>A devolução deve ocorrer <b>até a data e hora previstas</b> acima. Atraso não comunicado
+      implica cobrança de diária adicional por dia iniciado, conforme tabela vigente.</li>
+  <li>É vedado <b>subceder, emprestar ou sublocar</b> os equipamentos a terceiros sem anuência
+      expressa da Duck Studios.</li>
+  <li>Transporte, acondicionamento e operação adequados são de responsabilidade de quem retira.
+      Uso em condições de risco (chuva, poeira, maresia, altura) exige proteção apropriada.</li>
+  <li>A conferência de devolução é feita <b>na presença do responsável</b> sempre que possível;
+      divergências constatadas na vistoria serão comunicadas em até 24 horas.</li>
+</ol>
+
+<div class="assinatura-area">
+  <h2>3. Assinatura</h2>
+  {% if r.termo_assinado_em %}
+    <div class="quadro"><img src="{{ r.assinatura_path }}" alt="Assinatura"></div>
+    <div class="selo">
+      <div class="dados"><b>{{ r.assinante_nome }}</b>
+        {% if r.assinante_documento %}<br>{{ r.assinante_documento }}{% endif %}
+        <br><span class="meta">Assinado em {{ r.termo_assinado_em.strftime('%d/%m/%Y às %H:%M') }}</span></div>
+    </div>
+    <div class="acoes no-print">
+      <a class="btn" href="javascript:print()">Imprimir / salvar PDF</a>
+      <a class="btn btn--claro" href="/saidas/{{ r.id }}">Voltar à saída</a>
+    </div>
+  {% else %}
+    <form method="post" action="/saidas/{{ r.id }}/assinar" id="f" class="no-print">
+      <div class="linha-ass">
+        <div><label>Nome completo de quem assina</label>
+          <input name="assinante_nome" required value="{{ r.responsavel or '' }}"></div>
+        <div><label>CPF ou RG</label>
+          <input name="assinante_documento" value="{{ r.cpf or '' }}" placeholder="opcional"></div>
+      </div>
+      <label>Assine no quadro abaixo (dedo ou mouse)</label>
+      <canvas id="pad"></canvas>
+      <input type="hidden" name="assinatura" id="assinatura">
+      <div class="acoes">
+        <button type="submit">Confirmar assinatura</button>
+        <button type="button" class="btn--claro" onclick="limpar()">Limpar</button>
+        <a class="btn btn--claro" href="/saidas/{{ r.id }}">Cancelar</a>
+      </div>
+    </form>
+    <div class="quadro" style="display:none"></div>
+  {% endif %}
+</div>
+
+<footer>Duck Studios · Termo gerado eletronicamente pelo sistema de gestão de ativos.
+  A assinatura eletrônica acima, colhida em tela com registro de data e hora, expressa a
+  concordância do responsável com as condições deste termo (art. 10, §2º, MP 2.200-2/2001).</footer>
+
+<script>
+const pad = document.getElementById('pad');
+if (pad){
+  const ctx = pad.getContext('2d');
+  let tracou = false, desenhando = false;
+
+  function dimensionar(){
+    const escala = window.devicePixelRatio || 1;
+    const r = pad.getBoundingClientRect();
+    pad.width = r.width * escala; pad.height = 160 * escala;
+    ctx.scale(escala, escala);
+    ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#0B1E1C';
+  }
+  dimensionar();
+
+  function ponto(e){
+    const r = pad.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {x: t.clientX - r.left, y: t.clientY - r.top};
+  }
+  function começa(e){ e.preventDefault(); desenhando = true;
+    const p = ponto(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+  function move(e){ if (!desenhando) return; e.preventDefault();
+    const p = ponto(e); ctx.lineTo(p.x, p.y); ctx.stroke(); tracou = true; }
+  function solta(){ desenhando = false; }
+
+  pad.addEventListener('pointerdown', começa);
+  pad.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', solta);
+
+  window.limpar = () => { ctx.clearRect(0, 0, pad.width, pad.height); tracou = false; };
+
+  document.getElementById('f').addEventListener('submit', e => {
+    if (!tracou){ e.preventDefault(); alert('Assine no quadro antes de confirmar.'); return; }
+    document.getElementById('assinatura').value = pad.toDataURL('image/png');
+  });
+}
+</script>
+</body></html>
