@@ -15,6 +15,11 @@ SEEDS = ["db/seed_inventario.sql", "db/seed_02_regras.sql",
 MIGRACOES = [
     "ALTER TABLE rental ADD COLUMN IF NOT EXISTS assinante_nome text",
     "ALTER TABLE rental ADD COLUMN IF NOT EXISTS assinante_documento text",
+    "ALTER TABLE project ADD COLUMN IF NOT EXISTS estado_editorial text NOT NULL DEFAULT 'ingerido'",
+    """DO $$ BEGIN
+         ALTER TABLE project ADD CONSTRAINT project_estado_editorial_chk
+           CHECK (estado_editorial IN ('ingerido','em_edicao','aprovado','entregue'));
+       EXCEPTION WHEN duplicate_object THEN NULL; END $$""",
 ]
 
 

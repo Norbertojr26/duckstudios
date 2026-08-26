@@ -6,7 +6,9 @@
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo"><div><h1>Projetos</h1>
-  <div class="sub">O <code>slug</code> é o nome da pasta na mídia — é ele que liga o projeto ao bruto ingerido</div></div></div>
+  <div class="sub">O <code>slug</code> é o nome da pasta na mídia · a fase segue as cores do seu Finder:
+    <span style="color:#F87171">● não iniciado</span> <span style="color:#FBBF24">● em edição</span>
+    <span style="color:#4ADE80">● aprovado</span> <span style="color:#C084FC">● no Drive</span></div></div></div>
 
 <section class="ds-card" style="margin-bottom:var(--ds-e-4)">
   <h2>Novo projeto</h2>
@@ -24,12 +26,23 @@
 
 <section class="ds-card ds-card--alto">
 {% if linhas %}
-<table><thead><tr><th>Projeto</th><th>Cliente</th><th>Status</th><th class="num">Diárias</th>
+<table><thead><tr><th>Projeto</th><th>Cliente</th><th>Fase</th><th class="num">Diárias</th>
   <th class="num">Cartões</th><th class="num">Contrato</th><th>Entrega</th></tr></thead>
 <tbody>{% for p in linhas %}<tr>
   <td><b>{{ p.nome }}</b><div class="meta">{{ p.slug }}</div></td>
   <td>{{ p.empresa or '—' }}</td>
-  <td><span class="ds-chip">{{ p.status }}</span></td>
+  <td>
+    <form method="post" action="/projetos/{{ p.id }}/estado" style="display:flex;align-items:center;gap:8px">
+      <span style="width:10px;height:10px;border-radius:99px;flex:none;
+                   background:{{ estados[p.estado_editorial].cor }}"></span>
+      <select class="ds-campo" name="estado" onchange="this.form.submit()"
+              style="min-height:34px;padding:0 8px;font-size:.8125rem;width:auto">
+        {% for chave, e in estados.items() %}
+          <option value="{{ chave }}" {{ 'selected' if chave == p.estado_editorial }}>{{ e.rotulo }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </td>
   <td class="num">{{ p.diarias }}</td><td class="num">{{ p.offloads }}</td>
   <td class="num">{{ p.valor_contrato|brl }}</td>
   <td class="meta">{{ p.data_entrega.strftime('%d/%m/%y') if p.data_entrega else '—' }}</td>

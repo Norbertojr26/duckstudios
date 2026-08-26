@@ -619,6 +619,7 @@ def projetos(request: Request):
                        LEFT JOIN media_offload mo ON mo.project_id = p.id
                       GROUP BY p.id, co.nome ORDER BY p.criado_em DESC""")
     return pag(request, "projetos.html", ativo="projetos", linhas=linhas,
+               estados=ESTADOS_EDITORIAIS,
                empresas=db.q("SELECT id, nome FROM company ORDER BY nome"))
 
 
@@ -630,6 +631,51 @@ def projeto_novo(nome: str = Form(...), slug: str = Form(...), company_id: str =
                 ON CONFLICT (slug) DO NOTHING""",
              (nome.strip(), slug.strip().lower(), company_id, valor_contrato, data_entrega))
     return RedirectResponse("/projetos", 303)
+
+
+ESTADOS_EDITORIAIS = {          # o fluxo real do Finder, cor a cor
+    "ingerido":  {"rotulo": "não iniciado", "cor": "#F87171", "finder": "Red"},
+    "em_edicao": {"rotulo": "em edição",    "cor": "#FBBF24", "finder": "Yellow"},
+    "aprovado":  {"rotulo": "aprovado",     "cor": "#4ADE80", "finder": "Green"},
+    "entregue":  {"rotulo": "no Drive",     "cor": "#C084FC", "finder": "Purple"},
+}
+
+
+@app.post("/projetos/{pid}/estado")
+def projeto_estado(pid: str, estado: str = Form(...)):
+    if estado not in ESTADOS_EDITORIAIS:
+        return RedirectResponse("/projetos", 303)
+    db.exec_("UPDATE project SET estado_editorial=%s WHERE id=%s", (estado, pid))
+    db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                VALUES ('project', %s, 'evento_sistema', %s, 'humano')""",
+             (pid, f"estado editorial → {estado}"))
+    return RedirectResponse("/projetos", 303)
+
+
+@app.get("/api/projetos")
+def api_projetos():
+    """Lista para o refletor de tags no Mac: slug (nome da pasta) + estado + cor do Finder."""
+    return [{**p, "finder": ESTADOS_EDITORIAIS[p["estado_editorial"]]["finder"]}
+            for p in db.q("""SELECT slug, nome, estado_editorial, pasta_raiz
+                               FROM project WHERE status = 'ativo' ORDER BY slug""")]
+
+
+@app.post("/api/projetos/{slug}/estado")
+def api_projeto_estado(slug: str, dados: dict):
+    """Transição vinda do Mac (o editor mudou a tag na pasta). A tag é INTERFACE de entrada;
+    a verdade continua sendo o banco — e a mudança fica registrada com origem."""
+    estado = dados.get("estado")
+    if estado not in ESTADOS_EDITORIAIS:
+        return JSONResponse({"ok": False, "erro": f"estado deve ser um de "
+                             f"{list(ESTADOS_EDITORIAIS)}"}, 400)
+    p = db.q1("UPDATE project SET estado_editorial=%s WHERE slug=%s RETURNING id, nome",
+              (estado, slug))
+    if not p:
+        return JSONResponse({"ok": False, "erro": f"projeto '{slug}' não existe"}, 404)
+    db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                VALUES ('project', %s, 'evento_sistema', %s, 'mac:finder-tag')""",
+             (p["id"], f"estado editorial → {estado} (tag mudada no Finder)"))
+    return {"ok": True, "projeto": p["nome"], "estado": estado}
 
 
 # --------------------------------------------------------------- agentes

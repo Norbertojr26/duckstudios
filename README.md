@@ -30,6 +30,7 @@ Base de conhecimento e código para dois projetos que na prática são **um só*
 | [`docs/16-licenciamento-de-uso.md`](docs/16-licenciamento-de-uso.md) | **Como começar a cobrar cessão de uso** — receita recorrente sem produção nova |
 | [`docs/17-deploy-railway.md`](docs/17-deploy-railway.md) | **Deploy** — Postgres, senha, domínio e o que testar |
 | [`docs/18-analise-sop-oficial.md`](docs/18-analise-sop-oficial.md) | **Análise do SOP oficial** e o mapa módulo→agente |
+| [`docs/19-vocabulario-real.md`](docs/19-vocabulario-real.md) | **Estrutura e fluxo reais** capturados do Finder/Premiere — prevalece sobre suposições |
 | [`design/README.md`](design/README.md) | Logotipo, marca e `tokens.css` |
 | [`scripts/README.md`](scripts/README.md) | Importador do AssetTiger e gerador de etiquetas QR |
 | [`docs/99-perguntas-abertas.md`](docs/99-perguntas-abertas.md) | O que só você sabe responder — preencher antes da Fase 1 |

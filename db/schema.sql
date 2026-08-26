@@ -105,6 +105,10 @@ CREATE TABLE project (
     nome            text NOT NULL,
     status          text NOT NULL DEFAULT 'ativo'
                     CHECK (status IN ('ativo','pausado','concluido','arquivado','cancelado')),
+    -- O fluxo editorial real do studio, capturado do Finder em 26/08. As cores são as tags
+    -- que o editor já usa; o banco é a fonte de verdade e a tag vira reflexo (script no Mac).
+    estado_editorial text NOT NULL DEFAULT 'ingerido'
+                    CHECK (estado_editorial IN ('ingerido','em_edicao','aprovado','entregue')),
     data_inicio     date,
     data_entrega    date,
     valor_contrato  numeric(12,2),
