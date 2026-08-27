@@ -5,8 +5,10 @@ Modelo de segurança:
   * a máquina LIGA para o CRM (HTTPS + Basic auth) — nenhuma porta aberta no Mac;
   * ela só toca no que estiver na lista de pastas autorizadas, que vem do CRM a cada
     heartbeat — revogar acesso é um clique na tela /maquinas, sem tocar no Mac;
-  * o conjunto de tarefas é fechado (inventariar, refletir/capturar tags); nada de
-    comando arbitrário vindo da rede.
+  * o conjunto de tarefas é fechado (inventariar, tags, criar job, mover, lixeira);
+    nada de comando arbitrário vindo da rede;
+  * escrita exige pasta autorizada como "ler+escrever", e NADA é apagado: o máximo
+    destrutivo é mover para _LIXEIRA/ dentro da própria pasta — reversível no Finder.
 
 Uso:
   export DUCK_URL=https://crm.duckstudios.com.br DUCK_USUARIO=duck DUCK_SENHA=••• \\
@@ -15,6 +17,7 @@ Uso:
   python3 duck_mac.py --uma-vez  # uma passada (teste)
 """
 import base64
+import datetime
 import json
 import os
 import shutil
@@ -100,9 +103,88 @@ def t_capturar_tags(pastas, _p):
     return _refletor("capturar", pastas)
 
 
+# --- tarefas que ESCREVEM — toda validação antes de tocar o disco ---
+
+def _raiz_de(caminho, pastas, escrita=False):
+    """A pasta autorizada que contém o caminho — ou ValueError. É a única porta de entrada
+    das tarefas de escrita; realpath primeiro, para symlink não furar a cerca."""
+    real = os.path.realpath(caminho)
+    for p in pastas:
+        raiz = os.path.realpath(p["caminho"])
+        if real == raiz or real.startswith(raiz + os.sep):
+            if escrita and p["permissao"] != "leitura_escrita":
+                raise ValueError(f"pasta autorizada só para leitura: {p['caminho']}")
+            return real, raiz
+    raise ValueError(f"fora das pastas autorizadas: {caminho}")
+
+
+MODELO_JOB = ("ASSETS", "AUDIOS/SFX", "AUDIOS/GRAVADOR", "AUDIOS/MUSICAS", "SEQ", "VIDEOS")
+
+
+def t_criar_job(pastas, p):
+    """CLIENTE/JOB com o esqueleto real (docs/19): ASSETS, AUDIOS/*, SEQ, VIDEOS."""
+    cliente, job = (p.get("cliente") or "").strip(), (p.get("job") or "").strip()
+    if not cliente or not job:
+        return {"erro": "faltou cliente e/ou job"}
+    if any(ch in cliente + job for ch in ("/", "\\", "..")):
+        return {"erro": "cliente/job são nomes, não caminhos"}
+    grav = [x for x in pastas if x["permissao"] == "leitura_escrita"]
+    if not grav:
+        return {"erro": "nenhuma pasta autorizada com escrita"}
+    base, _ = _raiz_de(os.path.join(p.get("raiz") or grav[0]["caminho"], cliente, job),
+                       pastas, escrita=True)
+    criadas = []
+    for sub in MODELO_JOB:
+        alvo = os.path.join(base, sub)
+        if not os.path.isdir(alvo):
+            os.makedirs(alvo)
+            criadas.append(sub)
+    return {"job": base, "criadas": criadas or ["nada — estrutura já existia"]}
+
+
+def t_mover(pastas, p):
+    """Mover/renomear arquivo ou pasta. Nunca sobrescreve; serve também para restaurar
+    algo da _LIXEIRA (é só apontar a origem para lá)."""
+    origem, _ = _raiz_de(p.get("origem") or "", pastas, escrita=True)
+    destino, _ = _raiz_de(p.get("destino") or "", pastas, escrita=True)
+    if not os.path.exists(origem):
+        return {"erro": f"origem não existe: {origem}"}
+    if os.path.exists(destino):
+        return {"erro": f"destino já existe — não sobrescrevo: {destino}"}
+    if origem == destino or destino.startswith(origem + os.sep):
+        return {"erro": "destino dentro da própria origem"}
+    os.makedirs(os.path.dirname(destino), exist_ok=True)
+    shutil.move(origem, destino)
+    return {"movido": {"de": origem, "para": destino}}
+
+
+def t_enviar_lixeira(pastas, p):
+    """O único 'apagar' que existe: mover para _LIXEIRA/AAAA-MM-DD/ na raiz autorizada.
+    rm não existe neste runtime — esvaziar a lixeira é decisão humana, no Finder."""
+    real, raiz = _raiz_de(p.get("caminho") or "", pastas, escrita=True)
+    if real == raiz:
+        return {"erro": "não mando uma pasta autorizada inteira para a lixeira"}
+    if not os.path.exists(real):
+        return {"erro": f"não existe: {real}"}
+    if "_LIXEIRA" in real.split(os.sep):
+        return {"erro": "já está na lixeira"}
+    pasta = os.path.join(raiz, "_LIXEIRA", datetime.date.today().isoformat())
+    os.makedirs(pasta, exist_ok=True)
+    destino = os.path.join(pasta, os.path.basename(real))
+    n = 1
+    while os.path.exists(destino):
+        destino = os.path.join(pasta, f"{os.path.basename(real)}_{n}")
+        n += 1
+    shutil.move(real, destino)
+    return {"lixeira": destino, "aviso": "nada foi apagado — restaurar é mover de volta"}
+
+
 TAREFAS = {"inventariar_pastas": t_inventariar_pastas,
            "refletir_tags": t_refletir_tags,
-           "capturar_tags": t_capturar_tags}
+           "capturar_tags": t_capturar_tags,
+           "criar_job": t_criar_job,
+           "mover": t_mover,
+           "enviar_lixeira": t_enviar_lixeira}
 
 
 def passada():

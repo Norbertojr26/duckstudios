@@ -78,6 +78,37 @@ DUCK_MAQUINA="mac-mini-studio"</code><br>
         </select>
         <button class="ds-btn">Autorizar pasta</button>
       </form>
+
+      <h2 style="font-size:.9375rem;margin-top:var(--ds-e-5)">Trabalho em arquivos</h2>
+      <div class="meta" style="margin-bottom:var(--ds-e-3)">Só dentro de pastas
+        <b>ler + escrever</b>. Nunca sobrescreve, e apagar não existe: “lixeira” move para
+        <code>_LIXEIRA/</code> dentro da própria pasta — restaurar é mover de volta.</div>
+
+      <form method="post" action="/maquinas/{{ m.id }}/tarefa" class="add">
+        <input type="hidden" name="tipo" value="criar_job">
+        <input class="ds-campo" name="cliente" placeholder="CLIENTE" required
+               style="flex:1;min-width:130px">
+        <input class="ds-campo" name="job" placeholder="NOME_DO_JOB" required
+               style="flex:2;min-width:180px">
+        <button class="ds-btn ds-btn--fantasma">Criar estrutura de job</button>
+      </form>
+
+      <form method="post" action="/maquinas/{{ m.id }}/tarefa" class="add">
+        <input type="hidden" name="tipo" value="mover">
+        <input class="ds-campo" name="origem" placeholder="origem (caminho completo)" required
+               style="flex:1;min-width:200px">
+        <input class="ds-campo" name="destino" placeholder="destino (caminho completo)" required
+               style="flex:1;min-width:200px">
+        <button class="ds-btn ds-btn--fantasma">Mover / renomear</button>
+      </form>
+
+      <form method="post" action="/maquinas/{{ m.id }}/tarefa" class="add">
+        <input type="hidden" name="tipo" value="enviar_lixeira">
+        <input class="ds-campo" name="caminho" placeholder="o que mandar para a lixeira" required
+               style="flex:1;min-width:240px">
+        <button class="ds-btn ds-btn--fantasma" style="color:var(--ds-atencao);
+                border-color:var(--ds-atencao)">Enviar à lixeira</button>
+      </form>
     </section>
     {% endfor %}
   </div>

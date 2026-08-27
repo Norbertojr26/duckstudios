@@ -746,7 +746,12 @@ def api_qualificar(dados: dict):
 
 # ----------------------------------------------------- máquinas (Mac Mini)
 
-TAREFAS_MAC = ("inventariar_pastas", "refletir_tags", "capturar_tags")
+TAREFAS_MAC = ("inventariar_pastas", "refletir_tags", "capturar_tags",
+               "criar_job", "mover", "enviar_lixeira")
+# Campos que cada tarefa de escrita exige — o formulário vira payload fechado; quem valida
+# caminho contra a allowlist é o runtime no Mac, na hora de executar.
+CAMPOS_MAC = {"criar_job": ("cliente", "job"), "mover": ("origem", "destino"),
+              "enviar_lixeira": ("caminho",)}
 
 
 @app.get("/maquinas", response_class=HTMLResponse)
@@ -760,7 +765,7 @@ def maquinas(request: Request):
     tarefas = db.q("""SELECT id, tipo, payload, status, criado_em, erro FROM job_queue
                        WHERE tipo LIKE 'mac:%%' ORDER BY criado_em DESC LIMIT 12""")
     return pag(request, "maquinas.html", ativo="maquinas", linhas=linhas,
-               por_maquina=por_maquina, tarefas=tarefas, tipos=TAREFAS_MAC)
+               por_maquina=por_maquina, tarefas=tarefas, tipos=TAREFAS_MAC[:3])
 
 
 @app.post("/maquinas/pasta")
@@ -782,13 +787,21 @@ def maquina_pasta_rm(pid: str):
 
 
 @app.post("/maquinas/{mid}/tarefa")
-def maquina_tarefa(mid: str, tipo: str = Form(...)):
+def maquina_tarefa(mid: str, tipo: str = Form(...), cliente: str = Form(""),
+                   job: str = Form(""), origem: str = Form(""), destino: str = Form(""),
+                   caminho: str = Form("")):
     if tipo not in TAREFAS_MAC:
+        return RedirectResponse("/maquinas", 303)
+    extras = {"cliente": cliente, "job": job, "origem": origem,
+              "destino": destino, "caminho": caminho}
+    payload = {k: v.strip() for k, v in extras.items() if v.strip()}
+    if any(c not in payload for c in CAMPOS_MAC.get(tipo, ())):
         return RedirectResponse("/maquinas", 303)
     m = db.q1("SELECT nome FROM maquina WHERE id = %s", (mid,))
     if m:
         db.exec_("INSERT INTO job_queue (tipo, payload) VALUES (%s, %s)",
-                 (f"mac:{tipo}", json.dumps({"maquina": m["nome"]})))
+                 (f"mac:{tipo}", json.dumps({**payload, "maquina": m["nome"]},
+                                            ensure_ascii=False)))
     return RedirectResponse("/maquinas", 303)
 
 
