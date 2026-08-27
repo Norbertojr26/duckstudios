@@ -7,12 +7,12 @@ import base64, json, os, secrets, uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import db
+from . import auth, db
 from .agentes import agenda as agentes_agenda
 
 RAIZ = Path(__file__).resolve().parent
@@ -47,29 +47,61 @@ tpl.env.filters["qtd"] = qtd
 
 
 # ------------------------------------------------------------------ acesso
-# O sistema inteiro (patrimônio, valores, clientes) atrás de uma URL pública sem senha seria
-# um vazamento de meio milhão em equipamento. Basic auth é o mínimo — simples, funciona em
-# qualquer navegador e não depende de mais nenhuma peça.
+# Duas portas para o mesmo prédio: sessão de navegador (login por e-mail e senha, com
+# papéis) para pessoas, e Basic auth (APP_USUARIO/APP_SENHA) para o que é máquina — o
+# runtime do Mac, os agentes, curl. Basic equivale a papel dev; revogar sessão = apagar a
+# linha em `sessao`.
 USUARIO = os.environ.get("APP_USUARIO", "duck")
 SENHA = os.environ.get("APP_SENHA", "")
-LIVRE = ("/healthz", "/static")
+LIVRE = ("/healthz", "/static", "/login", "/convite")
+# Diretor usa a plataforma inteira, menos o que é desenvolvimento:
+SO_DEV = ("/usuarios", "/api/docs", "/api/redoc", "/api/openapi.json")
+
+
+def _basic_ok(request: Request) -> bool:
+    cab = request.headers.get("authorization", "")
+    if not cab.startswith("Basic "):
+        return False
+    try:
+        u, _, p = base64.b64decode(cab[6:]).decode().partition(":")
+        return secrets.compare_digest(u, USUARIO) and secrets.compare_digest(p, SENHA)
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def _usuario_da_sessao(request: Request):
+    token = request.cookies.get("duck_sessao", "")
+    if not token:
+        return None
+    try:
+        return db.q1("""SELECT u.id, u.nome, u.email, u.papel,
+                               (u.foto IS NOT NULL) AS tem_foto
+                          FROM sessao s JOIN usuario u ON u.id = s.usuario_id
+                         WHERE s.token = %s AND s.expira_em > now() AND u.ativo""",
+                     (token,))
+    except Exception:                                        # noqa: BLE001
+        return None
 
 
 @app.middleware("http")
-async def exigir_senha(request: Request, call_next):
-    if SENHA and not request.url.path.startswith(LIVRE):
-        cab = request.headers.get("authorization", "")
-        ok = False
-        if cab.startswith("Basic "):
-            try:
-                u, _, p = base64.b64decode(cab[6:]).decode().partition(":")
-                ok = secrets.compare_digest(u, USUARIO) and secrets.compare_digest(p, SENHA)
-            except Exception:                                # noqa: BLE001
-                ok = False
-        if not ok:
-            return Response(status_code=401,
-                            headers={"WWW-Authenticate": 'Basic realm="Duck Studios"'})
-    return await call_next(request)
+async def exigir_acesso(request: Request, call_next):
+    caminho = request.url.path
+    request.state.usuario = None
+    if not SENHA or caminho.startswith(LIVRE):
+        return await call_next(request)
+    if _basic_ok(request):
+        request.state.usuario = {"id": None, "nome": "api", "papel": "dev", "tem_foto": False}
+        return await call_next(request)
+    u = _usuario_da_sessao(request)
+    if u:
+        request.state.usuario = dict(u)
+        if u["papel"] != "dev" and caminho.startswith(SO_DEV):
+            return RedirectResponse("/", 303)
+        return await call_next(request)
+    if caminho.startswith("/api/"):
+        return Response(status_code=401,
+                        headers={"WWW-Authenticate": 'Basic realm="Duck Studios"'})
+    return RedirectResponse("/login", 303)
 
 
 @app.on_event("startup")
@@ -109,7 +141,201 @@ def healthz():
 def pag(request, nome, **ctx):
     # Starlette moderno espera (request, nome, contexto) — a ordem antiga silenciosamente
     # trata o dicionário como nome do template.
-    return tpl.TemplateResponse(request, nome, {**ctx, "sem_senha": not SENHA})
+    return tpl.TemplateResponse(request, nome, {**ctx, "sem_senha": not SENHA,
+                                                "usuario": getattr(request.state,
+                                                                   "usuario", None)})
+
+
+# ----------------------------------------------------- login, convite, perfil
+
+DIAS_SESSAO = 30
+
+
+def _abrir_sessao(resposta, request, usuario_id):
+    token = auth.novo_token()
+    db.exec_("INSERT INTO sessao (token, usuario_id, expira_em) "
+             "VALUES (%s, %s, now() + make_interval(days => %s))",
+             (token, usuario_id, DIAS_SESSAO))
+    resposta.set_cookie("duck_sessao", token, max_age=DIAS_SESSAO * 86400,
+                        httponly=True, samesite="lax",
+                        secure=request.url.scheme == "https")
+    return resposta
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login(request: Request, erro: str = ""):
+    if not SENHA or _usuario_da_sessao(request):
+        return RedirectResponse("/", 303)
+    return pag(request, "login.html", erro=erro)
+
+
+@app.post("/login")
+def login_post(request: Request, email: str = Form(...), senha: str = Form(...)):
+    u = db.q1("SELECT id, senha_hash FROM usuario WHERE lower(email) = lower(%s) AND ativo",
+              (email.strip(),))
+    if not u or not auth.conferir(senha, u["senha_hash"]):
+        import time
+        time.sleep(0.6)                       # freio barato contra tentativa e erro
+        return RedirectResponse("/login?erro=1", 303)
+    return _abrir_sessao(RedirectResponse("/", 303), request, u["id"])
+
+
+@app.post("/sair")
+def sair(request: Request):
+    token = request.cookies.get("duck_sessao", "")
+    if token:
+        db.exec_("DELETE FROM sessao WHERE token = %s", (token,))
+    r = RedirectResponse("/login", 303)
+    r.delete_cookie("duck_sessao")
+    return r
+
+
+@app.get("/convite/{token}", response_class=HTMLResponse)
+def convite(request: Request, token: str):
+    u = db.q1("SELECT nome, email FROM usuario WHERE convite_token = %s AND ativo", (token,))
+    return pag(request, "convite.html", convidado=u, token=token)
+
+
+@app.post("/convite/{token}")
+def convite_post(request: Request, token: str, nome: str = Form(...),
+                 senha: str = Form(...), senha2: str = Form(...)):
+    u = db.q1("SELECT id FROM usuario WHERE convite_token = %s AND ativo", (token,))
+    if not u:
+        return RedirectResponse("/login", 303)
+    if len(senha) < 8 or senha != senha2:
+        return RedirectResponse(f"/convite/{token}?erro=1", 303)
+    db.exec_("""UPDATE usuario SET nome = %s, senha_hash = %s, convite_token = NULL
+                 WHERE id = %s""", (nome.strip(), auth.gerar_hash(senha), u["id"]))
+    return _abrir_sessao(RedirectResponse("/", 303), request, u["id"])
+
+
+def _eu(request):
+    u = getattr(request.state, "usuario", None)
+    return u if u and u.get("id") else None
+
+
+@app.get("/perfil", response_class=HTMLResponse)
+def perfil(request: Request, ok: str = "", erro: str = ""):
+    eu = _eu(request)
+    if not eu:
+        return RedirectResponse("/", 303)
+    completo = db.q1("SELECT id, nome, email, papel, (foto IS NOT NULL) AS tem_foto, "
+                     "criado_em FROM usuario WHERE id = %s", (eu["id"],))
+    sessoes = db.q1("SELECT count(*) AS n FROM sessao WHERE usuario_id = %s "
+                    "AND expira_em > now()", (eu["id"],))["n"]
+    return pag(request, "perfil.html", ativo="perfil", eu=completo, sessoes=sessoes,
+               ok=ok, erro=erro)
+
+
+@app.post("/perfil")
+def perfil_post(request: Request, nome: str = Form(...), email: str = Form(...)):
+    eu = _eu(request)
+    if not eu:
+        return RedirectResponse("/", 303)
+    ja = db.q1("SELECT 1 FROM usuario WHERE lower(email) = lower(%s) AND id <> %s",
+               (email.strip(), eu["id"]))
+    if ja:
+        return RedirectResponse("/perfil?erro=email", 303)
+    db.exec_("UPDATE usuario SET nome = %s, email = %s WHERE id = %s",
+             (nome.strip(), email.strip(), eu["id"]))
+    return RedirectResponse("/perfil?ok=dados", 303)
+
+
+@app.post("/perfil/senha")
+def perfil_senha(request: Request, atual: str = Form(...), nova: str = Form(...),
+                 nova2: str = Form(...)):
+    eu = _eu(request)
+    if not eu:
+        return RedirectResponse("/", 303)
+    g = db.q1("SELECT senha_hash FROM usuario WHERE id = %s", (eu["id"],))
+    if not auth.conferir(atual, g["senha_hash"]):
+        return RedirectResponse("/perfil?erro=atual", 303)
+    if len(nova) < 8 or nova != nova2:
+        return RedirectResponse("/perfil?erro=nova", 303)
+    db.exec_("UPDATE usuario SET senha_hash = %s WHERE id = %s",
+             (auth.gerar_hash(nova), eu["id"]))
+    # troca de senha derruba as OUTRAS sessões — a atual continua
+    db.exec_("DELETE FROM sessao WHERE usuario_id = %s AND token <> %s",
+             (eu["id"], request.cookies.get("duck_sessao", "")))
+    return RedirectResponse("/perfil?ok=senha", 303)
+
+
+@app.post("/perfil/foto")
+async def perfil_foto(request: Request, foto: UploadFile = File(...)):
+    eu = _eu(request)
+    if not eu:
+        return RedirectResponse("/", 303)
+    if not (foto.content_type or "").startswith("image/"):
+        return RedirectResponse("/perfil?erro=foto", 303)
+    corpo = await foto.read()
+    if len(corpo) > 3_000_000:
+        return RedirectResponse("/perfil?erro=foto", 303)
+    db.exec_("UPDATE usuario SET foto = %s, foto_tipo = %s WHERE id = %s",
+             (corpo, foto.content_type, eu["id"]))
+    return RedirectResponse("/perfil?ok=foto", 303)
+
+
+@app.get("/perfil/foto/{uid}")
+def perfil_foto_ver(uid: str):
+    u = db.q1("SELECT foto, foto_tipo FROM usuario WHERE id = %s", (uid,))
+    if not u or not u["foto"]:
+        return Response(status_code=404)
+    return Response(bytes(u["foto"]), media_type=u["foto_tipo"] or "image/jpeg",
+                    headers={"Cache-Control": "private, max-age=300"})
+
+
+# ------------------------------------------------ usuários (só papel dev)
+
+def _sou_dev(request):
+    u = getattr(request.state, "usuario", None)
+    return (not SENHA) or (u or {}).get("papel") == "dev"
+
+
+@app.get("/usuarios", response_class=HTMLResponse)
+def usuarios(request: Request):
+    if not _sou_dev(request):
+        return RedirectResponse("/", 303)
+    linhas = db.q("""SELECT id, nome, email, papel, ativo, convite_token,
+                            (senha_hash IS NOT NULL) AS tem_senha,
+                            (foto IS NOT NULL) AS tem_foto, criado_em
+                       FROM usuario ORDER BY criado_em""")
+    return pag(request, "usuarios.html", ativo="usuarios", linhas=linhas,
+               base=str(request.base_url).rstrip("/"))
+
+
+@app.post("/usuarios")
+def usuarios_post(request: Request, nome: str = Form(...), email: str = Form(...),
+                  papel: str = Form("diretor")):
+    if not _sou_dev(request):
+        return RedirectResponse("/", 303)
+    db.exec_("""INSERT INTO usuario (nome, email, papel, convite_token)
+                VALUES (%s, %s, %s, %s) ON CONFLICT (email) DO NOTHING""",
+             (nome.strip(), email.strip(),
+              papel if papel in ("dev", "diretor") else "diretor", auth.novo_token()))
+    return RedirectResponse("/usuarios", 303)
+
+
+@app.post("/usuarios/{uid}/convite")
+def usuarios_convite(request: Request, uid: str):
+    """(Re)gera o link — serve para convite perdido e para redefinir senha."""
+    if not _sou_dev(request):
+        return RedirectResponse("/", 303)
+    db.exec_("UPDATE usuario SET convite_token = %s WHERE id = %s",
+             (auth.novo_token(), uid))
+    return RedirectResponse("/usuarios", 303)
+
+
+@app.post("/usuarios/{uid}/ativo")
+def usuarios_ativo(request: Request, uid: str):
+    if not _sou_dev(request):
+        return RedirectResponse("/", 303)
+    eu = _eu(request)
+    if eu and str(eu["id"]) == uid:
+        return RedirectResponse("/usuarios", 303)          # ninguém se tranca para fora
+    db.exec_("UPDATE usuario SET ativo = NOT ativo WHERE id = %s", (uid,))
+    db.exec_("""DELETE FROM sessao s USING usuario u
+                 WHERE s.usuario_id = u.id AND u.id = %s AND NOT u.ativo""", (uid,))
+    return RedirectResponse("/usuarios", 303)
 
 
 # ------------------------------------------------------------------ painel
@@ -898,6 +1124,86 @@ def maquina_instalador(request: Request):
 def maquina_instalador_sh(request: Request):
     """O mesmo instalador em texto puro, para quem prefere uma linha no Terminal."""
     return Response(_instalador_corpo(request), media_type="text/x-shellscript")
+
+
+# Windows: PowerShell no lugar do bash, Tarefa Agendada no lugar do launchd. O runtime é o
+# mesmo duck_mac.py — as tarefas exclusivas de macOS (tags do Finder) respondem erro claro.
+_INSTALADOR_WIN = r"""# Instalador da maquina Duck Studios para Windows — gerado pelo CRM (__URL__).
+# So toca nas pastas autorizadas na tela Maquinas; nenhuma porta aberta nesta maquina.
+$ErrorActionPreference = "Stop"
+$URL = "__URL__"
+Write-Host "=== Duck Studios — conectar esta maquina ao CRM ==="
+Write-Host "CRM: $URL"
+$PADRAO = $env:COMPUTERNAME.ToLower()
+$NOME = Read-Host "Nome desta maquina [$PADRAO]"
+if (-not $NOME) { $NOME = $PADRAO }
+$USUARIO = Read-Host "Usuario do CRM [duck]"
+if (-not $USUARIO) { $USUARIO = "duck" }
+$SEG = Read-Host "Senha do CRM" -AsSecureString
+$SENHA = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+         [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SEG))
+
+$PY = (Get-Command python -ErrorAction SilentlyContinue).Source
+if (-not $PY) { $PY = (Get-Command py -ErrorAction SilentlyContinue).Source }
+if (-not $PY) {
+  Write-Host "x Python nao encontrado. Instale em https://www.python.org/downloads/"
+  Write-Host "  (marque 'Add python.exe to PATH') e rode este instalador de novo."
+  Read-Host "Enter para sair"; exit 1
+}
+
+$DEST = "$env:APPDATA\DuckStudios\runtime"
+New-Item -ItemType Directory -Force -Path $DEST | Out-Null
+$B64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("$($USUARIO):$SENHA"))
+Write-Host "-> baixando o runtime do CRM..."
+foreach ($f in @("duck_mac.py", "duck_ingest.py")) {
+  Invoke-WebRequest -Headers @{Authorization = "Basic $B64"} `
+    -Uri "$URL/maquinas/instalador/arquivo/$f" -OutFile "$DEST\$f"
+}
+
+Write-Host "-> primeiro contato com o CRM..."
+$env:DUCK_URL = $URL; $env:DUCK_USUARIO = $USUARIO
+$env:DUCK_SENHA = $SENHA; $env:DUCK_MAQUINA = $NOME
+& $PY "$DEST\duck_mac.py" --uma-vez
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "x Nao conectou — confira usuario e senha e rode de novo."
+  Read-Host "Enter para sair"; exit 1
+}
+
+# .bat com as variaveis + .vbs para rodar sem janela; Tarefa Agendada dispara no logon.
+$BAT = "$DEST\duck_mac.bat"
+@"
+@echo off
+set DUCK_URL=$URL
+set DUCK_USUARIO=$USUARIO
+set DUCK_SENHA=$SENHA
+set DUCK_MAQUINA=$NOME
+"$PY" "$DEST\duck_mac.py" >> "$DEST\duck_mac.log" 2>&1
+"@ | Set-Content -Path $BAT -Encoding ASCII
+$VBS = "$DEST\duck_mac.vbs"
+"CreateObject(""Wscript.Shell"").Run """"""$BAT"""""", 0, False" |
+  Set-Content -Path $VBS -Encoding ASCII
+
+$ACAO = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$VBS`""
+$GATILHO = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "DuckStudiosMaquina" -Action $ACAO `
+  -Trigger $GATILHO -Force | Out-Null
+Start-Process wscript.exe -ArgumentList "`"$VBS`""
+
+Write-Host ""
+Write-Host "OK — '$NOME' fica conectada sempre que voce fizer logon."
+Write-Host "Autorize as pastas em: $URL/maquinas"
+Write-Host "Log: $DEST\duck_mac.log"
+Write-Host "Desinstalar: Unregister-ScheduledTask DuckStudiosMaquina"
+Read-Host "Enter para fechar"
+"""
+
+
+@app.get("/maquinas/instalador.ps1")
+def maquina_instalador_ps1(request: Request):
+    corpo = _INSTALADOR_WIN.replace("__URL__", str(request.base_url).rstrip("/"))
+    return Response(corpo, media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition":
+                             'attachment; filename="instalar-duck-maquina.ps1"'})
 
 
 @app.get("/maquinas/instalador/arquivo/{nome}")

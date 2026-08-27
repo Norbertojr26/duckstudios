@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""duck_mac — o runtime local. Roda no Mac Mini; é gerenciado inteiro pelo CRM.
+"""duck_mac — o runtime local. Nasceu no Mac Mini, mas roda em qualquer máquina com
+Python (Windows incluso — só as tags do Finder são exclusivas do macOS); é gerenciado
+inteiro pelo CRM.
 
 Modelo de segurança:
   * a máquina LIGA para o CRM (HTTPS + Basic auth) — nenhuma porta aberta no Mac;
@@ -56,6 +58,10 @@ def info_local():
         pass
     if os.path.isdir("/Volumes"):
         info["volumes"] = sorted(d for d in os.listdir("/Volumes") if not d.startswith("."))
+    elif sys.platform == "win32":
+        import string
+        info["volumes"] = [f"{l}:" for l in string.ascii_uppercase
+                           if os.path.exists(f"{l}:\\")]
     return info
 
 
@@ -83,6 +89,8 @@ def t_inventariar_pastas(pastas, _payload):
 
 def _refletor(modo, pastas):
     """Reusa o refletir_tags.py com a primeira pasta autorizada como raiz de busca."""
+    if sys.platform != "darwin":
+        return {"erro": "tags coloridas são do Finder — esta tarefa só existe no macOS"}
     graváveis = [p for p in pastas if p["permissao"] == "leitura_escrita"]
     alvo = (graváveis if modo == "refletir" else pastas)
     if not alvo:

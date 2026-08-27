@@ -1,5 +1,6 @@
 """Aplica o schema e as cargas. Roda a cada boot: os seeds são idempotentes, e o schema
 só é criado se ainda não existir. Assim um deploy novo sobe com o parque inteiro dentro."""
+import os
 import sys
 from pathlib import Path
 import psycopg
@@ -33,7 +34,36 @@ MIGRACOES = [
            CHECK (permissao IN ('leitura','leitura_escrita')),
          ativo boolean NOT NULL DEFAULT true,
          UNIQUE (maquina_id, caminho))""",
+    """CREATE TABLE IF NOT EXISTS usuario (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         nome text NOT NULL,
+         email text UNIQUE NOT NULL,
+         papel text NOT NULL DEFAULT 'diretor' CHECK (papel IN ('dev','diretor')),
+         senha_hash text,
+         foto bytea,
+         foto_tipo text,
+         convite_token text UNIQUE,
+         ativo boolean NOT NULL DEFAULT true,
+         criado_em timestamptz NOT NULL DEFAULT now())""",
+    """CREATE TABLE IF NOT EXISTS sessao (
+         token text PRIMARY KEY,
+         usuario_id uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+         criado_em timestamptz NOT NULL DEFAULT now(),
+         expira_em timestamptz NOT NULL)""",
 ]
+
+
+def semear_dev(conn):
+    """Primeiro usuário: o dono, papel dev, com a APP_SENHA de hoje — assim o login por
+    formulário nasce funcionando e a senha pode ser trocada no perfil depois."""
+    senha = os.environ.get("APP_SENHA", "")
+    if not senha or conn.execute("SELECT 1 FROM usuario LIMIT 1").fetchone():
+        return
+    from . import auth
+    email = os.environ.get("APP_DEV_EMAIL", "duckcineproducoes@gmail.com")
+    conn.execute("INSERT INTO usuario (nome, email, papel, senha_hash) "
+                 "VALUES (%s, %s, 'dev', %s)", ("Duck", email, auth.gerar_hash(senha)))
+    print(f"[migrar] usuário dev criado: {email} (senha = a APP_SENHA atual)")
 
 
 def rodar():
@@ -78,6 +108,7 @@ def rodar():
                 continue
             print(f"[migrar] {s}")
             conn.execute(f.read_text(encoding="utf-8"))
+        semear_dev(conn)
         n = conn.execute("SELECT count(*) FROM asset").fetchone()[0]
         print(f"[migrar] pronto — {n} itens")
     return True

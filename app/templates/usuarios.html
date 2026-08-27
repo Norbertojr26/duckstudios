@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% block titulo %}Usuários — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .linha-conv{background:var(--ds-surface-2);border-radius:12px;padding:8px 12px;
+              font-size:.75rem;word-break:break-all;margin-top:6px}
+  .add{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:var(--ds-e-3)}
+  .foto{width:34px;height:34px;border-radius:12px;object-fit:cover;vertical-align:middle}
+  .inicial{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:12px;
+           background:var(--ds-grad-surface-2);font-weight:700;color:var(--ds-acao)}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Usuários</h1>
+  <div class="sub">Quem entra na plataforma. <b>Dev</b> vê tudo; <b>Diretor</b> tudo, menos o
+    que é desenvolvimento (API e esta tela). Convite = link para mandar no WhatsApp; a pessoa
+    define a própria senha no primeiro acesso.</div></div></div>
+
+<section class="ds-card ds-card--alto">
+  <table>
+    <thead><tr><th></th><th>Nome</th><th>E-mail</th><th>Papel</th><th>Situação</th><th></th></tr></thead>
+    <tbody>
+    {% for u in linhas %}
+      <tr>
+        <td style="width:44px">{% if u.tem_foto %}<img class="foto" src="/perfil/foto/{{ u.id }}">
+            {% else %}<span class="inicial">{{ u.nome[:1]|upper }}</span>{% endif %}</td>
+        <td><b>{{ u.nome }}</b></td>
+        <td>{{ u.email }}</td>
+        <td><span class="ds-chip {{ 'ds-chip--info' if u.papel == 'dev' else '' }}"
+              style="font-size:.6875rem">{{ 'Dev' if u.papel == 'dev' else 'Diretor' }}</span></td>
+        <td>
+          {% if not u.ativo %}<span class="ds-chip ds-chip--erro" style="font-size:.6875rem">desativado</span>
+          {% elif u.tem_senha %}<span class="ds-chip ds-chip--ok" style="font-size:.6875rem">ativo</span>
+          {% else %}<span class="ds-chip ds-chip--atencao" style="font-size:.6875rem">convite pendente</span>{% endif %}
+          {% if u.convite_token and u.ativo %}
+          <div class="linha-conv">🔗 <code>{{ base }}/convite/{{ u.convite_token }}</code></div>
+          {% endif %}
+        </td>
+        <td style="text-align:right;white-space:nowrap">
+          <form method="post" action="/usuarios/{{ u.id }}/convite" style="display:inline">
+            <button class="ds-btn ds-btn--fantasma" style="min-height:30px;padding:0 10px;
+                    font-size:.6875rem"
+                    title="Gera um link novo — serve para convite perdido ou senha esquecida">
+              {{ 'novo convite' if u.convite_token else 'redefinir senha' }}</button></form>
+          <form method="post" action="/usuarios/{{ u.id }}/ativo" style="display:inline">
+            <button class="ds-btn ds-btn--fantasma" style="min-height:30px;padding:0 10px;
+                    font-size:.6875rem">{{ 'reativar' if not u.ativo else 'desativar' }}</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:var(--ds-e-6)">Convidar alguém</h2>
+  <form method="post" action="/usuarios" class="add">
+    <input class="ds-campo" name="nome" placeholder="Nome" required style="flex:1;min-width:150px">
+    <input class="ds-campo" type="email" name="email" placeholder="email@exemplo.com" required
+           style="flex:1;min-width:200px">
+    <select class="ds-campo" name="papel" style="width:auto">
+      <option value="diretor">Diretor</option>
+      <option value="dev">Dev</option>
+    </select>
+    <button class="ds-btn">Gerar convite</button>
+  </form>
+  <div class="meta" style="margin-top:var(--ds-e-3)">O link aparece na tabela — copie e mande
+    por WhatsApp. Ao abrir, a pessoa confirma o nome e cria a própria senha.</div>
+</section>
+{% endblock %}

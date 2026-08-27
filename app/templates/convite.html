@@ -1,0 +1,50 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Convite — Duck Studios</title>
+<link rel="icon" href="/static/logo/marca-cor.svg">
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;padding:var(--ds-e-5)}
+  .cartao{width:100%;max-width:440px}
+  .logo{display:block;width:180px;margin:0 auto var(--ds-e-6)}
+  h1{font-size:1.375rem;font-weight:500;margin:0 0 6px;text-align:center}
+  .sub{text-align:center;font-size:.8125rem;color:var(--ds-txt-3);margin-bottom:var(--ds-e-5)}
+  label{display:block;font-size:.8125rem;color:var(--ds-txt-2);margin:var(--ds-e-4) 0 6px}
+  .ds-campo{width:100%}
+  .ds-btn{width:100%;margin-top:var(--ds-e-5)}
+  .erro{background:var(--ds-erro-bg);color:var(--ds-erro);border-radius:14px;
+        padding:10px 14px;font-size:.8125rem;margin-bottom:var(--ds-e-4)}
+</style></head><body>
+<div class="cartao">
+  <img class="logo" src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios">
+  <section class="ds-card ds-card--alto">
+    {% if not convidado %}
+      <h1>Convite não encontrado</h1>
+      <div class="sub">Este link já foi usado ou foi substituído.
+        Peça um novo a quem administra o CRM.</div>
+      <a class="ds-btn" href="/login" style="display:block;text-align:center;
+         text-decoration:none">Ir para o login</a>
+    {% else %}
+      <h1>Bem-vindo à Duck Studios</h1>
+      <div class="sub">Convite para <b>{{ convidado.email }}</b> — defina sua senha
+        e pronto.</div>
+      {% if request.query_params.get('erro') %}
+      <div class="erro">A senha precisa de 8+ caracteres e os dois campos devem ser
+        iguais.</div>{% endif %}
+      <form method="post" action="/convite/{{ token }}">
+        <label>Seu nome</label>
+        <input class="ds-campo" name="nome" value="{{ convidado.nome }}" required>
+        <label>Senha (mínimo 8 caracteres)</label>
+        <input class="ds-campo" type="password" name="senha" minlength="8" required
+               autocomplete="new-password">
+        <label>Repita a senha</label>
+        <input class="ds-campo" type="password" name="senha2" minlength="8" required
+               autocomplete="new-password">
+        <button class="ds-btn">Criar meu acesso</button>
+      </form>
+    {% endif %}
+  </section>
+</div>
+</body></html>

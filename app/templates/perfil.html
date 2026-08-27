@@ -1,0 +1,71 @@
+{% extends "base.html" %}{% block titulo %}Meu perfil — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:var(--ds-e-4);align-items:start;
+         max-width:980px}
+  @media (max-width:1000px){.grade{grid-template-columns:1fr}}
+  label{display:block;font-size:.8125rem;color:var(--ds-txt-2);margin:var(--ds-e-4) 0 6px}
+  .ds-campo{width:100%}
+  .foto-atual{width:96px;height:96px;border-radius:24px;object-fit:cover;
+              border:2px solid var(--ds-border-forte)}
+  .foto-inicial{width:96px;height:96px;border-radius:24px;display:grid;place-items:center;
+                background:var(--ds-grad-surface-2);border:2px solid var(--ds-border-forte);
+                font-size:2.5rem;font-weight:700;color:var(--ds-acao)}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Meu perfil</h1>
+  <div class="sub">{{ eu.email }} · papel
+    <b>{{ 'Dev' if eu.papel == 'dev' else 'Diretor' }}</b> ·
+    {{ sessoes }} sessão(ões) ativa(s)</div></div></div>
+
+{% if ok == 'dados' %}<div class="aviso aviso--ok">✓ <div>Dados atualizados.</div></div>{% endif %}
+{% if ok == 'senha' %}<div class="aviso aviso--ok">✓ <div>Senha trocada — suas outras sessões
+  foram encerradas.</div></div>{% endif %}
+{% if ok == 'foto' %}<div class="aviso aviso--ok">✓ <div>Foto atualizada.</div></div>{% endif %}
+{% if erro == 'email' %}<div class="aviso aviso--erro">⚠︎ <div>Esse e-mail já está em uso.</div></div>{% endif %}
+{% if erro == 'atual' %}<div class="aviso aviso--erro">⚠︎ <div>A senha atual não confere.</div></div>{% endif %}
+{% if erro == 'nova' %}<div class="aviso aviso--erro">⚠︎ <div>A nova senha precisa de 8+
+  caracteres e os dois campos devem ser iguais.</div></div>{% endif %}
+{% if erro == 'foto' %}<div class="aviso aviso--erro">⚠︎ <div>Envie uma imagem de até 3 MB.</div></div>{% endif %}
+
+<div class="grade">
+  <section class="ds-card ds-card--alto">
+    <h2>Dados</h2>
+    <form method="post" action="/perfil">
+      <label>Nome</label>
+      <input class="ds-campo" name="nome" value="{{ eu.nome }}" required>
+      <label>E-mail</label>
+      <input class="ds-campo" type="email" name="email" value="{{ eu.email }}" required>
+      <button class="ds-btn" style="margin-top:var(--ds-e-4)">Salvar</button>
+    </form>
+    <h2 style="margin-top:var(--ds-e-6)">Foto</h2>
+    <div style="display:flex;gap:var(--ds-e-4);align-items:center">
+      {% if eu.tem_foto %}<img class="foto-atual" src="/perfil/foto/{{ eu.id }}?v={{ sessoes }}" alt="">
+      {% else %}<div class="foto-inicial">{{ eu.nome[:1]|upper }}</div>{% endif %}
+      <form method="post" action="/perfil/foto" enctype="multipart/form-data"
+            style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="ds-campo" type="file" name="foto" accept="image/*" required
+               style="padding:9px">
+        <button class="ds-btn ds-btn--fantasma">Enviar</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="ds-card ds-card--alto">
+    <h2>Trocar senha</h2>
+    <form method="post" action="/perfil/senha">
+      <label>Senha atual</label>
+      <input class="ds-campo" type="password" name="atual" required
+             autocomplete="current-password">
+      <label>Nova senha (mínimo 8 caracteres)</label>
+      <input class="ds-campo" type="password" name="nova" minlength="8" required
+             autocomplete="new-password">
+      <label>Repita a nova senha</label>
+      <input class="ds-campo" type="password" name="nova2" minlength="8" required
+             autocomplete="new-password">
+      <button class="ds-btn" style="margin-top:var(--ds-e-4)">Trocar senha</button>
+    </form>
+    <div class="meta" style="margin-top:var(--ds-e-4)">Ao trocar, todas as suas outras
+      sessões (outros aparelhos) são encerradas — só esta continua.</div>
+  </section>
+</div>
+{% endblock %}

@@ -473,6 +473,31 @@ CREATE TABLE maquina_pasta (
     UNIQUE (maquina_id, caminho)
 );
 
+-- Pessoas que entram na plataforma. papel 'dev' vê tudo; 'diretor' tudo menos o que é
+-- desenvolvimento (API, gestão de usuários). senha_hash NULL = convite pendente: o link
+-- /convite/{token} define a primeira senha. Foto mora no banco (o CRM é a memória).
+CREATE TABLE usuario (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome            text NOT NULL,
+    email           text UNIQUE NOT NULL,
+    papel           text NOT NULL DEFAULT 'diretor'
+                    CHECK (papel IN ('dev', 'diretor')),
+    senha_hash      text,
+    foto            bytea,
+    foto_tipo       text,
+    convite_token   text UNIQUE,
+    ativo           boolean NOT NULL DEFAULT true,
+    criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
+-- Sessões de navegador: cookie → linha aqui. Revogar acesso = apagar a linha.
+CREATE TABLE sessao (
+    token           text PRIMARY KEY,
+    usuario_id      uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    criado_em       timestamptz NOT NULL DEFAULT now(),
+    expira_em       timestamptz NOT NULL
+);
+
 -- Timeline unificada: notas, ligações, mensagens, eventos automáticos
 CREATE TABLE activity (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -17,23 +17,30 @@
 <div class="topo"><div><h1>Máquinas</h1>
   <div class="sub">O Mac liga <b>para</b> o CRM — sem porta aberta. O que ele pode tocar é a
     lista de pastas abaixo; revogar é remover daqui.</div></div>
-  <a class="ds-btn {{ 'ds-btn--fantasma' if linhas else '' }}"
-     href="/maquinas/instalador">⬇ Instalar máquina</a></div>
+  <div style="display:flex;gap:8px">
+    <a class="ds-btn {{ 'ds-btn--fantasma' if linhas else '' }}"
+       href="/maquinas/instalador">⬇ Instalar (Mac)</a>
+    <a class="ds-btn ds-btn--fantasma" href="/maquinas/instalador.ps1">⬇ Instalar (Windows)</a>
+  </div></div>
 
 {% if not linhas %}
 <section class="ds-card ds-card--alto">
-  <h2>Conecte o Mac Mini em 3 passos</h2>
-  <div class="meta" style="line-height:2;max-width:760px">
-    <b style="color:var(--ds-txt)">1.</b> No Mac, clique em <b>Instalar máquina</b> (acima) —
-      baixa <code>instalar-duck-mac.zip</code>; clique duas vezes para extrair.<br>
-    <b style="color:var(--ds-txt)">2.</b> Clique duas vezes em
-      <code>instalar-duck-mac.command</code>. Se o macOS bloquear, clique com o botão
-      direito → <b>Abrir</b> (só na primeira vez).<br>
-    <b style="color:var(--ds-txt)">3.</b> No Terminal que abrir, confirme o nome da máquina e
-      digite a senha do CRM. Ele baixa o runtime, conecta e se instala como serviço — a
-      máquina aparece nesta tela em segundos e volta sozinha a cada reinício.<br><br>
-    Prefere uma linha no Terminal? <code>bash &lt;(curl -fsu duck
-      "{{ request.base_url }}maquinas/instalador.sh")</code>
+  <h2>Conecte uma máquina em 3 passos</h2>
+  <div class="meta" style="line-height:2;max-width:800px">
+    <b style="color:var(--ds-txt)">Mac</b> — clique em <b>Instalar (Mac)</b>: baixa
+      <code>instalar-duck-mac.zip</code>; duplo clique extrai o
+      <code>.command</code>; duplo clique nele (se o macOS bloquear: botão direito →
+      <b>Abrir</b>, só na primeira vez). No Terminal, confirme o nome e digite a senha —
+      ele baixa o runtime, conecta e se instala como serviço.<br>
+    <b style="color:var(--ds-txt)">Windows</b> — clique em <b>Instalar (Windows)</b>: baixa
+      <code>instalar-duck-maquina.ps1</code>. Abra o PowerShell e rode:
+      <code>powershell -ExecutionPolicy Bypass -File $HOME\Downloads\instalar-duck-maquina.ps1</code>
+      — mesmo fluxo (precisa do Python instalado; o instalador avisa se faltar).<br>
+    <b style="color:var(--ds-txt)">iPhone/iPad</b> — não roda agente, mas o CRM abre normal
+      no navegador.<br><br>
+    Quantas máquinas quiser, ao mesmo tempo — cada uma aparece aqui com suas próprias pastas
+    e tarefas. Alternativa Mac em uma linha:
+    <code>bash &lt;(curl -fsu duck "{{ request.base_url }}maquinas/instalador.sh")</code>
   </div>
 </section>
 {% endif %}

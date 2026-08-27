@@ -33,6 +33,21 @@
             padding:2px 7px}
   .badge{margin-left:auto;background:var(--ds-erro-bg);color:var(--ds-erro);font-size:.6875rem;
          font-weight:700;padding:2px 8px;border-radius:999px}
+  .eu{margin-top:auto;display:flex;align-items:center;gap:6px}
+  .eu-link{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none;
+           padding:8px;border-radius:14px;color:var(--ds-txt-2)}
+  .eu-link:hover,.eu-link.on{background:var(--ds-surface-2);color:var(--ds-txt)}
+  .eu-foto{width:34px;height:34px;border-radius:12px;object-fit:cover;flex:none;
+           border:1px solid var(--ds-border-forte)}
+  .eu-inicial{display:grid;place-items:center;background:var(--ds-grad-surface-2);
+              font-weight:700;color:var(--ds-acao)}
+  .eu-quem{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+  .eu-quem b{font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .eu-quem small{font-size:.6875rem;color:var(--ds-txt-3)}
+  .eu-sair{background:none;border:0;color:var(--ds-txt-3);cursor:pointer;font-size:1rem;
+           padding:8px;border-radius:10px}
+  .eu-sair:hover{color:var(--ds-erro);background:var(--ds-surface-2)}
+  @media (max-width:860px){.eu-quem{display:none}}
   main{padding:var(--ds-e-6) var(--ds-e-6) var(--ds-e-7);max-width:1400px;min-width:0}
   h1{font-size:2.25rem;font-weight:500;margin:0 0 4px;letter-spacing:-.02em}
   h2{font-size:1.0625rem;font-weight:700;margin:0 0 var(--ds-e-4)}
@@ -83,9 +98,23 @@
     <a href="/agentes"   class="{{ 'on' if ativo=='agentes' }}"><span class="ic">☑</span> Aprovações</a>
     <a href="/maquinas" class="{{ 'on' if ativo=='maquinas' }}"><span class="ic">⌂</span> Máquinas</a>
     <a href="/fluxos"   class="{{ 'on' if ativo=='fluxos' }}"><span class="ic">⧉</span> Fluxos</a>
+    {% if not usuario or usuario.get('papel') == 'dev' %}
     <div class="grupo">Dados</div>
     <a href="/api/docs"><span class="ic">⌁</span> API dos agentes</a>
+    <a href="/usuarios" class="{{ 'on' if ativo=='usuarios' }}"><span class="ic">☩</span> Usuários</a>
+    {% endif %}
   </nav>
+  {% if usuario and usuario.get('id') %}
+  <div class="eu">
+    <a href="/perfil" class="eu-link {{ 'on' if ativo=='perfil' }}">
+      {% if usuario.get('tem_foto') %}<img class="eu-foto" src="/perfil/foto/{{ usuario.id }}" alt="">
+      {% else %}<span class="eu-foto eu-inicial">{{ usuario.nome[:1]|upper }}</span>{% endif %}
+      <span class="eu-quem"><b>{{ usuario.nome }}</b>
+        <small>{{ 'Dev' if usuario.papel == 'dev' else 'Diretor' }}</small></span>
+    </a>
+    <form method="post" action="/sair"><button class="eu-sair" title="Sair">⏻</button></form>
+  </div>
+  {% endif %}
 </aside>
 <main>
 <div id="ds-pendentes" class="aviso aviso--at" hidden></div>
