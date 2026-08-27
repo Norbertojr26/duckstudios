@@ -16,18 +16,24 @@
 {% block conteudo %}
 <div class="topo"><div><h1>Máquinas</h1>
   <div class="sub">O Mac liga <b>para</b> o CRM — sem porta aberta. O que ele pode tocar é a
-    lista de pastas abaixo; revogar é remover daqui.</div></div></div>
+    lista de pastas abaixo; revogar é remover daqui.</div></div>
+  <a class="ds-btn {{ 'ds-btn--fantasma' if linhas else '' }}"
+     href="/maquinas/instalador">⬇ Instalar máquina</a></div>
 
 {% if not linhas %}
 <section class="ds-card ds-card--alto">
-  <h2>Nenhuma máquina conectada ainda</h2>
-  <div class="meta" style="line-height:1.8;max-width:720px">
-    No Mac Mini, com o repositório clonado:<br>
-    <code>export DUCK_URL=https://crm.duckstudios.com.br DUCK_USUARIO=duck DUCK_SENHA=•••
-DUCK_MAQUINA="mac-mini-studio"</code><br>
-    <code>python3 scripts/mac/duck_mac.py</code><br><br>
-    Em ~30 segundos a máquina aparece aqui, e você passa a autorizar pastas e mandar tarefas
-    desta tela. Para rodar sempre: <code>scripts/mac/instalar_launchd.sh</code>.
+  <h2>Conecte o Mac Mini em 3 passos</h2>
+  <div class="meta" style="line-height:2;max-width:760px">
+    <b style="color:var(--ds-txt)">1.</b> No Mac, clique em <b>Instalar máquina</b> (acima) —
+      baixa <code>instalar-duck-mac.zip</code>; clique duas vezes para extrair.<br>
+    <b style="color:var(--ds-txt)">2.</b> Clique duas vezes em
+      <code>instalar-duck-mac.command</code>. Se o macOS bloquear, clique com o botão
+      direito → <b>Abrir</b> (só na primeira vez).<br>
+    <b style="color:var(--ds-txt)">3.</b> No Terminal que abrir, confirme o nome da máquina e
+      digite a senha do CRM. Ele baixa o runtime, conecta e se instala como serviço — a
+      máquina aparece nesta tela em segundos e volta sozinha a cada reinício.<br><br>
+    Prefere uma linha no Terminal? <code>bash &lt;(curl -fsu duck
+      "{{ request.base_url }}maquinas/instalador.sh")</code>
   </div>
 </section>
 {% endif %}

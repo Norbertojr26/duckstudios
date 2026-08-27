@@ -805,6 +805,111 @@ def maquina_tarefa(mid: str, tipo: str = Form(...), cliente: str = Form(""),
     return RedirectResponse("/maquinas", 303)
 
 
+# --- instalador de um clique: o CRM distribui o próprio runtime ---
+
+ARQS_INSTALADOR = ("duck_mac.py", "refletir_tags.py", "duck_ingest.py")
+
+# .command = duplo-clique abre no Terminal do macOS. Vai dentro de um .zip porque download
+# de navegador perde o bit de execução — o Archive Utility preserva o do zip ao extrair.
+_INSTALADOR = r"""#!/bin/bash
+# Instalador da máquina Duck Studios — gerado pelo CRM (__URL__).
+# O runtime só toca nas pastas autorizadas na tela Máquinas; nenhuma porta aberta no Mac.
+set -euo pipefail
+URL="__URL__"
+echo "=== Duck Studios — conectar esta máquina ao CRM ==="
+echo "CRM: $URL"
+PADRAO="$(hostname -s | tr '[:upper:]' '[:lower:]')"
+printf "Nome desta máquina [%s]: " "$PADRAO"; read NOME; NOME="${NOME:-$PADRAO}"
+printf "Usuário do CRM [duck]: "; read USUARIO; USUARIO="${USUARIO:-duck}"
+printf "Senha do CRM: "; read -s SENHA; echo
+
+PY="$(command -v python3 || true)"
+if [ -z "$PY" ]; then
+  echo "✕ python3 não encontrado. Rode:  xcode-select --install   e depois este instalador de novo."
+  exit 1
+fi
+
+DEST="$HOME/DuckStudios/runtime"
+mkdir -p "$DEST"
+echo "→ baixando o runtime do CRM…"
+for f in duck_mac.py refletir_tags.py duck_ingest.py; do
+  curl -fsS -u "$USUARIO:$SENHA" "$URL/maquinas/instalador/arquivo/$f" -o "$DEST/$f" \
+    || { echo "✕ falha ao baixar $f — a senha está certa?"; exit 1; }
+done
+
+echo "→ primeiro contato com o CRM…"
+DUCK_URL="$URL" DUCK_USUARIO="$USUARIO" DUCK_SENHA="$SENHA" DUCK_MAQUINA="$NOME" \
+  "$PY" "$DEST/duck_mac.py" --uma-vez \
+  || { echo "✕ não conectou — confira usuário e senha e rode de novo"; exit 1; }
+
+PLIST="$HOME/Library/LaunchAgents/br.com.duckstudios.mac.plist"
+LOG="$HOME/Library/Logs/duck_mac.log"
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+cat > "$PLIST" <<FIM
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>br.com.duckstudios.mac</string>
+  <key>ProgramArguments</key>
+  <array><string>$PY</string><string>$DEST/duck_mac.py</string></array>
+  <key>EnvironmentVariables</key><dict>
+    <key>DUCK_URL</key><string>$URL</string>
+    <key>DUCK_USUARIO</key><string>$USUARIO</string>
+    <key>DUCK_SENHA</key><string>$SENHA</string>
+    <key>DUCK_MAQUINA</key><string>$NOME</string>
+  </dict>
+  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>$LOG</string>
+  <key>StandardErrorPath</key><string>$LOG</string>
+</dict></plist>
+FIM
+chmod 600 "$PLIST"
+launchctl unload "$PLIST" 2>/dev/null || true
+launchctl load "$PLIST"
+echo
+echo "✓ Pronto. '$NOME' fica conectada sempre que o Mac estiver ligado."
+echo "  Autorize as pastas em: $URL/maquinas"
+echo "  Log: $LOG"
+echo "  Desinstalar: launchctl unload \"$PLIST\" && rm \"$PLIST\""
+"""
+
+
+def _instalador_corpo(request: Request) -> str:
+    return _INSTALADOR.replace("__URL__", str(request.base_url).rstrip("/"))
+
+
+@app.get("/maquinas/instalador")
+def maquina_instalador(request: Request):
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        zi = zipfile.ZipInfo("instalar-duck-mac.command")
+        zi.create_system = 3                      # unix: honra o modo de arquivo
+        zi.external_attr = 0o755 << 16
+        z.writestr(zi, _instalador_corpo(request))
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition":
+                             'attachment; filename="instalar-duck-mac.zip"'})
+
+
+@app.get("/maquinas/instalador.sh")
+def maquina_instalador_sh(request: Request):
+    """O mesmo instalador em texto puro, para quem prefere uma linha no Terminal."""
+    return Response(_instalador_corpo(request), media_type="text/x-shellscript")
+
+
+@app.get("/maquinas/instalador/arquivo/{nome}")
+def maquina_instalador_arquivo(nome: str):
+    if nome not in ARQS_INSTALADOR:
+        return JSONResponse({"erro": "arquivo desconhecido"}, 404)
+    caminho = RAIZ.parent / "scripts" / "mac" / nome
+    if not caminho.is_file():
+        return JSONResponse({"erro": "runtime não disponível neste deploy"}, 404)
+    return Response(caminho.read_text(), media_type="text/x-python")
+
+
 # --- o lado que o runtime do Mac consome ---
 
 @app.post("/api/mac/heartbeat")

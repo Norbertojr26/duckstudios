@@ -9,6 +9,8 @@ RUN pip install -r requirements.txt
 COPY app/    ./app/
 COPY db/     ./db/
 COPY design/ ./design/
+# O CRM distribui o runtime do Mac (tela Máquinas → Instalar máquina).
+COPY scripts/mac ./scripts/mac/
 
 # A identidade vira estático da aplicação: uma fonte de verdade visual, sem cópia.
 RUN cp design/tokens.css app/static/ && cp -r design/logo app/static/logo && \
