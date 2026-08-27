@@ -453,6 +453,26 @@ CREATE TABLE outbox (
     enviado_em      timestamptz
 );
 
+-- Máquinas locais (Mac Mini) gerenciadas pelo CRM. A máquina liga PARA o CRM (sem porta
+-- aberta): heartbeat + busca de tarefas. O que ela pode tocar é a lista de pastas abaixo —
+-- editada na interface, aplicada na ponta.
+CREATE TABLE maquina (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome            text UNIQUE NOT NULL,
+    ultimo_heartbeat timestamptz,
+    info            jsonb NOT NULL DEFAULT '{}'      -- volumes, disco, versão do runtime
+);
+
+CREATE TABLE maquina_pasta (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    maquina_id      uuid NOT NULL REFERENCES maquina(id) ON DELETE CASCADE,
+    caminho         text NOT NULL,
+    permissao       text NOT NULL DEFAULT 'leitura'
+                    CHECK (permissao IN ('leitura', 'leitura_escrita')),
+    ativo           boolean NOT NULL DEFAULT true,
+    UNIQUE (maquina_id, caminho)
+);
+
 -- Timeline unificada: notas, ligações, mensagens, eventos automáticos
 CREATE TABLE activity (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

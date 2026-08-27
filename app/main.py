@@ -744,6 +744,107 @@ def api_qualificar(dados: dict):
         return JSONResponse({"ok": False, "erro": f"{type(e).__name__}: {e}"}, 500)
 
 
+# ----------------------------------------------------- máquinas (Mac Mini)
+
+TAREFAS_MAC = ("inventariar_pastas", "refletir_tags", "capturar_tags")
+
+
+@app.get("/maquinas", response_class=HTMLResponse)
+def maquinas(request: Request):
+    linhas = db.q("""SELECT m.*, (m.ultimo_heartbeat > now() - interval '3 minutes') AS online
+                       FROM maquina m ORDER BY m.nome""")
+    pastas = db.q("SELECT * FROM maquina_pasta WHERE ativo ORDER BY caminho")
+    por_maquina = {}
+    for p in pastas:
+        por_maquina.setdefault(p["maquina_id"], []).append(p)
+    tarefas = db.q("""SELECT id, tipo, payload, status, criado_em, erro FROM job_queue
+                       WHERE tipo LIKE 'mac:%%' ORDER BY criado_em DESC LIMIT 12""")
+    return pag(request, "maquinas.html", ativo="maquinas", linhas=linhas,
+               por_maquina=por_maquina, tarefas=tarefas, tipos=TAREFAS_MAC)
+
+
+@app.post("/maquinas/pasta")
+def maquina_pasta_add(maquina_id: str = Form(...), caminho: str = Form(...),
+                      permissao: str = Form("leitura")):
+    db.exec_("""INSERT INTO maquina_pasta (maquina_id, caminho, permissao)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (maquina_id, caminho)
+                DO UPDATE SET ativo = true, permissao = EXCLUDED.permissao""",
+             (maquina_id, caminho.strip().rstrip("/"),
+              permissao if permissao in ("leitura", "leitura_escrita") else "leitura"))
+    return RedirectResponse("/maquinas", 303)
+
+
+@app.post("/maquinas/pasta/{pid}/remover")
+def maquina_pasta_rm(pid: str):
+    db.exec_("UPDATE maquina_pasta SET ativo = false WHERE id = %s", (pid,))
+    return RedirectResponse("/maquinas", 303)
+
+
+@app.post("/maquinas/{mid}/tarefa")
+def maquina_tarefa(mid: str, tipo: str = Form(...)):
+    if tipo not in TAREFAS_MAC:
+        return RedirectResponse("/maquinas", 303)
+    m = db.q1("SELECT nome FROM maquina WHERE id = %s", (mid,))
+    if m:
+        db.exec_("INSERT INTO job_queue (tipo, payload) VALUES (%s, %s)",
+                 (f"mac:{tipo}", json.dumps({"maquina": m["nome"]})))
+    return RedirectResponse("/maquinas", 303)
+
+
+# --- o lado que o runtime do Mac consome ---
+
+@app.post("/api/mac/heartbeat")
+def api_mac_heartbeat(dados: dict):
+    """A máquina se apresenta e recebe de volta as pastas que PODE tocar. A lista mora aqui;
+    a ponta só obedece — revogar acesso é remover a pasta na tela, sem tocar no Mac."""
+    nome = (dados.get("maquina") or "").strip()
+    if not nome:
+        return JSONResponse({"ok": False, "erro": "campo 'maquina' obrigatório"}, 400)
+    m = db.q1("""INSERT INTO maquina (nome, ultimo_heartbeat, info)
+                 VALUES (%s, now(), %s)
+                 ON CONFLICT (nome) DO UPDATE
+                   SET ultimo_heartbeat = now(), info = EXCLUDED.info
+                 RETURNING id""",
+              (nome, json.dumps(dados.get("info", {}), ensure_ascii=False)))
+    pastas = db.q("""SELECT caminho, permissao FROM maquina_pasta
+                      WHERE maquina_id = %s AND ativo""", (m["id"],))
+    return {"ok": True, "pastas": pastas}
+
+
+@app.get("/api/mac/proxima-tarefa")
+def api_mac_proxima(maquina: str):
+    with db.cur() as c:
+        c.execute("""SELECT id, tipo, payload FROM job_queue
+                      WHERE tipo LIKE 'mac:%%' AND status = 'pendente'
+                        AND payload->>'maquina' = %s
+                      ORDER BY criado_em
+                      FOR UPDATE SKIP LOCKED LIMIT 1""", (maquina,))
+        t = c.fetchone()
+        if not t:
+            return {"tarefa": None}
+        c.execute("UPDATE job_queue SET status='processando', tentativas=tentativas+1 "
+                  "WHERE id=%s", (t["id"],))
+        return {"tarefa": {"id": t["id"], "tipo": t["tipo"].removeprefix("mac:"),
+                           "payload": t["payload"]}}
+
+
+@app.post("/api/mac/resultado/{jid}")
+def api_mac_resultado(jid: int, dados: dict):
+    ok = bool(dados.get("ok"))
+    db.exec_("""UPDATE job_queue SET status=%s, erro=%s, payload = payload || %s
+                 WHERE id=%s""",
+             ("concluido" if ok else "falha", dados.get("erro"),
+              json.dumps({"resultado": dados.get("resultado")}, ensure_ascii=False, default=str),
+              jid))
+    from .agentes.registro import execucao
+    with execucao("dit", "SOP-001", "tarefa:mac") as ex:
+        ex.acao(dados.get("tipo", "tarefa_mac"), {"job": jid},
+                dados.get("resultado") or {"erro": dados.get("erro")},
+                erro=None if ok else (dados.get("erro") or "falha"))
+    return {"ok": True}
+
+
 # ------------------------------------------------------------ agente DIT
 
 @app.post("/api/agentes/dit/offload")
@@ -814,6 +915,11 @@ def api_dit_offload(dados: dict):
     return {"ok": True, "offload_id": str(offload_id), "status": dados["status"],
             "aprovacao": "liberação de formatação aguardando humano"
                           if dados["status"] == "verificado" else "com divergências — não liberar"}
+
+
+@app.get("/fluxos", response_class=HTMLResponse)
+def fluxos(request: Request):
+    return pag(request, "fluxos.html", ativo="fluxos")
 
 
 # --------------------------------------------------- agentes: sala ao vivo

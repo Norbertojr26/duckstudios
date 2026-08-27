@@ -1,0 +1,100 @@
+{% extends "base.html" %}{% block titulo %}Máquinas — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 380px;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1100px){.grade{grid-template-columns:1fr}}
+  .pasta{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;
+         background:var(--ds-grad-surface-2);border:1px solid var(--ds-border);
+         margin-bottom:8px;font-size:.8125rem}
+  .pasta code{color:var(--ds-txt);word-break:break-all}
+  .led{width:10px;height:10px;border-radius:99px;display:inline-block;margin-right:8px}
+  .on{background:var(--ds-ok);animation:p 1.4s infinite}
+  .off{background:var(--ds-txt-3)}
+  @keyframes p{50%{opacity:.35}}
+  .add{display:flex;gap:8px;flex-wrap:wrap;margin-top:var(--ds-e-3)}
+  .num{font-variant-numeric:tabular-nums}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Máquinas</h1>
+  <div class="sub">O Mac liga <b>para</b> o CRM — sem porta aberta. O que ele pode tocar é a
+    lista de pastas abaixo; revogar é remover daqui.</div></div></div>
+
+{% if not linhas %}
+<section class="ds-card ds-card--alto">
+  <h2>Nenhuma máquina conectada ainda</h2>
+  <div class="meta" style="line-height:1.8;max-width:720px">
+    No Mac Mini, com o repositório clonado:<br>
+    <code>export DUCK_URL=https://crm.duckstudios.com.br DUCK_USUARIO=duck DUCK_SENHA=•••
+DUCK_MAQUINA="mac-mini-studio"</code><br>
+    <code>python3 scripts/mac/duck_mac.py</code><br><br>
+    Em ~30 segundos a máquina aparece aqui, e você passa a autorizar pastas e mandar tarefas
+    desta tela. Para rodar sempre: <code>scripts/mac/instalar_launchd.sh</code>.
+  </div>
+</section>
+{% endif %}
+
+<div class="grade">
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
+    {% for m in linhas %}
+    <section class="ds-card ds-card--alto">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;
+                  flex-wrap:wrap">
+        <h2 style="margin:0"><span class="led {{ 'on' if m.online else 'off' }}"></span>{{ m.nome }}</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          {% for t in tipos %}
+          <form method="post" action="/maquinas/{{ m.id }}/tarefa">
+            <input type="hidden" name="tipo" value="{{ t }}">
+            <button class="ds-btn ds-btn--fantasma" style="min-height:34px;padding:0 14px;
+                    font-size:.75rem">{{ t|replace('_',' ') }}</button>
+          </form>{% endfor %}
+        </div>
+      </div>
+      <div class="meta" style="margin:6px 0 var(--ds-e-4)">
+        {{ 'online' if m.online else 'offline' }} ·
+        último sinal: {{ m.ultimo_heartbeat.strftime('%d/%m %H:%M:%S') if m.ultimo_heartbeat else 'nunca' }}
+        {% if m.info.get('volumes') %} · volumes: {{ m.info['volumes']|join(', ') }}{% endif %}
+        {% if m.info.get('disco_livre_gb') %} · {{ m.info['disco_livre_gb'] }} GB livres{% endif %}
+      </div>
+
+      <h2 style="font-size:.9375rem">Pastas autorizadas</h2>
+      {% for p in por_maquina.get(m.id, []) %}
+      <div class="pasta">
+        <span class="ds-chip {{ 'ds-chip--atencao' if p.permissao == 'leitura_escrita' else '' }}"
+              style="font-size:.625rem">{{ 'ler+escrever' if p.permissao=='leitura_escrita' else 'só ler' }}</span>
+        <code>{{ p.caminho }}</code>
+        <form method="post" action="/maquinas/pasta/{{ p.id }}/remover" style="margin-left:auto">
+          <button class="ds-btn ds-btn--fantasma" style="min-height:28px;padding:0 10px;
+                  font-size:.6875rem">revogar</button></form>
+      </div>
+      {% else %}
+      <div class="meta">Nenhuma pasta autorizada — a máquina não toca em nada até você liberar.</div>
+      {% endfor %}
+      <form method="post" action="/maquinas/pasta" class="add">
+        <input type="hidden" name="maquina_id" value="{{ m.id }}">
+        <input class="ds-campo" name="caminho" placeholder="/Volumes/RAID/Projetos" required
+               style="flex:1;min-width:240px">
+        <select class="ds-campo" name="permissao" style="width:auto">
+          <option value="leitura">só ler</option>
+          <option value="leitura_escrita">ler + escrever</option>
+        </select>
+        <button class="ds-btn">Autorizar pasta</button>
+      </form>
+    </section>
+    {% endfor %}
+  </div>
+
+  <section class="ds-card">
+    <h2>Tarefas recentes</h2>
+    {% for t in tarefas %}
+    <div style="padding:10px 0;border-top:1px solid var(--ds-border);font-size:.8125rem">
+      <b>{{ t.tipo|replace('mac:','')|replace('_',' ') }}</b>
+      <span class="ds-chip {{ 'ds-chip--ok' if t.status=='concluido' else ('ds-chip--erro' if t.status=='falha' else 'ds-chip--info') }}"
+            style="font-size:.625rem;margin-left:6px">{{ t.status }}</span>
+      <div class="meta num">{{ t.criado_em.strftime('%d/%m %H:%M:%S') }}</div>
+      {% if t.payload.get('resultado') %}
+        <div class="meta" style="margin-top:4px">{{ t.payload['resultado'] | tojson | truncate(160) }}</div>
+      {% elif t.erro %}<div class="meta" style="color:var(--ds-erro)">{{ t.erro }}</div>{% endif %}
+    </div>
+    {% else %}<div class="meta">Nenhuma tarefa despachada ainda.</div>{% endfor %}
+  </section>
+</div>
+{% endblock %}

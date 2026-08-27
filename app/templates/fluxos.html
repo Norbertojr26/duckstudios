@@ -1,0 +1,188 @@
+{% extends "base.html" %}{% block titulo %}Fluxos — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .fluxo{margin-bottom:var(--ds-e-5)}
+  .fluxo .cab{display:flex;align-items:center;gap:var(--ds-e-3);margin-bottom:var(--ds-e-3)}
+  .fluxo .cab h2{margin:0}
+  .fluxo .cab .desc{font-size:.8125rem;color:var(--ds-txt-3)}
+  .fluxo .vivo{margin-left:auto;font-size:.75rem;color:var(--ds-txt-3);white-space:nowrap;
+               font-variant-numeric:tabular-nums}
+  .led{width:9px;height:9px;border-radius:99px;display:inline-block;margin-right:6px;
+       vertical-align:-1px;background:var(--ds-txt-3)}
+  .led--trabalhando{background:var(--ds-ok);animation:pulsa 1.1s ease-in-out infinite}
+  .led--aguardando{background:var(--ds-atencao);animation:pulsa 1.6s ease-in-out infinite}
+  .led--plantao{background:var(--ds-info)}
+  .led--sem_chave{background:var(--ds-atencao)}
+  @keyframes pulsa{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+
+  /* lousa: o "canvas" de cada fluxo, com grade pontilhada como no n8n */
+  .lousa{position:relative;overflow-x:auto;border-radius:var(--ds-raio);
+         background:var(--ds-grad-surface);border:1px solid var(--ds-border);
+         box-shadow:var(--ds-elev-1);
+         background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+         background-size:22px 22px}
+  .lousa svg{position:absolute;inset:0;pointer-events:none}
+  .lousa .tela{position:relative}
+
+  .no{position:absolute;width:196px;border-radius:16px;padding:11px 13px 12px;
+      background:var(--ds-grad-surface-2);border:1px solid var(--ds-border-forte);
+      box-shadow:var(--ds-elev-2);font-size:.8125rem;line-height:1.35}
+  .no .tipo{display:inline-flex;align-items:center;gap:6px;font-size:.625rem;font-weight:700;
+            letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+  .no .tipo::before{content:"";width:7px;height:7px;border-radius:99px;background:currentColor}
+  .no b{display:block;color:var(--ds-txt)}
+  .no .sub{color:var(--ds-txt-3);font-size:.6875rem;margin-top:3px}
+  .no::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;border-radius:16px 0 0 16px}
+
+  .no--gatilho .tipo{color:var(--ds-laranja)} .no--gatilho::before{background:var(--ds-laranja)}
+  .no--codigo  .tipo{color:var(--ds-acao)}    .no--codigo::before{background:var(--ds-acao)}
+  .no--llm     .tipo{color:#A78BFA}           .no--llm::before{background:#A78BFA}
+  .no--humano  .tipo{color:var(--ds-atencao)} .no--humano::before{background:var(--ds-atencao)}
+  .no--saida   .tipo{color:var(--ds-info)}    .no--saida::before{background:var(--ds-info)}
+  .no--mac     .tipo{color:var(--ds-txt-2)}   .no--mac::before{background:var(--ds-txt-2)}
+
+  .fio{fill:none;stroke:var(--ds-border-forte);stroke-width:2}
+  .fio--anda{stroke:var(--ds-acao);opacity:.85;stroke-dasharray:7 6;
+             animation:anda 1.1s linear infinite}
+  @keyframes anda{to{stroke-dashoffset:-13}}
+  .fio-rotulo{font-size:10px;fill:var(--ds-txt-3)}
+
+  .legenda{display:flex;flex-wrap:wrap;gap:var(--ds-e-3) var(--ds-e-4);margin:var(--ds-e-3) 0
+           var(--ds-e-5);font-size:.75rem;color:var(--ds-txt-3)}
+  .legenda span{display:inline-flex;align-items:center;gap:6px}
+  .legenda i{width:9px;height:9px;border-radius:99px;font-style:normal}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><h1>Fluxos</h1>
+    <div class="sub">O desenho real de cada agente: quem dispara, o que é código, o que é LLM
+      e onde <b>você</b> aprova. As linhas animam quando o agente está trabalhando.</div></div>
+  <a class="ds-btn ds-btn--fantasma" href="/sala">Sala ao vivo</a>
+</div>
+
+<div class="legenda">
+  <span><i style="background:var(--ds-laranja)"></i> gatilho</span>
+  <span><i style="background:var(--ds-acao)"></i> código (determinístico)</span>
+  <span><i style="background:#A78BFA"></i> LLM decide/redige — nunca executa</span>
+  <span><i style="background:var(--ds-atencao)"></i> humano aprova (A2 é o teto)</span>
+  <span><i style="background:var(--ds-info)"></i> saída</span>
+  <span><i style="background:var(--ds-txt-2)"></i> roda no Mac Mini</span>
+</div>
+
+<div id="fluxos"></div>
+
+<script>
+// Cada fluxo é dado, não desenho à mão: nós em grade (col,lin) e arestas por id.
+// O renderizador posiciona os cartões e traça os fios em bezier — mesma receita do n8n.
+const FLUXOS = [
+ {agente:"dit", nome:"Mac Mini — tarefas remotas",
+  desc:"a máquina chama o CRM (sem porta aberta); só toca pastas que você autorizou em Máquinas",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"Você despacha a tarefa",s:"botão na tela Máquinas"},
+   {id:"b",c:1,l:0,t:"codigo",n:"Fila de tarefas",s:"job_queue · tipo mac:*"},
+   {id:"c",c:2,l:0,t:"mac",n:"Mac busca trabalho",s:"polling a cada 20 s"},
+   {id:"d",c:3,l:0,t:"codigo",n:"Trava de pastas",s:"só executa dentro da allowlist"},
+   {id:"e",c:4,l:0,t:"mac",n:"Executa no disco",s:"inventário · refletir/capturar tags"},
+   {id:"f",c:5,l:0,t:"saida",n:"Resultado no CRM",s:"auditoria do agente DIT"},
+   {id:"g",c:2,l:1,t:"mac",n:"Heartbeat",s:"volumes, disco, versão"},
+   {id:"h",c:3,l:1,t:"saida",n:"Máquina online",s:"LED verde em Máquinas"}],
+  arestas:[["a","b"],["b","c"],["c","d"],["d","e","autorizada"],["e","f"],["g","h"]]},
+
+ {agente:"dit", nome:"DIT — offload de cartão",
+  desc:"cópia dupla verificada por hash; formatar cartão só depois do seu OK",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"Cartão no leitor",s:"duck_ingest no Mac"},
+   {id:"b",c:1,l:0,t:"mac",n:"Copia p/ 2 destinos",s:"sempre lendo da origem"},
+   {id:"c",c:2,l:0,t:"mac",n:"Verifica por hash",s:"relendo o destino, xxhash"},
+   {id:"d",c:3,l:0,t:"saida",n:"Offload no CRM",s:"manifesto + arquivos"},
+   {id:"e",c:4,l:0,t:"humano",n:"Liberar formatação",s:"aprovação A2 — nunca automática"},
+   {id:"f",c:4,l:1,t:"codigo",n:"Divergência: bloqueia",s:"cartão fica intocado"}],
+  arestas:[["a","b"],["b","c"],["c","d","íntegro"],["c","f","difere"],["d","e"]]},
+
+ {agente:"comercial", nome:"Comercial — qualificação de lead",
+  desc:"a mensagem do lead é dado, nunca instrução; quem fala com cliente é você",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"Mensagem de lead",s:"WhatsApp / formulário"},
+   {id:"b",c:1,l:0,t:"llm",n:"Qualifica e extrai",s:"serviço, orçamento, urgência"},
+   {id:"c",c:2,l:0,t:"codigo",n:"Negócio no funil",s:"cria/atualiza o deal"},
+   {id:"d",c:2,l:1,t:"llm",n:"Rascunho de resposta",s:"tom Duck, sem preço fechado"},
+   {id:"e",c:3,l:1,t:"humano",n:"Você aprova (A2)",s:"edita ou descarta"},
+   {id:"f",c:4,l:1,t:"saida",n:"Outbox",s:"só então vira mensagem"}],
+  arestas:[["a","b"],["b","c"],["b","d"],["d","e"],["e","f"]]},
+
+ {agente:"comercial", nome:"Comercial — reativação (RFM)",
+  desc:"clientes sumidos há 90+ dias; no máximo 1 abordagem a cada 60 dias",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"Agenda diária",s:"1× por dia"},
+   {id:"b",c:1,l:0,t:"codigo",n:"Varredura RFM",s:"90 dias sem negócio"},
+   {id:"c",c:2,l:0,t:"codigo",n:"Rascunho por cliente",s:"com histórico do que alugou"},
+   {id:"d",c:3,l:0,t:"humano",n:"Você aprova (A2)",s:"um a um"},
+   {id:"e",c:4,l:0,t:"saida",n:"Outbox",s:"dedupe de 60 dias"}],
+  arestas:[["a","b"],["b","c"],["c","d"],["d","e"]]},
+
+ {agente:"rental", nome:"Rental — régua de devoluções",
+  desc:"100% código, zero LLM: datas não são opinião",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"A cada 15 min",s:"ronda agendada"},
+   {id:"b",c:1,l:0,t:"codigo",n:"Confere saídas",s:"devolve amanhã? atrasou?"},
+   {id:"c",c:2,l:0,t:"saida",n:"Alerta no painel",s:"D-1 e atraso"},
+   {id:"d",c:2,l:1,t:"codigo",n:"Nada a fazer",s:"registra a ronda e dorme"}],
+  arestas:[["a","b"],["b","c","pendência"],["b","d","tudo ok"]]},
+
+ {agente:"entrega", nome:"Entrega — prazos e faxina do Drive",
+  desc:"verde não arquiva nada; o gatilho é o roxo (entregue), como no seu Finder",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"Agenda diária",s:"1× por dia"},
+   {id:"b",c:1,l:0,t:"codigo",n:"Prazos de entrega",s:"D-2 e estourado"},
+   {id:"c",c:2,l:0,t:"saida",n:"Alerta no painel",s:"por projeto"},
+   {id:"d",c:1,l:1,t:"codigo",n:"Roxo há 15+ dias",s:"entregue e parado"},
+   {id:"e",c:2,l:1,t:"humano",n:"Você aprova (A2)",s:"limpar espelho do Drive"},
+   {id:"f",c:3,l:1,t:"saida",n:"Tarefa de limpeza",s:"nunca apaga sozinho"}],
+  arestas:[["a","b"],["b","c"],["a","d"],["d","e"],["e","f"]]}
+];
+
+const CW=250, RH=112, PX=26, PY=22, NW=196, NH=72;
+// fora do template literal: cifrão + chave dupla dentro de crase o Jinja leria como expressão
+const TIPOS={gatilho:"gatilho",codigo:"código",llm:"LLM",humano:"humano",
+             saida:"saída",mac:"mac mini"};
+function desenhar(){
+  const raiz=document.getElementById("fluxos");
+  raiz.innerHTML=FLUXOS.map((f,i)=>{
+    const cols=Math.max(...f.nos.map(n=>n.c))+1, lins=Math.max(...f.nos.map(n=>n.l))+1;
+    const W=cols*CW+PX, H=lins*RH+PY*2;
+    const pos=Object.fromEntries(f.nos.map(n=>[n.id,{x:PX+n.c*CW,y:PY+n.l*RH}]));
+    const fios=f.arestas.map(([de,para,rot])=>{
+      const a=pos[de],b=pos[para];
+      const x1=a.x+NW,y1=a.y+NH/2,x2=b.x,y2=b.y+NH/2,dx=Math.max(34,(x2-x1)/2);
+      const d=`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+      const rotulo=rot?`<text class="fio-rotulo" x="${(x1+x2)/2}" y="${(y1+y2)/2-7}"
+        text-anchor="middle">${rot}</text>`:"";
+      return `<path class="fio" data-fio="${i}" d="${d}"/>${rotulo}`;
+    }).join("");
+    const nos=f.nos.map(n=>`<div class="no no--${n.t}" style="left:${pos[n.id].x}px;top:${pos[n.id].y}px">
+        <span class="tipo">${TIPOS[n.t]}</span>
+        <b>${n.n}</b><div class="sub">${n.s}</div></div>`).join("");
+    return `<section class="fluxo" data-agente="${f.agente}" data-i="${i}">
+      <div class="cab"><h2>${f.nome}</h2><div class="desc">${f.desc}</div>
+        <div class="vivo"><span class="led"></span><span class="txt">—</span></div></div>
+      <div class="lousa"><div class="tela" style="width:${W}px;height:${H}px">
+        <svg width="${W}" height="${H}">${fios}</svg>${nos}</div></div></section>`;
+  }).join("");
+}
+
+async function pulso(){
+  try{
+    const {mesas}=await (await fetch("/api/agentes/estado")).json();
+    const por=Object.fromEntries(mesas.map(m=>[m.chave,m]));
+    document.querySelectorAll(".fluxo").forEach(sec=>{
+      const m=por[sec.dataset.agente]; if(!m) return;
+      const led=sec.querySelector(".led"), txt=sec.querySelector(".vivo .txt");
+      led.className="led led--"+m.estado;
+      txt.textContent=`${m.detalhe||m.estado} · ${m.hoje} execução(ões) hoje`;
+      sec.querySelectorAll(".fio").forEach(p=>
+        p.classList.toggle("fio--anda", m.estado==="trabalhando"));
+    });
+  }catch(e){/* offline: fluxos continuam legíveis sem o pulso */}
+}
+desenhar(); pulso(); setInterval(pulso, 5000);
+</script>
+{% endblock %}

@@ -20,6 +20,19 @@ MIGRACOES = [
          ALTER TABLE project ADD CONSTRAINT project_estado_editorial_chk
            CHECK (estado_editorial IN ('ingerido','em_edicao','aprovado','entregue'));
        EXCEPTION WHEN duplicate_object THEN NULL; END $$""",
+    """CREATE TABLE IF NOT EXISTS maquina (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         nome text UNIQUE NOT NULL,
+         ultimo_heartbeat timestamptz,
+         info jsonb NOT NULL DEFAULT '{}')""",
+    """CREATE TABLE IF NOT EXISTS maquina_pasta (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         maquina_id uuid NOT NULL REFERENCES maquina(id) ON DELETE CASCADE,
+         caminho text NOT NULL,
+         permissao text NOT NULL DEFAULT 'leitura'
+           CHECK (permissao IN ('leitura','leitura_escrita')),
+         ativo boolean NOT NULL DEFAULT true,
+         UNIQUE (maquina_id, caminho))""",
 ]
 
 
