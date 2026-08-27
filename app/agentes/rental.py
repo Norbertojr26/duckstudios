@@ -53,7 +53,7 @@ def rodar():
              WHERE r.status = 'em_campo'
                AND r.previsao_devolucao::date = current_date
              GROUP BY r.id, c.nome, co.nome""")
-        ex.acao("consultar_devolucoes_do_dia", {}, {"quantas": len(devolve_hoje)})
+
         for r in devolve_hoje:
             hora = r["previsao_devolucao"].strftime("%H:%M")
             msg = (f"Olá, {r['responsavel']}! Lembramos que o período de locação dos seus "
@@ -77,7 +77,7 @@ def rodar():
              WHERE r.status = 'em_campo'
                AND r.previsao_devolucao < current_date
              GROUP BY r.id, c.nome, co.nome""")
-        ex.acao("consultar_atrasos", {}, {"quantos": len(atrasados)})
+
         for r in atrasados:
             msg = (f"Olá, {r['responsavel']}. A devolução dos {r['itens']} equipamentos da "
                    f"saída {r['numero']} está em atraso desde "

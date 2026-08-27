@@ -89,22 +89,20 @@ depende_de: []
 
 ## 4. Regras de negócio e taxonomia
 
-**Estrutura de destino (proposta — validar):**
+**Estrutura de destino (a REAL, confirmada em docs/19):** o offload aterrissa dentro da
+estrutura que o editor já usa —
 
 ```
-/{DESTINO}/{ANO}/{PROJETO_SLUG}/{YYYY-MM-DD}_{DIARIA_NN}/
-    ├── RAW/
-    │   └── {CAMERA}/{CARD_NN}/        ← espelho fiel do cartão, nunca alterado
-    ├── PROXIES/{CAMERA}/
-    ├── AUDIO/
-    ├── FOTO/
-    ├── DOCS/                          ← ordem do dia, decupagem, claquete
-    └── _INGEST/                       ← manifestos MHL, logs, relatorio.json
+/{CLIENTE}/{JOB}/
+    ├── VIDEOS/{CAMERA}/{CARD_NN}/     ← espelho fiel do cartão, nunca alterado
+    ├── AUDIOS/GRAVADOR/               ← cartão de áudio, quando houver
+    └── _INGEST/                       ← manifestos de hash, logs, relatorio.json
 ```
 
-<!-- PREENCHER: qual estrutura você usa HOJE? Precisamos migrar ou adotar? -->
-<!-- PREENCHER: quais câmeras/codecs? (ex: FX3 XAVC-I, R5 CRM, drone, GoPro) -->
-<!-- PREENCHER: qual NLE? Premiere ou Resolve? Muda o formato de proxy e a estrutura esperada. -->
+Câmeras conhecidas: FX3, FX30, FX6, A7IV, AVATA 2, MAVIC 4. NLE: Premiere.
+
+**Proxies: FORA do pipeline.** O editor não usa proxies (docs/19); cria manualmente nas
+exceções. O passo 10 abaixo fica desativado por padrão (`--proxies` como opção explícita).
 
 **Regras invioláveis de nomenclatura:**
 
@@ -132,7 +130,7 @@ metadata ilegível) são **copiados normalmente** e listados em `divergencias` p
 | 7 | Copiar para **destino 2** (a partir da origem, não do destino 1) | `[DET]` | A3 | 100% dos hashes conferem |
 | 8 | Gerar manifesto **ASC MHL** em cada destino | `[DET]` | A3 | MHL válido, cobre todos os arquivos |
 | 9 | Extrair metadados (codec, resolução, fps, timecode, lente, duração) → CRM | `[DET]` | A3 | linha por arquivo em `media_file` |
-| 10 | Gerar proxies (`ffmpeg`) com nomenclatura de edição | `[DET]` | A3 | 1 proxy por clipe de vídeo |
+| 10 | *(opcional, desativado)* Gerar proxies via `ffmpeg` | `[DET]` | A3 | só com `--proxies` |
 | 11 | Registrar `media_offload` como `verificado` | `[DET]` | A3 | registro gravado |
 | 12 | Escrever `_INGEST/relatorio.json` + relatório em português | `[LLM]` | A3 | arquivo existe |
 | 13 | Notificar operador: "cartão X liberado para formatação" | `[LLM]` | A3 | mensagem entregue |
@@ -158,7 +156,6 @@ custa tempo e detecta cartão com setor ruim.
 - [ ] 100% dos arquivos com xxHash64 conferido em **cada** destino
 - [ ] Manifesto ASC MHL gravado e validado em cada destino
 - [ ] `media_offload.status = 'verificado'` e `media_file` populada
-- [ ] Proxies gerados para todos os clipes de vídeo
 - [ ] Relatório escrito e notificação enviada
 - [ ] Lista de divergências vazia — ou explicitamente revisada por humano
 

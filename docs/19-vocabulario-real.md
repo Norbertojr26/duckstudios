@@ -86,11 +86,26 @@ VIDEOS/   (por câmera: AVATA 2, FX3, FX30, INSERTS INTERNET)
   mão e registra a transição no CRM com autor `mac:finder-tag`. O editor continua trabalhando
   como sempre trabalhou — o Finder vira interface do sistema, não concorrente.
 
-## 5. A confirmar (aguardando a descrição digitada)
+## 5. Respondido pelo dono (27/08)
 
-- [ ] O que varia de projeto para projeto ("cada projeto fica meio diferente" — variar onde?)
-- [ ] O que é o **MASTER BUNDLE**
-- [ ] Onde ficam **proxies** hoje (existem? por projeto?)
-- [ ] Estrutura da pasta de um job por dentro (bruto? exports? projeto do Premiere?)
-- [ ] Como é a estrutura no **Drive** quando sobe (Roxo) — espelha a local?
-- [ ] "INSERTS INTERNET" dentro de VIDEOS — material baixado? De onde? (direitos!)
+| Pergunta | Resposta — e a consequência no sistema |
+|---|---|
+| Variação entre projetos | "É questão de tipo; não faz sentido automatizar as exceções. O print é como usualmente crio." → **a estrutura do print É o template**; automação cobre o padrão e não persegue exceção |
+| MASTER BUNDLE | Pasta de assets reutilizáveis, grande, guardada no SSD. → transversal, fora do fluxo de estado; catalogável depois como acervo |
+| **Proxies** | **"Não sou de fazer proxies."** Cria manualmente só se o projeto exigir. → **geração automática de proxies SAI do pipeline de ingestão** — era complexidade herdada do documento oficial, não da prática real |
+| Drive (Roxo) | Sobe **espelhando a estrutura local inteira**, para poder reabrir o projeto depois. → a verificação de entrega pode comparar árvore local × Drive 1:1 |
+| INSERTS INTERNET | Vídeos baixados (Instagram/YouTube) usados na edição. → atenção de **direitos de uso** quando a peça é para cliente/publicidade — conversa com o licenciamento (docs/16) |
+
+### A estrutura-template de um job (do print do Premiere — vale para pasta e para bins)
+
+```
+{CLIENTE}/{JOB}/
+  ├── ASSETS/           (gráficos, overlays, itens)
+  ├── AUDIOS/           (SFX · GRAVADOR · MUSICAS)
+  ├── VIDEOS/           (por câmera: FX3 · FX30 · AVATA 2 · INSERTS INTERNET)
+  ├── SEQ               (sequências no Premiere, versionadas V1, V2…)
+  └── (projeto .prproj na raiz do job)
+```
+
+**O offload de cartão aterrissa em `VIDEOS/{CAMERA}/CARD_NN/`** — dentro da estrutura que o
+editor já usa, não numa árvore paralela.

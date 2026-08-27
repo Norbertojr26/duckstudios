@@ -109,21 +109,61 @@ function mesa(m){
   </section>`;
 }
 
-function evento(f, novo){
+const NARRA = {
+  ronda: r => (r.devolve_hoje || r.atrasados)
+      ? `fez a ronda: ${r.devolve_hoje} devolução(ões) hoje, ${r.atrasados} atraso(s)`
+        + (r.aprovacoes_criadas ? ` — ${r.aprovacoes_criadas} mensagem(ns) para você aprovar` : "")
+      : "fez a ronda das devoluções — tudo em dia",
+  pedir_aprovacao: r => `redigiu uma mensagem e pediu sua aprovação${r.titulo ? " — " + r.titulo : ""}`,
+  resolver_contato: r => `identificou o contato ${r.nome || ""}`,
+  llm_qualificar: r => `analisou a mensagem do lead → ${r.ramo || "?"}`
+      + (r.faltantes && r.faltantes.length ? ` · falta perguntar: ${r.faltantes.length} item(ns)` : ""),
+  resolver_deal: r => `vinculou ao negócio "${r.titulo || ""}"`,
+  varredura_reativacao: r => r.propostos
+      ? `achou ${r.adormecidos} cliente(s) parados e propôs ${r.propostos} contato(s) de reativação`
+      : `varreu a base — ${r.adormecidos} cliente(s) parados, nenhum contato novo a propor`,
+  vigia_entregas: r => (r.prazos_em_risco || r.drives_a_limpar)
+      ? `vigia: ${r.prazos_em_risco} prazo(s) em risco, ${r.drives_a_limpar} Drive(s) para limpar`
+      : "vigiou prazos e Drive — nada pendente",
+  registrar_offload: r => `registrou offload: ${r.arquivos} arquivos (${r.tamanho || ''}) em ${r.destinos} destinos — ${r.status}`,
+  pedir_liberacao_formatacao: () => "pediu sua liberação para formatar o cartão",
+  verificar_configuracao: () => "checou a configuração",
+};
+
+function narrar(f){
+  let r = {};
+  try { r = typeof f.resultado === "string" ? JSON.parse(f.resultado) : (f.resultado || {}); } catch {}
+  if (f.erro) return `${f.tool.replaceAll("_", " ")} ✕ ${f.erro}`;
+  const fn = NARRA[f.tool];
+  if (fn) { try { return fn(r); } catch { } }
+  const extra = Object.entries(r).slice(0, 2)
+    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ");
+  return f.tool.replaceAll("_", " ") + (extra ? " · " + extra : "");
+}
+
+function evento(f, novo, repetidos){
   const cor = CORES[f.agente] || "var(--ds-txt-3)";
-  let extra = "";
-  try { const r = typeof f.resultado === "string" ? JSON.parse(f.resultado) : f.resultado;
-        if (r && Object.keys(r).length)
-          extra = " · " + Object.entries(r).slice(0,2).map(([k,v]) =>
-            `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ");
-  } catch {}
+  const badge = repetidos > 1
+    ? `<span class="ds-chip" style="font-size:.625rem;padding:1px 7px;margin-left:6px">×${repetidos}</span>` : "";
   return `<div class="ev ${novo?'novo':''}">
     <div class="ponto" style="background:${cor}"></div>
     <span class="quem" style="color:${cor}">${f.agente}</span>
-    <span class="oque">${f.tool.replaceAll("_"," ")}${f.erro?` ✕ ${f.erro}`:extra}
+    <span class="oque">${narrar(f)}${badge}
       <span class="ds-chip" style="font-size:.625rem;padding:1px 7px;margin-left:6px">${f.nivel||""}</span></span>
     <span class="quando">${hora(f.quando)}</span>
   </div>`;
+}
+
+// Rondas sem novidade repetidas viram uma linha ×N — o que importa é o que MUDOU.
+function agrupar(feed){
+  const out = [];
+  for (const f of feed){
+    const ult = out[out.length - 1];
+    if (ult && ult.f.agente === f.agente && ult.f.tool === f.tool
+        && ult.f.resultado === f.resultado) { ult.n++; continue; }
+    out.push({f, n: 1});
+  }
+  return out;
 }
 
 async function atualizar(){
@@ -132,9 +172,10 @@ async function atualizar(){
     if (!r.ok) return;
     const d = await r.json();
     document.getElementById("mesas").innerHTML = d.mesas.map(mesa).join("");
-    const chaves = d.feed.map(f => f.quando + f.tool);
-    document.getElementById("esteira").innerHTML = d.feed.length
-      ? d.feed.map((f,i) => evento(f, !vistos.has(chaves[i]) && vistos.size > 0)).join("")
+    const grupos = agrupar(d.feed);
+    const chaves = grupos.map(g => g.f.quando + g.f.tool);
+    document.getElementById("esteira").innerHTML = grupos.length
+      ? grupos.map((g,i) => evento(g.f, !vistos.has(chaves[i]) && vistos.size > 0, g.n)).join("")
       : '<div class="vazio">Nenhuma ação registrada ainda.<br>Rode a régua de devoluções na tela de aprovações para ver a esteira andar.</div>';
     vistos = new Set(chaves);
     document.getElementById("pulso").textContent =

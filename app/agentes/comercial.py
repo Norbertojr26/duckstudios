@@ -182,3 +182,58 @@ def qualificar(mensagem, nome=None, telefone=None, canal="whatsapp"):
         return {"ok": True, "ramo": dados["ramo"], "deal_id": str(deal["id"]),
                 "campos": dados["campos"], "campos_faltantes": dados["campos_faltantes"],
                 "rascunho_aguardando_aprovacao": dados["rascunho_resposta"]}
+
+
+# ---------------------------------------------------------------- reativação
+# O quick win de docs/11: cliente que já movimentou e sumiu recebe contato pessoal.
+# Determinístico de ponta a ponta — a base é quente e a mensagem é curta; LLM aqui só
+# adicionaria variação onde consistência vale mais. A2 como tudo que chega a cliente.
+
+DIAS_SILENCIO = int(os.environ.get("REATIVACAO_DIAS", "90"))
+
+
+def reativar():
+    with execucao(AGENTE, "SOP-003", "agenda:reativacao") as ex:
+        adormecidos = db.q("""
+            WITH movimento AS (
+                SELECT c.id, c.nome, c.telefone_e164,
+                       greatest(coalesce(max(r.checkout_at), '-infinity'),
+                                coalesce(max(d.criado_em), '-infinity')) AS ultimo
+                  FROM contact c
+                  LEFT JOIN rental r ON r.contact_id = c.id
+                  LEFT JOIN deal d   ON d.contact_id = c.id
+                 GROUP BY c.id
+            )
+            SELECT * FROM movimento
+             WHERE ultimo < now() - make_interval(days => %s)
+               AND ultimo > '-infinity'
+             ORDER BY ultimo LIMIT 10""", (DIAS_SILENCIO,))
+
+        criadas = 0
+        for c in adormecidos:
+            ja = db.q1("""SELECT 1 FROM approval_request
+                           WHERE payload->>'tipo' = 'reativacao'
+                             AND payload->>'contato_id' = %s
+                             AND criado_em > now() - interval '60 days'""", (str(c["id"]),))
+            if ja:
+                continue
+            meses = max(1, int(DIAS_SILENCIO / 30))
+            msg = (f"Oi, {c['nome'].split()[0]}! Aqui é da Duck Studios. Faz um tempo que a "
+                   f"gente não trabalha junto e lembrei de você — o parque de equipamento "
+                   f"cresceu bastante nos últimos meses (anamórficas Blazar, Storm 1200X, "
+                   f"Mavic 4 Pro) e seguimos com produção completa. Se tiver projeto ou "
+                   f"locação no radar, adoraria retomar. Como estão as coisas por aí?")
+            db.exec_("""INSERT INTO approval_request (run_id, titulo, descricao, payload)
+                        VALUES (%s, %s, %s, %s)""",
+                     (ex.id,
+                      f"Reativar cliente — {c['nome']} (parado há +{meses} meses)", msg,
+                      json.dumps({"acao": "enviar_mensagem", "tipo": "reativacao",
+                                  "contato_id": str(c["id"]),
+                                  "destinatario": c["telefone_e164"] or c["nome"],
+                                  "canal": "whatsapp", "corpo": msg}, ensure_ascii=False)))
+            criadas += 1
+
+        ex.acao("varredura_reativacao", {"dias_silencio": DIAS_SILENCIO},
+                {"adormecidos": len(adormecidos), "contatos_propostos": criadas}, nivel="A2")
+        ex.concluir(saida={"adormecidos": len(adormecidos), "propostos": criadas})
+        return {"adormecidos": len(adormecidos), "propostos": criadas}

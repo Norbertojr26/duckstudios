@@ -3,7 +3,7 @@
 Toda tela tem par em /api. A interface e os agentes leem a mesma base pelas mesmas consultas:
 não existe número na tela que um agente não consiga buscar.
 """
-import base64, os, secrets, uuid
+import base64, json, os, secrets, uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -704,6 +704,14 @@ def aprovacao(aid: str, decisao: str = Form(...)):
                         VALUES (%s, %s, %s, 'humano')""",
                      (p.get("canal", "whatsapp"), p.get("destinatario", "a definir"),
                       p.get("corpo", a["descricao"])))
+        elif p.get("acao") == "limpar_drive" and p.get("project_id"):
+            db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                        VALUES ('project', %s, 'evento_sistema',
+                                'drive marcado para limpeza', 'humano')""",
+                     (p["project_id"],))
+        elif p.get("acao") == "liberar_formatacao" and p.get("offload_id"):
+            db.exec_("UPDATE media_offload SET liberado_para_format = true WHERE id = %s",
+                     (p["offload_id"],))
     return RedirectResponse("/agentes", 303)
 
 
@@ -736,6 +744,78 @@ def api_qualificar(dados: dict):
         return JSONResponse({"ok": False, "erro": f"{type(e).__name__}: {e}"}, 500)
 
 
+# ------------------------------------------------------------ agente DIT
+
+@app.post("/api/agentes/dit/offload")
+def api_dit_offload(dados: dict):
+    """O Mac registra um offload verificado. O CRM guarda offload+arquivos e abre a aprovação
+    de liberação do cartão — quem formata é humano, na câmera, depois de aprovar."""
+    from .agentes.registro import execucao
+    obrigatorios = ("projeto", "camera", "card_uuid", "arquivos", "bytes", "destinos", "status")
+    if any(k not in dados for k in obrigatorios):
+        return JSONResponse({"ok": False, "erro": f"campos obrigatórios: {obrigatorios}"}, 400)
+    proj = db.q1("SELECT id, nome FROM project WHERE slug = %s", (dados["projeto"],))
+    if not proj:
+        return JSONResponse({"ok": False, "erro": f"projeto '{dados['projeto']}' não existe — "
+                             "crie em /projetos antes do offload"}, 404)
+
+    with execucao("dit", "SOP-001", "offload:mac",
+                  {"card_uuid": dados["card_uuid"], "camera": dados["camera"]}) as ex:
+        off = db.q1("""SELECT id FROM media_offload
+                        WHERE card_uuid = %s AND project_id = %s""",
+                    (dados["card_uuid"], proj["id"]))
+        if off:
+            db.exec_("""UPDATE media_offload SET status=%s, arquivos_total=%s, bytes_total=%s,
+                        destinos=%s, divergencias=%s, concluido_em=now(), trace_id=%s
+                         WHERE id=%s""",
+                     (dados["status"], dados["arquivos"], dados["bytes"],
+                      json.dumps(dados["destinos"]), json.dumps(dados.get("divergencias", [])),
+                      ex.trace_id, off["id"]))
+            offload_id = off["id"]
+        else:
+            offload_id = db.q1("""INSERT INTO media_offload
+                        (project_id, card_uuid, camera, status, arquivos_total, bytes_total,
+                         destinos, divergencias, concluido_em, trace_id)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,now(),%s) RETURNING id""",
+                     (proj["id"], dados["card_uuid"], dados["camera"], dados["status"],
+                      dados["arquivos"], dados["bytes"], json.dumps(dados["destinos"]),
+                      json.dumps(dados.get("divergencias", [])), ex.trace_id))["id"]
+        for f in dados.get("arquivos_detalhe", []):
+            db.exec_("""INSERT INTO media_file (offload_id, caminho_relativo, nome_original,
+                                                bytes, hash_xxh64)
+                        VALUES (%s,%s,%s,%s,%s)
+                        ON CONFLICT (offload_id, caminho_relativo) DO UPDATE
+                          SET hash_xxh64 = EXCLUDED.hash_xxh64, bytes = EXCLUDED.bytes""",
+                     (offload_id, f["rel"], f["nome"], f["bytes"], f["hash"]))
+        ex.acao("registrar_offload",
+                {"projeto": dados["projeto"], "camera": dados["camera"]},
+                {"arquivos": dados["arquivos"],
+                 "tamanho": (f"{dados['bytes']/1e9:.2f} GB" if dados["bytes"] >= 1e9
+                             else f"{dados['bytes']/1e6:.0f} MB"),
+                 "destinos": len(dados["destinos"]), "status": dados["status"]})
+
+        if dados["status"] == "verificado":
+            ja = db.q1("""SELECT 1 FROM approval_request WHERE payload->>'offload_id' = %s""",
+                       (str(offload_id),))
+            if not ja:
+                db.exec_("""INSERT INTO approval_request (run_id, titulo, descricao, payload)
+                            VALUES (%s, %s, %s, %s)""",
+                         (ex.id,
+                          f"💾 Liberar cartão para formatação — {proj['nome']} · "
+                          f"{dados['camera']} {dados.get('card', '')}",
+                          f"{dados['arquivos']} arquivos ({dados['bytes']/1e9:.1f} GB) "
+                          f"verificados em {len(dados['destinos'])} destinos. Aprovar libera a "
+                          f"formatação — que é feita por você, na câmera.",
+                          json.dumps({"acao": "liberar_formatacao", "tipo": "liberar_formatacao",
+                                      "offload_id": str(offload_id)}, ensure_ascii=False)))
+                ex.acao("pedir_liberacao_formatacao", {}, {"offload_id": str(offload_id)},
+                        nivel="A2")
+        ex.concluir(saida={"offload_id": str(offload_id), "status": dados["status"]})
+    return {"ok": True, "offload_id": str(offload_id), "status": dados["status"],
+            "aprovacao": "liberação de formatação aguardando humano"
+                          if dados["status"] == "verificado" else "com divergências — não liberar"}
+
+
 # --------------------------------------------------- agentes: sala ao vivo
 
 # O "ambiente" dos agentes é o banco + a API: o mundo deles é o CRM. Esta sala torna esse
@@ -745,12 +825,11 @@ MESAS = [
      "sop": "SOP-002", "cor": "#60A5FA", "origem": "agendado"},
     {"chave": "comercial", "nome": "Comercial", "papel": "Qualificação de leads",
      "sop": "SOP-003", "cor": "#2DBDB8", "origem": "evento"},
-    {"chave": "dit", "nome": "DIT / Mídia", "papel": "Ingestão e proxies",
+    {"chave": "dit", "nome": "DIT / Mídia", "papel": "Ingestão e verificação de cartões",
      "sop": "SOP-001", "cor": "#FBBF24", "origem": "futuro",
      "motivo": "precisa do Mac Mini (acesso físico aos volumes)"},
-    {"chave": "entrega", "nome": "Entrega", "papel": "Review, masters e portfólio",
-     "sop": "SOP-005", "cor": "#F87171", "origem": "futuro",
-     "motivo": "depende de credenciais Vimeo/Drive"},
+    {"chave": "entrega", "nome": "Entrega", "papel": "Prazos e limpeza do Drive",
+     "sop": "SOP-005", "cor": "#F87171", "origem": "agendado"},
 ]
 
 
@@ -788,8 +867,10 @@ def api_agentes_estado():
     for m in MESAS:
         st = stats.get(m["chave"], {})
         pend = pendentes.get(m["chave"], 0)
-        if m["origem"] == "futuro":
+        if m["origem"] == "futuro" and not st:
             estado, detalhe = "futuro", m.get("motivo", "")
+        elif m["origem"] == "futuro":
+            estado, detalhe = "plantao", "recebendo offloads do Mac"
         elif m["chave"] == "comercial" and not ag_comercial.configurado():
             estado, detalhe = "sem_chave", "aguardando ANTHROPIC_API_KEY"
         elif st.get("ativos"):
@@ -798,8 +879,15 @@ def api_agentes_estado():
             estado, detalhe = "aguardando", f"{pend} aprovação(ões) para você"
         else:
             estado = "plantao"
-            detalhe = (f"de plantão · passa a cada {INTERVALO // 60} min"
-                       if m["chave"] == "rental" and ATIVO else "de plantão · acionado por evento")
+            if m["chave"] == "rental" and ATIVO and st.get("ultima"):
+                from datetime import datetime, timezone
+                falta = INTERVALO - (datetime.now(timezone.utc) - st["ultima"]).total_seconds()
+                detalhe = (f"de plantão · próxima ronda em ~{max(1, int(falta // 60))} min"
+                           if falta > 0 else "de plantão · ronda a caminho")
+            elif m["origem"] == "agendado":
+                detalhe = "de plantão · vigia diária"
+            else:
+                detalhe = "de plantão · acionado por evento"
         mesas.append({**m, "estado": estado, "detalhe": detalhe,
                       "hoje": st.get("hoje", 0), "pendentes": pend,
                       "ultima": st["ultima"].isoformat() if st.get("ultima") else None,
