@@ -22,6 +22,7 @@ import base64
 import datetime
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -166,10 +167,50 @@ def t_mover(pastas, p):
     return {"movido": {"de": origem, "para": destino}}
 
 
+def _norm(nome):
+    """Nome de pasta vs. nome no CRM: caixa e espaço/underscore não podem separar os dois."""
+    return re.sub(r"[\s_]+", "_", (nome or "").strip().upper())
+
+
+def _achar_job(pastas, p):
+    """Localiza CLIENTE/JOB nas raízes com escrita — é como uma aprovação no CRM (que só
+    conhece nomes, não caminhos) vira um caminho real nesta máquina. O filtro dentro_de
+    restringe a busca a raízes cujo caminho contenha o termo (ex.: 'Drive'): é o que impede
+    a limpeza do espelho do Drive de encostar no storage local, o backup definitivo."""
+    filtro = _norm(p.get("dentro_de") or "")
+    raizes = [x["caminho"] for x in pastas
+              if x["permissao"] == "leitura_escrita"
+              and (not filtro or filtro in _norm(x["caminho"]))]
+    if not raizes:
+        raise ValueError("nenhuma pasta autorizada com escrita"
+                         + (f" contendo '{p['dentro_de']}' no caminho — autorize o espelho "
+                            f"como ler+escrever" if filtro else ""))
+    cliente = _norm(p.get("cliente"))
+    quer = {_norm(j) for j in (p.get("job"), p.get("job_alt")) if j}
+    achados = []
+    for raiz in raizes:
+        if not os.path.isdir(raiz):
+            continue
+        for c in os.listdir(raiz):
+            cheio = os.path.join(raiz, c)
+            if not os.path.isdir(cheio) or (cliente and _norm(c) != cliente):
+                continue
+            achados += [os.path.join(cheio, j) for j in os.listdir(cheio)
+                        if os.path.isdir(os.path.join(cheio, j)) and _norm(j) in quer]
+    if not achados:
+        raise ValueError(f"não achei {p.get('cliente')}/{p.get('job')} em: {', '.join(raizes)}")
+    if len(achados) > 1:
+        raise ValueError(f"ambíguo — {len(achados)} pastas casam: {', '.join(achados)}; "
+                         "mande a tarefa de novo com o caminho explícito")
+    return achados[0]
+
+
 def t_enviar_lixeira(pastas, p):
     """O único 'apagar' que existe: mover para _LIXEIRA/AAAA-MM-DD/ na raiz autorizada.
-    rm não existe neste runtime — esvaziar a lixeira é decisão humana, no Finder."""
-    real, raiz = _raiz_de(p.get("caminho") or "", pastas, escrita=True)
+    rm não existe neste runtime — esvaziar a lixeira é decisão humana, no Finder.
+    Aceita caminho explícito OU cliente+job (vindo de uma aprovação no CRM)."""
+    alvo = p.get("caminho") or _achar_job(pastas, p)
+    real, raiz = _raiz_de(alvo, pastas, escrita=True)
     if real == raiz:
         return {"erro": "não mando uma pasta autorizada inteira para a lixeira"}
     if not os.path.exists(real):

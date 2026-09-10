@@ -935,6 +935,30 @@ def aprovacao(aid: str, decisao: str = Form(...)):
                         VALUES ('project', %s, 'evento_sistema',
                                 'drive marcado para limpeza', 'humano')""",
                      (p["project_id"],))
+            # Elo fechado: agente propôs → humano aprovou → a máquina executa. A tarefa só
+            # procura CLIENTE/JOB em raízes autorizadas contendo 'Drive' no caminho — o
+            # espelho do Drive, nunca o storage local (que é o backup definitivo). E é
+            # lixeira, não deleção: reversível no Finder.
+            pr = db.q1("""SELECT pj.slug, pj.nome, c.nome AS cliente
+                            FROM project pj LEFT JOIN company c ON c.id = pj.company_id
+                           WHERE pj.id = %s""", (p["project_id"],))
+            m = db.q1("SELECT nome FROM maquina "
+                      "ORDER BY ultimo_heartbeat DESC NULLS LAST LIMIT 1")
+            if pr and m:
+                jid = db.q1("""INSERT INTO job_queue (tipo, payload)
+                               VALUES ('mac:enviar_lixeira', %s) RETURNING id""",
+                            (json.dumps({"maquina": m["nome"], "dentro_de": "Drive",
+                                         "cliente": pr["cliente"] or "",
+                                         "job": pr["slug"], "job_alt": pr["nome"],
+                                         "motivo": "limpar_drive",
+                                         "project_id": p["project_id"]},
+                                        ensure_ascii=False),))["id"]
+                db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo,
+                                                  autor)
+                            VALUES ('project', %s, 'evento_sistema', %s, 'humano')""",
+                         (p["project_id"],
+                          f"limpeza do Drive enfileirada na máquina {m['nome']} "
+                          f"(tarefa #{jid})"))
         elif p.get("acao") == "liberar_formatacao" and p.get("offload_id"):
             db.exec_("UPDATE media_offload SET liberado_para_format = true WHERE id = %s",
                      (p["offload_id"],))

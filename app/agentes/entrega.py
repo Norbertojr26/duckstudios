@@ -4,8 +4,10 @@ Duas vigias determinísticas, uma passada por dia:
 1. Prazo de entregável estourando (D-2) ou estourado — aviso interno para você reconhecer.
 2. Projeto entregue (roxo) há mais de N dias — hora de limpar o Drive. O upload espelha a
    estrutura local (docs/19), então a limpeza libera espaço sem perder nada: o backup
-   definitivo é o storage local. Aprovar registra a decisão; a deleção em si continua manual
-   até existir credencial do Drive.
+   definitivo é o storage local. Aprovar fecha o elo: o CRM enfileira `mac:enviar_lixeira`
+   na máquina conectada, que procura CLIENTE/JOB só em raízes autorizadas com 'Drive' no
+   caminho (o espelho, nunca o storage local) e move para _LIXEIRA/ — reversível; nada é
+   apagado por agente (A2 é o teto, e deleção de verdade é A0).
 """
 import json
 import os
@@ -69,7 +71,9 @@ def rodar():
                      (ex.id, f"🧹 Limpar Drive — {p['nome']} (entregue há {DIAS_DRIVE}+ dias)",
                       f"O projeto {p['nome']} está entregue desde "
                       f"{p['entregue_em'].strftime('%d/%m')}. O backup definitivo é o storage "
-                      f"local; o Drive pode ser limpo para liberar cota.",
+                      f"local. Aprovar manda a pasta do projeto no ESPELHO do Drive para a "
+                      f"_LIXEIRA/ da máquina conectada — reversível, nada é apagado; o "
+                      f"resultado aparece em Máquinas.",
                       json.dumps({"acao": "limpar_drive", "tipo": "limpar_drive",
                                   "ref": str(p["id"]), "project_id": str(p["id"])},
                                  ensure_ascii=False)))
