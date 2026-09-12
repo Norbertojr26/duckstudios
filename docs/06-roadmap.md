@@ -9,6 +9,28 @@ Cada fase tem **critério de saída**. Não começar a próxima sem cumprir.
 
 ---
 
+## Próximas features (fila viva — atualizada 12/09/2026)
+
+Decisão do dono: **WhatsApp fica para a próxima leva**, não agora. A fila, em ordem:
+
+1. **WhatsApp** — a maior alavanca pendente, em três pedaços:
+   - *Entrada*: conector (decidir **Meta Cloud API** oficial × **Evolution API** não-oficial;
+     a decisão é do dono — custo/risco de banimento × facilidade) apontando o webhook para
+     `POST /api/agentes/comercial/qualificar`, que já existe e já foi testado com chave real.
+   - *Saída*: worker que despacha a `outbox` (mensagens já aprovadas — A2 cumprido; hoje elas
+     ficam aguardando canal). Nada muda no modelo de aprovação, só nasce o carteiro.
+   - *Proposta por WhatsApp*: mandar o PDF de `/propostas/{id}/imprimir` direto na conversa.
+2. **Minuta de contrato** — mesa Propostas gera a minuta a partir da proposta **aceita**
+   (itens, condições, linha do tempo viram cláusulas), casando com o termo de
+   responsabilidade que já tem assinatura na tela.
+3. **Tráfego** — mesa já declarada como futura na Sala; nasce quando houver conexão com
+   Meta/Google Ads (contas e objetivo de campanha definidos pelo dono).
+4. **Entrega completa** — credenciais de Vimeo/Drive para review e upload automatizados
+   (a limpeza do espelho do Drive via Mac já funciona).
+5. **Coordenador** — continua deliberadamente por último (ver Fase 4).
+
+---
+
 ## Fase 0 — Conhecimento (1–2 semanas) · sem código
 
 1. Preencher [`docs/99-perguntas-abertas.md`](99-perguntas-abertas.md).
