@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% block titulo %}Novo contrato — {{ q.numero }}{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 1fr;gap:var(--ds-e-4);align-items:start;
+         max-width:1080px}
+  @media (max-width:1000px){.grade{grid-template-columns:1fr}}
+  label{display:block;font-size:var(--ds-t-meta);color:var(--ds-txt-3);margin:12px 0 6px}
+  .ds-campo{width:100%}
+  .tpl{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--ds-e-2)}
+  .tpl input{display:none}
+  .tpl span{display:inline-block;padding:9px 14px;border-radius:99px;font-size:.8125rem;
+            background:var(--ds-grad-surface-2);border:1px solid var(--ds-border);
+            cursor:pointer;color:var(--ds-txt-2)}
+  .tpl input:checked+span{background:var(--ds-acao);color:#04211F;font-weight:700;
+                          border-color:var(--ds-acao)}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><div class="meta">Proposta {{ q.numero }} · {{ q.empresa or 'sem cliente' }}</div>
+    <h1>Gerar minuta de contrato</h1>
+    <div class="sub">A minuta nasce da proposta (itens, valores, etapas e condições viram
+      cláusulas) e fica editável antes de imprimir.</div></div>
+  <a class="ds-btn ds-btn--fantasma" href="/propostas/{{ q.id }}">Voltar à proposta</a>
+</div>
+
+<form method="post" action="/propostas/{{ q.id }}/contrato">
+<section class="ds-card ds-card--alto" style="max-width:1080px;margin-bottom:var(--ds-e-4)">
+  <h2>Tipo de contrato</h2>
+  <div class="tpl">
+    {% for chave, t in templates.items() %}
+    <label><input type="radio" name="template" value="{{ chave }}"
+                  {{ 'checked' if chave == sugestao }}><span>{{ t[0]|replace('Contrato de ','')|replace('Prestação de Serviços — ','')|replace('Produção Audiovisual — ','')|replace('Produção — ','')|replace('Cobertura Audiovisual — ','Cobertura: ')|replace('Locação de Equipamento Cinematográfico','Locação de equipamento') }}</span></label>
+    {% endfor %}
+  </div>
+  <div class="meta">Sugerido pelo tipo do negócio; troque à vontade. Todos seguem Código
+    Civil, Lei 9.610/98 (direitos autorais), art. 20 CC (imagem) e LGPD, com foro em
+    Brasília/DF.</div>
+</section>
+
+<div class="grade">
+  <section class="ds-card ds-card--alto">
+    <h2>Contratante (cliente)</h2>
+    <label>Razão social / nome completo</label>
+    <input class="ds-campo" name="ct_razao" value="{{ q.empresa or '' }}" required>
+    <label>CNPJ / CPF</label><input class="ds-campo" name="ct_documento">
+    <label>Endereço completo (com cidade/UF e CEP)</label>
+    <input class="ds-campo" name="ct_endereco">
+    <label>Representante legal</label>
+    <input class="ds-campo" name="ct_representante" value="{{ q.contato_nome or '' }}">
+    <label>CPF do representante</label><input class="ds-campo" name="ct_rep_documento">
+    <label>E-mail</label><input class="ds-campo" type="email" name="ct_email">
+    <div class="meta" style="margin-top:12px">Campo vazio entra como
+      <code>[PREENCHER]</code> na minuta — dá para completar depois, no texto.</div>
+  </section>
+
+  <section class="ds-card ds-card--alto">
+    <h2>Contratada (Duck Studios)</h2>
+    <label>Razão social</label>
+    <input class="ds-campo" name="cd_razao" value="{{ contratada.get('razao','') }}" required>
+    <label>CNPJ</label>
+    <input class="ds-campo" name="cd_documento" value="{{ contratada.get('documento','') }}">
+    <label>Endereço completo</label>
+    <input class="ds-campo" name="cd_endereco" value="{{ contratada.get('endereco','') }}">
+    <label>Representante legal</label>
+    <input class="ds-campo" name="cd_representante"
+           value="{{ contratada.get('representante','') }}">
+    <label>CPF do representante</label>
+    <input class="ds-campo" name="cd_rep_documento"
+           value="{{ contratada.get('rep_documento','') }}">
+    <label>E-mail</label>
+    <input class="ds-campo" type="email" name="cd_email"
+           value="{{ contratada.get('email','') }}">
+    <div class="meta" style="margin-top:12px">Preencha uma vez — o próximo contrato já vem
+      com estes dados.</div>
+  </section>
+</div>
+
+<div style="max-width:1080px;margin-top:var(--ds-e-4)">
+  <button class="ds-btn" style="width:100%">Gerar minuta</button>
+</div>
+</form>
+{% endblock %}

@@ -47,6 +47,18 @@ MIGRACOES = [
          criado_em timestamptz NOT NULL DEFAULT now())""",
     "ALTER TABLE quote ADD COLUMN IF NOT EXISTS condicoes_pagamento text",
     "ALTER TABLE quote ADD COLUMN IF NOT EXISTS etapas jsonb NOT NULL DEFAULT '[]'",
+    """CREATE TABLE IF NOT EXISTS contrato (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         quote_id uuid NOT NULL REFERENCES quote(id),
+         numero text UNIQUE,
+         template text NOT NULL,
+         titulo text NOT NULL,
+         status text NOT NULL DEFAULT 'rascunho'
+           CHECK (status IN ('rascunho','enviado','assinado','cancelado')),
+         contratante jsonb NOT NULL DEFAULT '{}',
+         contratada jsonb NOT NULL DEFAULT '{}',
+         corpo text NOT NULL,
+         criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS sessao (
          token text PRIMARY KEY,
          usuario_id uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,

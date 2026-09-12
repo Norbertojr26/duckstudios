@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import auth, db
+from . import auth, contratos, db
 from .agentes import agenda as agentes_agenda
 
 RAIZ = Path(__file__).resolve().parent
@@ -674,6 +674,8 @@ def proposta(request: Request, qid: str, erro: str = "", aviso: str = ""):
     if not q:
         return HTMLResponse("Proposta não encontrada", status_code=404)
     return pag(request, "proposta.html", ativo="propostas", q=q, erro=erro, aviso=aviso,
+               contratos=db.q("""SELECT id, numero, titulo, status FROM contrato
+                                  WHERE quote_id = %s ORDER BY criado_em DESC""", (qid,)),
                itens=db.q("SELECT * FROM quote_item WHERE quote_id=%s ORDER BY descricao", (qid,)),
                precos=db.q("SELECT * FROM price_list WHERE ativo ORDER BY categoria, codigo"),
                kits=db.q("SELECT id, nome, valor_diaria FROM kit ORDER BY valor_diaria DESC"))
@@ -811,6 +813,93 @@ def _recalcular(qid):
                                  total = greatest(s.t - coalesce(desconto, 0), 0)
                   FROM (SELECT coalesce(sum(total), 0) t FROM quote_item WHERE quote_id=%s) s
                  WHERE quote.id = %s""", (qid, qid))
+
+
+# ---------------------------------------------------- contratos (pós-proposta)
+
+def _proposta_completa(qid):
+    q = db.q1("""SELECT q.*, d.titulo AS negocio, d.tipo_servico, d.data_evento,
+                        co.nome AS empresa, c.nome AS contato_nome
+                   FROM quote q LEFT JOIN deal d ON d.id = q.deal_id
+                   LEFT JOIN company co ON co.id = d.company_id
+                   LEFT JOIN contact c ON c.id = d.contact_id WHERE q.id = %s""", (qid,))
+    itens = db.q("SELECT * FROM quote_item WHERE quote_id = %s ORDER BY descricao", (qid,))
+    return q, itens
+
+
+@app.get("/propostas/{qid}/contrato", response_class=HTMLResponse)
+def contrato_novo(request: Request, qid: str):
+    q, _ = _proposta_completa(qid)
+    if not q:
+        return HTMLResponse("Proposta não encontrada", status_code=404)
+    # a contratada (Duck) se preenche uma vez e o último contrato vira o padrão do próximo
+    ultimo = db.q1("SELECT contratada FROM contrato ORDER BY criado_em DESC LIMIT 1")
+    contratada = (ultimo or {}).get("contratada") or {
+        "razao": "Duck Studios", "email": "duckcineproducoes@gmail.com"}
+    sugestao = contratos.SUGESTAO_POR_SERVICO.get(q["tipo_servico"] or "outro",
+                                                  "gravacao_edicao")
+    return pag(request, "contrato_novo.html", ativo="propostas", q=q,
+               templates=contratos.TEMPLATES, sugestao=sugestao, contratada=contratada)
+
+
+CAMPOS_PARTE = ("razao", "documento", "endereco", "representante", "rep_documento", "email")
+
+
+@app.post("/propostas/{qid}/contrato")
+async def contrato_criar(request: Request, qid: str):
+    q, itens = _proposta_completa(qid)
+    form = await request.form()
+    chave = form.get("template") or "gravacao_edicao"
+    if not q or chave not in contratos.TEMPLATES:
+        return RedirectResponse(f"/propostas/{qid}", 303)
+    contratante = {c: (form.get(f"ct_{c}") or "").strip() for c in CAMPOS_PARTE}
+    contratada = {c: (form.get(f"cd_{c}") or "").strip() for c in CAMPOS_PARTE}
+    titulo, corpo = contratos.montar(chave, q, itens, contratante, contratada)
+    c = db.q1("""INSERT INTO contrato (quote_id, numero, template, titulo,
+                                       contratante, contratada, corpo)
+                 VALUES (%s, 'CT-'||to_char(now(),'YYMM')||'-'||
+                            lpad((SELECT count(*)+1 FROM contrato)::text, 3, '0'),
+                         %s, %s, %s, %s, %s) RETURNING id""",
+              (qid, chave, titulo,
+               json.dumps(contratante, ensure_ascii=False),
+               json.dumps(contratada, ensure_ascii=False), corpo))
+    db.exec_("""INSERT INTO activity (entidade_tipo, entidade_id, tipo, conteudo, autor)
+                SELECT 'deal', deal_id, 'evento_sistema',
+                       'minuta de contrato gerada a partir da proposta', 'humano'
+                  FROM quote WHERE id = %s AND deal_id IS NOT NULL""", (qid,))
+    return RedirectResponse(f"/contratos/{c['id']}", 303)
+
+
+@app.get("/contratos/{cid}", response_class=HTMLResponse)
+def contrato_ver(request: Request, cid: str):
+    c = db.q1("""SELECT c.*, q.numero AS proposta_numero, q.id AS proposta_id
+                   FROM contrato c JOIN quote q ON q.id = c.quote_id
+                  WHERE c.id = %s""", (cid,))
+    if not c:
+        return HTMLResponse("Contrato não encontrado", status_code=404)
+    return pag(request, "contrato.html", ativo="propostas", c=c)
+
+
+@app.post("/contratos/{cid}")
+def contrato_salvar(cid: str, corpo: str = Form(...)):
+    db.exec_("UPDATE contrato SET corpo = %s WHERE id = %s AND status = 'rascunho'",
+             (corpo, cid))
+    return RedirectResponse(f"/contratos/{cid}", 303)
+
+
+@app.post("/contratos/{cid}/status")
+def contrato_status(cid: str, status: str = Form(...)):
+    if status in ("rascunho", "enviado", "assinado", "cancelado"):
+        db.exec_("UPDATE contrato SET status = %s WHERE id = %s", (status, cid))
+    return RedirectResponse(f"/contratos/{cid}", 303)
+
+
+@app.get("/contratos/{cid}/imprimir", response_class=HTMLResponse)
+def contrato_imprimir(request: Request, cid: str):
+    c = db.q1("SELECT * FROM contrato WHERE id = %s", (cid,))
+    if not c:
+        return HTMLResponse("Contrato não encontrado", status_code=404)
+    return tpl.TemplateResponse(request, "contrato_imprimir.html", {"c": c})
 
 
 @app.get("/propostas/{qid}/imprimir", response_class=HTMLResponse)

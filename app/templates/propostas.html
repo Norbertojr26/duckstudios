@@ -3,6 +3,14 @@
   .num{font-variant-numeric:tabular-nums;text-align:right}
   .form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
   .form label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
+  .guia{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+  .guia span{display:flex;align-items:center;gap:9px;background:var(--ds-grad-surface-2);
+             border:1px solid var(--ds-border);border-radius:12px;padding:9px 12px;
+             font-size:.8125rem;color:var(--ds-txt-2)}
+  .guia b{color:var(--ds-txt)}
+  .guia i{font-style:normal;flex:none;width:20px;height:20px;border-radius:99px;
+          background:var(--ds-acao);color:#04211F;display:grid;place-items:center;
+          font-size:.6875rem;font-weight:700}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo"><div><h1>Propostas</h1>
@@ -12,11 +20,17 @@
 
 <section class="ds-card ds-card--alto" style="margin-bottom:var(--ds-e-4)">
   <h2>🎤 Proposta por voz</h2>
-  <div class="meta" style="margin-bottom:var(--ds-e-3)">Aperte o microfone e fale:
-    <b>qual cliente</b>, <b>o que é o serviço</b>, <b>qual valor</b> e as
-    <b>condições de pagamento</b>. O texto aparece abaixo (dá para corrigir); ao gerar, a
-    proposta nasce preenchida, em rascunho, para você revisar e enviar. Nenhum valor é
-    inventado — só o que você disser entra.</div>
+  <div class="meta" style="margin-bottom:10px">Para a proposta sair <b>100%</b>, fale:</div>
+  <div class="guia">
+    <span><i>1</i> <b>Cliente</b> — nome da empresa e de quem decide</span>
+    <span><i>2</i> <b>Serviço</b> — o que é (filmagem, edição, locação, evento…)</span>
+    <span><i>3</i> <b>O que inclui</b> — diárias, edição, drone, entregáveis</span>
+    <span><i>4</i> <b>Valor</b> — por item ou fechado (só entra o que você disser)</span>
+    <span><i>5</i> <b>Pagamento</b> — ex.: 50% na assinatura, 50% na entrega</span>
+    <span><i>6</i> <b>Datas</b> — data do evento/diária e validade da proposta</span>
+  </div>
+  <div class="meta" style="margin:10px 0 var(--ds-e-3)">O que faltar vira aviso amarelo na
+    proposta — dá para completar depois. O texto abaixo é editável antes de gerar.</div>
   <form method="post" action="/propostas/voz" id="fvoz"
         style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
     <button type="button" id="mic" class="ds-btn" style="min-width:64px;font-size:1.4rem"

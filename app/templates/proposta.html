@@ -145,6 +145,28 @@
   </section>
 
   <section class="ds-card">
+    <h2>Contrato</h2>
+    {% for ct in contratos %}
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.8125rem;
+                border-bottom:1px solid var(--ds-border)">
+      <a href="/contratos/{{ ct.id }}" style="font-weight:700">{{ ct.numero }}</a>
+      <span class="ds-chip {{ 'ds-chip--ok' if ct.status=='assinado' else ('ds-chip--info' if ct.status=='enviado' else '') }}"
+            style="font-size:.625rem;margin-left:auto">{{ ct.status }}</span>
+    </div>
+    {% endfor %}
+    {% if q.status in ('enviada', 'aceita') %}
+      <a class="ds-btn" href="/propostas/{{ q.id }}/contrato"
+         style="width:100%;margin-top:var(--ds-e-3)">{{ 'Gerar outra minuta' if contratos else '📄 Gerar minuta de contrato' }}</a>
+      <div class="meta" style="margin-top:var(--ds-e-3);line-height:1.55">Próximo passo:
+        itens, valores, etapas e condições viram cláusulas; você completa os dados da
+        empresa e revisa o texto.</div>
+    {% elif not contratos %}
+      <div class="meta" style="line-height:1.55">A minuta libera quando a proposta estiver
+        <b>enviada</b> ou <b>aceita</b> — contrato vem depois da proposta, não antes.</div>
+    {% endif %}
+  </section>
+
+  <section class="ds-card">
     <h2>Status</h2>
     <form method="post" action="/propostas/{{ q.id }}/status" class="fluxo-st">
       {% if q.status == 'rascunho' %}

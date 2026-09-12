@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% block titulo %}{{ c.numero }} — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .grade{display:grid;grid-template-columns:1fr 300px;gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1080px){.grade{grid-template-columns:1fr}}
+  .corpo{width:100%;min-height:640px;resize:vertical;font-family:ui-monospace,Menlo,monospace;
+         font-size:.8125rem;line-height:1.65}
+  .fluxo-st{display:flex;flex-wrap:wrap;gap:8px}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div><div class="meta">{{ c.numero }} · proposta
+      <a href="/propostas/{{ c.proposta_id }}">{{ c.proposta_numero }}</a> ·
+      <span class="ds-chip {{ 'ds-chip--ok' if c.status=='assinado' else ('ds-chip--info' if c.status=='enviado' else ('ds-chip--erro' if c.status=='cancelado' else '')) }}"
+            style="font-size:.6875rem">{{ c.status }}</span></div>
+    <h1 style="font-size:1.5rem">{{ c.titulo }}</h1></div>
+  <div style="display:flex;gap:8px">
+    <a class="ds-btn" href="/contratos/{{ c.id }}/imprimir" target="_blank">Ver contrato / PDF</a>
+    <a class="ds-btn ds-btn--fantasma" href="/propostas/{{ c.proposta_id }}">Proposta</a></div>
+</div>
+
+<div class="aviso aviso--at">⚖️ <div><b>Minuta gerada automaticamente</b> a partir da proposta —
+  revise (e, em contratos relevantes, passe por advogado) antes de assinar. Campos
+  <code>[PREENCHER]</code> precisam ser completados.</div></div>
+
+<div class="grade">
+  <section class="ds-card ds-card--alto">
+    <h2>Texto do contrato</h2>
+    {% if c.status == 'rascunho' %}
+    <form method="post" action="/contratos/{{ c.id }}">
+      <textarea class="ds-campo corpo" name="corpo">{{ c.corpo }}</textarea>
+      <button class="ds-btn" style="margin-top:var(--ds-e-3)">Salvar texto</button>
+    </form>
+    {% else %}
+    <div class="meta" style="margin-bottom:var(--ds-e-3)">Contrato {{ c.status }} — o texto
+      está travado. Volte a rascunho para editar.</div>
+    <pre style="white-space:pre-wrap;font-size:.8125rem;line-height:1.65;margin:0">{{ c.corpo }}</pre>
+    {% endif %}
+  </section>
+
+  <section class="ds-card">
+    <h2>Status</h2>
+    <form method="post" action="/contratos/{{ c.id }}/status" class="fluxo-st">
+      {% if c.status == 'rascunho' %}
+        <button class="ds-btn" name="status" value="enviado">Marcar como enviado</button>
+      {% elif c.status == 'enviado' %}
+        <button class="ds-btn" name="status" value="assinado">Assinado ✍️</button>
+        <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Voltar a rascunho</button>
+      {% elif c.status == 'assinado' %}
+        <div class="meta">Assinado — arquivo morto. </div>
+      {% else %}
+        <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Reabrir</button>
+      {% endif %}
+      {% if c.status not in ('cancelado','assinado') %}
+        <button class="ds-btn ds-btn--fantasma" name="status" value="cancelado">Cancelar</button>
+      {% endif %}
+    </form>
+    <div class="meta" style="margin-top:var(--ds-e-3);line-height:1.6">Quem envia e colhe a
+      assinatura é você (PDF impresso ou plataforma de assinatura). O CRM guarda a versão e o
+      status.</div>
+  </section>
+</div>
+{% endblock %}

@@ -475,6 +475,23 @@ CREATE TABLE maquina_pasta (
     UNIQUE (maquina_id, caminho)
 );
 
+-- Minuta de contrato: passo lógico depois da proposta enviada/aceita. O corpo nasce de um
+-- template audiovisual (app/contratos.py) preenchido com os dados da proposta — texto
+-- determinístico, sem LLM inventando cláusula — e fica editável até a assinatura.
+CREATE TABLE contrato (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    quote_id        uuid NOT NULL REFERENCES quote(id),
+    numero          text UNIQUE,
+    template        text NOT NULL,
+    titulo          text NOT NULL,
+    status          text NOT NULL DEFAULT 'rascunho'
+                    CHECK (status IN ('rascunho','enviado','assinado','cancelado')),
+    contratante     jsonb NOT NULL DEFAULT '{}',    -- dados da empresa do cliente
+    contratada      jsonb NOT NULL DEFAULT '{}',    -- dados da Duck (reusados no próximo)
+    corpo           text NOT NULL,
+    criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
 -- Pessoas que entram na plataforma. papel 'dev' vê tudo; 'diretor' tudo menos o que é
 -- desenvolvimento (API, gestão de usuários). senha_hash NULL = convite pendente: o link
 -- /convite/{token} define a primeira senha. Foto mora no banco (o CRM é a memória).

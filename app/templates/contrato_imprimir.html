@@ -1,0 +1,48 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>{{ c.numero }} — Duck Studios</title>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
+<style>
+  @page{size:A4;margin:20mm 18mm}
+  *{box-sizing:border-box}
+  body{font-family:Satoshi,Georgia,serif;color:#161b1a;background:#fff;margin:0;
+       font-size:10pt;line-height:1.62}
+  header{display:flex;justify-content:space-between;align-items:flex-start;
+         border-bottom:3px solid #082D2A;padding-bottom:12px;margin-bottom:20px}
+  .marca{background:#082D2A;padding:10px 14px;border-radius:10px}
+  .marca img{height:28px;display:block}
+  h1{font-size:14pt;margin:0 0 3px;font-weight:700;letter-spacing:-.01em}
+  .meta{color:#667;font-size:8.5pt}
+  .corpo{white-space:pre-wrap;text-align:justify}
+  .assin{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:26px 40px}
+  .assin>div{border-top:1px solid #161b1a;padding-top:6px;font-size:9pt;color:#333}
+  .assin small{display:block;color:#667}
+  footer{margin-top:26px;padding-top:10px;border-top:1px solid #ddd;color:#889;
+         font-size:7.5pt;line-height:1.5}
+  @media screen{body{max-width:210mm;margin:24px auto;padding:20mm 18mm;
+                     box-shadow:0 2px 24px rgba(0,0,0,.15)}}
+</style></head><body>
+
+<header>
+  <div>
+    <h1>{{ c.titulo }}</h1>
+    <div class="meta">{{ c.numero }} · gerado em {{ c.criado_em.strftime('%d/%m/%Y') }}</div>
+  </div>
+  <div class="marca"><img src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios"></div>
+</header>
+
+<div class="corpo">{{ c.corpo }}</div>
+
+<div class="assin">
+  <div>{{ c.contratante.get('razao') or 'CONTRATANTE' }}
+    <small>{{ c.contratante.get('representante') or '' }}</small></div>
+  <div>{{ c.contratada.get('razao') or 'CONTRATADA' }}
+    <small>{{ c.contratada.get('representante') or '' }}</small></div>
+  <div>Testemunha 1 <small>Nome e CPF</small></div>
+  <div>Testemunha 2 <small>Nome e CPF</small></div>
+</div>
+
+<footer>
+  Minuta gerada pelo CRM Duck Studios a partir da proposta comercial correspondente.
+  Este documento não substitui orientação jurídica — revise antes de assinar.
+</footer>
+</body></html>
