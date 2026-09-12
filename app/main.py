@@ -622,18 +622,38 @@ def precos(request: Request):
 # ------------------------------------------------------------ propostas
 
 @app.get("/propostas", response_class=HTMLResponse)
-def propostas(request: Request):
+def propostas(request: Request, erro: str = ""):
     linhas = db.q("""SELECT q.*, d.titulo, co.nome AS empresa, count(qi.*) itens
                        FROM quote q
                        LEFT JOIN deal d ON d.id = q.deal_id
                        LEFT JOIN company co ON co.id = d.company_id
                        LEFT JOIN quote_item qi ON qi.quote_id = q.id
                       GROUP BY q.id, d.titulo, co.nome ORDER BY q.criado_em DESC""")
-    return pag(request, "propostas.html", ativo="propostas", linhas=linhas,
+    return pag(request, "propostas.html", ativo="propostas", linhas=linhas, erro=erro,
+               voz_ok=bool(os.environ.get("ANTHROPIC_API_KEY")),
                negocios=db.q("""SELECT d.id, d.titulo, co.nome AS empresa FROM deal d
                                 LEFT JOIN company co ON co.id = d.company_id
                                 WHERE d.estagio NOT IN ('ganho','perdido')
                                 ORDER BY d.criado_em DESC"""))
+
+
+@app.post("/propostas/voz")
+def proposta_voz(texto: str = Form(...)):
+    """Fala ditada (mic da tela) → proposta em rascunho. O LLM só estrutura o que foi DITO;
+    valores vêm da boca do humano e os itens nascem 'fora de tabela' para a revisão ver."""
+    from urllib.parse import quote as _q
+    from .agentes import propostas as ag_propostas
+    if not texto.strip():
+        return RedirectResponse("/propostas?erro=" + _q("fale ou digite o texto antes"), 303)
+    if not ag_propostas.configurado():
+        return RedirectResponse(
+            "/propostas?erro=" + _q("ANTHROPIC_API_KEY não configurada no serviço"), 303)
+    try:
+        r = ag_propostas.proposta_por_voz(texto)
+    except Exception as e:                                           # noqa: BLE001
+        return RedirectResponse("/propostas?erro=" + _q(f"{type(e).__name__}: {e}"), 303)
+    aviso = "&aviso=" + _q("Faltou na fala: " + ", ".join(r["faltou"])) if r["faltou"] else ""
+    return RedirectResponse(f"/propostas/{r['quote_id']}?{aviso.lstrip('&')}", 303)
 
 
 @app.post("/propostas/nova")
@@ -646,14 +666,14 @@ def proposta_nova(deal_id: str = Form(...), validade_dias: int = Form(15)):
 
 
 @app.get("/propostas/{qid}", response_class=HTMLResponse)
-def proposta(request: Request, qid: str, erro: str = ""):
+def proposta(request: Request, qid: str, erro: str = "", aviso: str = ""):
     q = db.q1("""SELECT q.*, d.titulo, d.data_evento, co.nome AS empresa, c.nome AS contato
                    FROM quote q LEFT JOIN deal d ON d.id = q.deal_id
                    LEFT JOIN company co ON co.id = d.company_id
                    LEFT JOIN contact c ON c.id = d.contact_id WHERE q.id = %s""", (qid,))
     if not q:
         return HTMLResponse("Proposta não encontrada", status_code=404)
-    return pag(request, "proposta.html", ativo="propostas", q=q, erro=erro,
+    return pag(request, "proposta.html", ativo="propostas", q=q, erro=erro, aviso=aviso,
                itens=db.q("SELECT * FROM quote_item WHERE quote_id=%s ORDER BY descricao", (qid,)),
                precos=db.q("SELECT * FROM price_list WHERE ativo ORDER BY categoria, codigo"),
                kits=db.q("SELECT id, nome, valor_diaria FROM kit ORDER BY valor_diaria DESC"))
@@ -707,6 +727,82 @@ def proposta_desconto(qid: str, desconto: str = Form("0")):
     db.exec_("UPDATE quote SET desconto = coalesce(NULLIF(%s,'')::numeric, 0) WHERE id=%s",
              (desconto, qid))
     _recalcular(qid)
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/item/{iid}/editar")
+def proposta_item_editar(qid: str, iid: str, descricao: str = Form(...),
+                         quantidade: float = Form(...), valor_unitario: float = Form(...)):
+    db.exec_("""UPDATE quote_item SET descricao = %s, quantidade = %s, valor_unitario = %s
+                 WHERE id = %s AND quote_id = %s""",
+             (descricao.strip(), quantidade, valor_unitario, iid, qid))
+    _recalcular(qid)
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/dados")
+def proposta_dados(qid: str, condicoes_pagamento: str = Form(""), validade: str = Form("")):
+    db.exec_("""UPDATE quote SET condicoes_pagamento = NULLIF(%s, ''),
+                                 validade = coalesce(NULLIF(%s, '')::date, validade)
+                 WHERE id = %s""", (condicoes_pagamento.strip(), validade.strip(), qid))
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/etapa")
+def proposta_etapa_add(qid: str, titulo: str = Form(...), prazo: str = Form(""),
+                       detalhe: str = Form("")):
+    q = db.q1("SELECT etapas FROM quote WHERE id = %s", (qid,))
+    if q:
+        etapas = list(q["etapas"] or []) + [{"titulo": titulo.strip(),
+                                             "prazo": prazo.strip() or None,
+                                             "detalhe": detalhe.strip() or None}]
+        db.exec_("UPDATE quote SET etapas = %s WHERE id = %s",
+                 (json.dumps(etapas, ensure_ascii=False), qid))
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/etapa/{n}/editar")
+def proposta_etapa_editar(qid: str, n: int, titulo: str = Form(...),
+                          prazo: str = Form(""), detalhe: str = Form("")):
+    q = db.q1("SELECT etapas FROM quote WHERE id = %s", (qid,))
+    if q and 0 <= n < len(q["etapas"] or []):
+        etapas = list(q["etapas"])
+        etapas[n] = {"titulo": titulo.strip(), "prazo": prazo.strip() or None,
+                     "detalhe": detalhe.strip() or None}
+        db.exec_("UPDATE quote SET etapas = %s WHERE id = %s",
+                 (json.dumps(etapas, ensure_ascii=False), qid))
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/etapa/{n}/remover")
+def proposta_etapa_remover(qid: str, n: int):
+    q = db.q1("SELECT etapas FROM quote WHERE id = %s", (qid,))
+    if q and 0 <= n < len(q["etapas"] or []):
+        etapas = list(q["etapas"])
+        etapas.pop(n)
+        db.exec_("UPDATE quote SET etapas = %s WHERE id = %s",
+                 (json.dumps(etapas, ensure_ascii=False), qid))
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+ESTADOS_PROPOSTA = ("rascunho", "aguardando_aprovacao_interna", "enviada",
+                    "aceita", "recusada", "expirada")
+
+
+@app.post("/propostas/{qid}/status")
+def proposta_status(qid: str, status: str = Form(...)):
+    if status not in ESTADOS_PROPOSTA:
+        return RedirectResponse(f"/propostas/{qid}", 303)
+    q = db.q1("""UPDATE quote SET status = %s,
+                        aprovado_por = CASE WHEN %s IN ('enviada', 'aceita')
+                                            THEN coalesce(aprovado_por, 'humano')
+                                            ELSE aprovado_por END
+                  WHERE id = %s RETURNING deal_id""", (status, status, qid))
+    # A proposta puxa o funil junto — sem duplicar gesto no /funil.
+    if q and q["deal_id"] and status in ("enviada", "aceita"):
+        db.exec_("""UPDATE deal SET estagio = %s
+                     WHERE id = %s AND estagio NOT IN ('ganho', 'perdido')""",
+                 ("proposta_enviada" if status == "enviada" else "ganho", q["deal_id"]))
     return RedirectResponse(f"/propostas/{qid}", 303)
 
 
@@ -1379,6 +1475,11 @@ MESAS = [
      "sop": "SOP-002", "cor": "#60A5FA", "origem": "agendado"},
     {"chave": "comercial", "nome": "Comercial", "papel": "Qualificação de leads",
      "sop": "SOP-003", "cor": "#2DBDB8", "origem": "evento"},
+    {"chave": "propostas", "nome": "Propostas", "papel": "Proposta e contrato por voz",
+     "sop": "SOP-003", "cor": "#F18E25", "origem": "evento"},
+    {"chave": "trafego", "nome": "Tráfego", "papel": "Campanhas e tráfego pago",
+     "sop": "—", "cor": "#A78BFA", "origem": "futuro",
+     "motivo": "aguardando conexão com Meta/Google Ads"},
     {"chave": "dit", "nome": "DIT / Mídia", "papel": "Ingestão e verificação de cartões",
      "sop": "SOP-001", "cor": "#FBBF24", "origem": "futuro",
      "motivo": "precisa do Mac Mini (acesso físico aos volumes)"},
@@ -1425,7 +1526,7 @@ def api_agentes_estado():
             estado, detalhe = "futuro", m.get("motivo", "")
         elif m["origem"] == "futuro":
             estado, detalhe = "plantao", "recebendo offloads do Mac"
-        elif m["chave"] == "comercial" and not ag_comercial.configurado():
+        elif m["chave"] in ("comercial", "propostas") and not ag_comercial.configurado():
             estado, detalhe = "sem_chave", "aguardando ANTHROPIC_API_KEY"
         elif st.get("ativos"):
             estado, detalhe = "trabalhando", "executando agora"

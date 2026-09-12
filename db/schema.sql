@@ -78,6 +78,8 @@ CREATE TABLE quote (
     desconto        numeric(12,2) DEFAULT 0,
     total           numeric(12,2),
     pdf_path        text,
+    condicoes_pagamento text,                   -- "50% na assinatura, 50% na entrega"
+    etapas          jsonb NOT NULL DEFAULT '[]',-- linha do tempo: [{titulo, detalhe, prazo}]
     criado_por      text,                       -- 'humano:nome' | 'agente:comercial'
     aprovado_por    text,                       -- NULL enquanto não houve aprovação humana
     criado_em       timestamptz NOT NULL DEFAULT now()

@@ -45,6 +45,8 @@ MIGRACOES = [
          convite_token text UNIQUE,
          ativo boolean NOT NULL DEFAULT true,
          criado_em timestamptz NOT NULL DEFAULT now())""",
+    "ALTER TABLE quote ADD COLUMN IF NOT EXISTS condicoes_pagamento text",
+    "ALTER TABLE quote ADD COLUMN IF NOT EXISTS etapas jsonb NOT NULL DEFAULT '[]'",
     """CREATE TABLE IF NOT EXISTS sessao (
          token text PRIMARY KEY,
          usuario_id uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,

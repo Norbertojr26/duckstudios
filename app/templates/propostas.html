@@ -8,6 +8,26 @@
 <div class="topo"><div><h1>Propostas</h1>
   <div class="sub">Montada a partir da tabela de preços e do inventário — sem inventar número</div></div></div>
 
+{% if erro %}<div class="aviso aviso--erro">✕ <div>{{ erro }}</div></div>{% endif %}
+
+<section class="ds-card ds-card--alto" style="margin-bottom:var(--ds-e-4)">
+  <h2>🎤 Proposta por voz</h2>
+  <div class="meta" style="margin-bottom:var(--ds-e-3)">Aperte o microfone e fale:
+    <b>qual cliente</b>, <b>o que é o serviço</b>, <b>qual valor</b> e as
+    <b>condições de pagamento</b>. O texto aparece abaixo (dá para corrigir); ao gerar, a
+    proposta nasce preenchida, em rascunho, para você revisar e enviar. Nenhum valor é
+    inventado — só o que você disser entra.</div>
+  <form method="post" action="/propostas/voz" id="fvoz"
+        style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
+    <button type="button" id="mic" class="ds-btn" style="min-width:64px;font-size:1.4rem"
+            title="Falar">🎤</button>
+    <textarea class="ds-campo" name="texto" id="texto" rows="3" style="flex:1;min-width:260px;
+              resize:vertical" placeholder="Ex.: proposta para a Alvorada Contabilidade, vídeo institucional com uma diária de filmagem e edição, doze mil reais, cinquenta por cento na assinatura e o resto na entrega"></textarea>
+    <button class="ds-btn" style="align-self:end">Gerar proposta</button>
+  </form>
+  <div class="meta" id="mic-estado" style="margin-top:8px"></div>
+</section>
+
 <section class="ds-card" style="margin-bottom:var(--ds-e-4)">
   <h2>Nova proposta</h2>
   {% if negocios %}
@@ -37,4 +57,34 @@
 </tr>{% endfor %}</tbody></table>
 {% else %}<div class="meta" style="padding:var(--ds-e-6) 0;text-align:center">Nenhuma proposta ainda.</div>{% endif %}
 </section>
+
+<script>
+// Transcrição no navegador (Web Speech API, pt-BR): de graça, ao vivo, e o texto fica
+// editável antes de virar proposta. Sem suporte (raro fora de Chrome/Safari) → digita.
+const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+const mic = document.getElementById('mic'), area = document.getElementById('texto'),
+      estado = document.getElementById('mic-estado');
+if (!Rec) {
+  mic.disabled = true; mic.style.opacity = .4;
+  estado.textContent = 'Este navegador não transcreve voz — digite o texto (Chrome e Safari transcrevem).';
+} else {
+  let rec = null, base = '';
+  mic.addEventListener('click', () => {
+    if (rec) { rec.stop(); return; }
+    rec = new Rec();
+    rec.lang = 'pt-BR'; rec.continuous = true; rec.interimResults = true;
+    base = area.value ? area.value.trim() + ' ' : '';
+    rec.onresult = (e) => {
+      let fin = '', parcial = '';
+      for (const r of e.results) (r.isFinal ? fin += r[0].transcript : parcial += r[0].transcript);
+      area.value = (base + fin + parcial).trim();
+    };
+    rec.onend = () => { rec = null; mic.textContent = '🎤'; estado.textContent = 'Gravação parada — revise o texto e gere.'; };
+    rec.onerror = (e) => { estado.textContent = 'Microfone: ' + e.error +
+      (e.error === 'not-allowed' ? ' — libere o microfone para o site' : ''); };
+    rec.start();
+    mic.textContent = '⏹'; estado.textContent = 'Ouvindo… fale cliente, serviço, valor e pagamento. Clique ⏹ para parar.';
+  });
+}
+</script>
 {% endblock %}

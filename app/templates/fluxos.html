@@ -109,6 +109,17 @@ const FLUXOS = [
    {id:"f",c:4,l:1,t:"saida",n:"Outbox",s:"só então vira mensagem"}],
   arestas:[["a","b"],["b","c"],["b","d"],["d","e"],["e","f"]]},
 
+ {agente:"propostas", nome:"Propostas — proposta por voz",
+  desc:"você dita cliente, serviço, valor e pagamento; o valor NUNCA é inventado pelo modelo",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"🎤 Fala no mic",s:"tela Propostas · transcrição no navegador"},
+   {id:"b",c:1,l:0,t:"llm",n:"Estrutura a fala",s:"cliente, itens, etapas, pagamento"},
+   {id:"c",c:2,l:0,t:"codigo",n:"Cria cliente + negócio",s:"dedupe por nome"},
+   {id:"d",c:3,l:0,t:"codigo",n:"Proposta em rascunho",s:"itens 'fora de tabela' + linha do tempo"},
+   {id:"e",c:4,l:0,t:"humano",n:"Você revisa e envia",s:"edita tudo · PDF com a marca"},
+   {id:"f",c:5,l:0,t:"saida",n:"Funil acompanha",s:"enviada/aceita puxam o negócio"}],
+  arestas:[["a","b"],["b","c"],["c","d"],["d","e"],["e","f"]]},
+
  {agente:"comercial", nome:"Comercial — reativação (RFM)",
   desc:"clientes sumidos há 90+ dias; no máximo 1 abordagem a cada 60 dias",
   nos:[

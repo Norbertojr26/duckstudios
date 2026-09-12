@@ -10,20 +10,36 @@
   .add{display:grid;grid-template-columns:130px 1fr 84px auto;gap:8px;align-items:end;
        margin-bottom:var(--ds-e-4)}
   @media (max-width:760px){.add{grid-template-columns:1fr}}
-  .add label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
+  .add label,.rot{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
+  .linha-item{display:grid;grid-template-columns:1fr 74px 110px auto auto;gap:8px;
+              align-items:center;padding:8px 0;border-top:1px solid var(--ds-border)}
+  .linha-item:first-of-type{border-top:0}
+  .linha-item .ds-campo{min-height:36px}
+  .etapa{display:grid;grid-template-columns:26px 1fr 150px auto auto;gap:8px;align-items:center;
+         padding:8px 0;border-top:1px solid var(--ds-border)}
+  .etapa:first-of-type{border-top:0}
+  .etapa .n{width:24px;height:24px;border-radius:99px;background:var(--ds-acao);color:#04211F;
+            display:grid;place-items:center;font-size:.75rem;font-weight:700}
+  .etapa .ds-campo{min-height:36px}
+  .mini{min-height:36px;padding:0 12px;font-size:.75rem}
+  .fluxo-st{display:flex;flex-wrap:wrap;gap:8px}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo">
-  <div><div class="meta">Proposta {{ q.numero }} · {{ q.empresa or 'sem cliente' }}</div>
+  <div><div class="meta">Proposta {{ q.numero }} · {{ q.empresa or 'sem cliente' }} ·
+      <span class="ds-chip {{ 'ds-chip--ok' if q.status=='aceita' else ('ds-chip--info' if q.status=='enviada' else ('ds-chip--erro' if q.status=='recusada' else ('ds-chip--atencao' if q.status=='aguardando_aprovacao_interna' else ''))) }}"
+        style="font-size:.6875rem">{{ q.status|replace('_',' ') }}</span></div>
     <h1>{{ q.titulo or 'Sem negócio' }}</h1></div>
   <div style="display:flex;gap:8px">
-    <a class="ds-btn ds-btn--fantasma" href="/propostas/{{ q.id }}/imprimir" target="_blank">Imprimir / PDF</a>
+    <a class="ds-btn" href="/propostas/{{ q.id }}/imprimir" target="_blank">Ver proposta / PDF</a>
     <a class="ds-btn ds-btn--fantasma" href="/propostas">Voltar</a></div>
 </div>
 
 {% if erro %}<div class="aviso aviso--erro">✕ <div>{{ erro }}</div></div>{% endif %}
+{% if aviso %}<div class="aviso aviso--at">⚠︎ <div>{{ aviso }} — complete abaixo antes de enviar.</div></div>{% endif %}
 
 <div class="grade">
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
   <section class="ds-card ds-card--alto">
     <h2>Itens</h2>
 
@@ -52,21 +68,51 @@
     </form>
 
     {% if itens %}
-    <table><thead><tr><th>Item</th><th class="num">Qtd</th><th class="num">Unitário</th>
-      <th class="num">Total</th><th></th></tr></thead>
-    <tbody>{% for i in itens %}<tr>
-      <td>{{ i.descricao }}
+    <div class="linha-item" style="border:0;padding-bottom:2px">
+      <span class="rot">Item</span><span class="rot num">Qtd</span>
+      <span class="rot num">Unitário</span><span></span><span></span></div>
+    {% for i in itens %}
+    <form method="post" action="/propostas/{{ q.id }}/item/{{ i.id }}/editar" class="linha-item">
+      <span style="display:flex;gap:6px;align-items:center;min-width:0">
+        <input class="ds-campo" name="descricao" value="{{ i.descricao }}" style="flex:1">
         {% if not i.price_list_id and 'Locação' not in i.descricao %}
-          <span class="ds-chip ds-chip--atencao" style="font-size:.625rem">fora de tabela</span>{% endif %}</td>
-      <td class="num">{{ i.quantidade|qtd }}</td><td class="num">{{ i.valor_unitario|brl }}</td>
-      <td class="num">{{ i.total|brl }}</td>
-      <td><form method="post" action="/propostas/{{ q.id }}/remover/{{ i.id }}">
-        <button class="ds-btn ds-btn--fantasma" style="min-height:30px;padding:0 12px;font-size:.75rem">✕</button>
-      </form></td>
-    </tr>{% endfor %}</tbody></table>
-    {% else %}<div class="meta" style="padding:var(--ds-e-5) 0">Nenhum item. Adicione acima.</div>{% endif %}
+          <span class="ds-chip ds-chip--atencao" style="font-size:.625rem;flex:none">fora de tabela</span>{% endif %}
+      </span>
+      <input class="ds-campo num" name="quantidade" type="number" step="0.5" value="{{ i.quantidade|qtd }}">
+      <input class="ds-campo num" name="valor_unitario" type="number" step="0.01" value="{{ i.valor_unitario }}">
+      <button class="ds-btn ds-btn--fantasma mini">salvar</button>
+      <button class="ds-btn ds-btn--fantasma mini" formaction="/propostas/{{ q.id }}/remover/{{ i.id }}">✕</button>
+    </form>
+    {% endfor %}
+    {% else %}<div class="meta" style="padding:var(--ds-e-5) 0">Nenhum item. Adicione acima ou dite pela voz na tela de Propostas.</div>{% endif %}
   </section>
 
+  <section class="ds-card ds-card--alto">
+    <h2>Linha do tempo de entrega</h2>
+    <div class="meta" style="margin-bottom:var(--ds-e-3)">Aparece na proposta como "como vamos
+      trabalhar" — etapas, rodadas de aprovação e prazos. Edite à vontade; prazo relativo
+      ("7 dias úteis após a diária") é melhor que data cravada.</div>
+    {% for e in q.etapas or [] %}
+    <form method="post" action="/propostas/{{ q.id }}/etapa/{{ loop.index0 }}/editar" class="etapa">
+      <span class="n">{{ loop.index }}</span>
+      <span style="display:flex;gap:6px;min-width:0;flex-direction:column">
+        <input class="ds-campo" name="titulo" value="{{ e.titulo }}">
+        <input class="ds-campo" name="detalhe" value="{{ e.detalhe or '' }}" placeholder="detalhe (opcional)"></span>
+      <input class="ds-campo" name="prazo" value="{{ e.prazo or '' }}" placeholder="prazo">
+      <button class="ds-btn ds-btn--fantasma mini">salvar</button>
+      <button class="ds-btn ds-btn--fantasma mini" formaction="/propostas/{{ q.id }}/etapa/{{ loop.index0 }}/remover">✕</button>
+    </form>
+    {% else %}<div class="meta">Sem etapas ainda.</div>{% endfor %}
+    <form method="post" action="/propostas/{{ q.id }}/etapa" class="etapa" style="border-top:1px dashed var(--ds-border)">
+      <span class="n" style="background:var(--ds-surface-2);color:var(--ds-txt-3)">+</span>
+      <input class="ds-campo" name="titulo" placeholder="Nova etapa (ex.: Primeiro corte para aprovação)" required>
+      <input class="ds-campo" name="prazo" placeholder="prazo">
+      <button class="ds-btn ds-btn--fantasma mini">add</button><span></span>
+    </form>
+  </section>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
   <section class="ds-card">
     <h2>Total</h2>
     <div class="par"><span>Subtotal</span><b>{{ q.subtotal|brl }}</b></div>
@@ -79,10 +125,45 @@
       </span>
     </form>
     <div class="par" style="align-items:center"><span>Total</span><b class="tot">{{ q.total|brl }}</b></div>
-    <div class="meta" style="margin-top:var(--ds-e-4);line-height:1.55">
-      Item marcado <b>fora de tabela</b> é preço que alguém inventou. É de propósito que ele fica
-      visível: é o que a revisão precisa enxergar antes de a proposta sair.</div>
+    <div class="meta" style="margin-top:var(--ds-e-3);line-height:1.55">
+      Item <b>fora de tabela</b> é preço que alguém inventou (ou ditou) — fica visível de
+      propósito para a revisão.</div>
   </section>
+
+  <section class="ds-card">
+    <h2>Pagamento e validade</h2>
+    <form method="post" action="/propostas/{{ q.id }}/dados">
+      <label class="rot">Condições de pagamento</label>
+      <textarea class="ds-campo" name="condicoes_pagamento" rows="2"
+                placeholder="Ex.: 50% na assinatura, 50% na entrega"
+                style="width:100%;resize:vertical">{{ q.condicoes_pagamento or '' }}</textarea>
+      <label class="rot" style="margin-top:10px">Válida até</label>
+      <input class="ds-campo" type="date" name="validade" style="width:100%"
+             value="{{ q.validade.isoformat() if q.validade else '' }}">
+      <button class="ds-btn" style="margin-top:var(--ds-e-3);width:100%">Salvar</button>
+    </form>
+  </section>
+
+  <section class="ds-card">
+    <h2>Status</h2>
+    <form method="post" action="/propostas/{{ q.id }}/status" class="fluxo-st">
+      {% if q.status == 'rascunho' %}
+        <button class="ds-btn" name="status" value="aguardando_aprovacao_interna">Enviar para aprovação</button>
+      {% elif q.status == 'aguardando_aprovacao_interna' %}
+        <button class="ds-btn" name="status" value="enviada">Aprovado — marcar enviada</button>
+        <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Voltar a rascunho</button>
+      {% elif q.status == 'enviada' %}
+        <button class="ds-btn" name="status" value="aceita">Cliente aceitou 🎉</button>
+        <button class="ds-btn ds-btn--fantasma" name="status" value="recusada">Recusada</button>
+      {% else %}
+        <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Reabrir como rascunho</button>
+      {% endif %}
+    </form>
+    <div class="meta" style="margin-top:var(--ds-e-3);line-height:1.55">
+      Quem manda a proposta ao cliente é você (PDF/WhatsApp). "Enviada" e "aceita" puxam o
+      negócio no funil junto.</div>
+  </section>
+  </div>
 </div>
 
 <script>
