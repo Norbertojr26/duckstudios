@@ -1,7 +1,10 @@
 {% extends "base.html" %}{% block titulo %}Proposta {{ q.numero }}{% endblock %}
 {% block estilo %}<style>
-  .grade{display:grid;grid-template-columns:1fr 330px;gap:var(--ds-e-4);align-items:start}
+  .grade{display:grid;grid-template-columns:1fr 330px;gap:var(--ds-e-4);align-items:start;
+         margin-bottom:var(--ds-e-4)}
   @media (max-width:1080px){.grade{grid-template-columns:1fr}}
+  .tres{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+        gap:var(--ds-e-4);align-items:start}
   .num{font-variant-numeric:tabular-nums;text-align:right}
   .par{display:flex;justify-content:space-between;padding:10px 0;font-size:.875rem;color:var(--ds-txt-2)}
   .par+.par{border-top:1px solid var(--ds-border)}
@@ -152,6 +155,12 @@
       contrato enxergam o mesmo dado.</div>
   </section>
 
+  </div>
+</div>
+
+<!-- Faixa inferior: os cards de apoio dividem a largura toda em vez de empilhar
+     numa coluna estreita e deixar o centro vazio -->
+<div class="tres">
   <section class="ds-card">
     <h2>Pagamento e validade</h2>
     <form method="post" action="/propostas/{{ q.id }}/dados">
@@ -207,7 +216,6 @@
       Quem manda a proposta ao cliente é você (PDF/WhatsApp). "Enviada" e "aceita" puxam o
       negócio no funil junto.</div>
   </section>
-  </div>
 </div>
 
 <script>

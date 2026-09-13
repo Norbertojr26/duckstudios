@@ -3,14 +3,28 @@
   .num{font-variant-numeric:tabular-nums;text-align:right}
   .form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
   .form label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
-  .guia{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
-  .guia span{display:flex;align-items:center;gap:9px;background:var(--ds-grad-surface-2);
-             border:1px solid var(--ds-border);border-radius:12px;padding:9px 12px;
-             font-size:.8125rem;color:var(--ds-txt-2)}
-  .guia b{color:var(--ds-txt)}
-  .guia i{font-style:normal;flex:none;width:20px;height:20px;border-radius:99px;
-          background:var(--ds-acao);color:#04211F;display:grid;place-items:center;
-          font-size:.6875rem;font-weight:700}
+  /* Guia da fala: tiles neutros, ícone de traço em caixa cinza — informação, não decoração */
+  .guia{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;
+        margin-bottom:var(--ds-e-4)}
+  .guia .tile{display:flex;align-items:flex-start;gap:11px;
+              background:rgba(255,255,255,.025);border:1px solid var(--ds-border);
+              border-radius:13px;padding:12px 13px}
+  .guia .tile i{font-style:normal;flex:none;width:30px;height:30px;border-radius:9px;
+                display:grid;place-items:center;background:var(--ds-surface-2);
+                border:1px solid var(--ds-border);color:var(--ds-txt-2)}
+  .guia .tile svg{width:15px;height:15px}
+  .guia .tile b{display:block;font-size:.8125rem;line-height:1.2;margin-bottom:2px}
+  .guia .tile small{display:block;font-size:.6875rem;color:var(--ds-txt-3);line-height:1.45}
+
+  .voz-form{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .mic{flex:none;width:46px;height:46px;border-radius:99px;cursor:pointer;
+       display:grid;place-items:center;background:var(--ds-surface-2);
+       border:1px solid var(--ds-border-forte);color:var(--ds-txt-2);
+       transition:color var(--ds-t-rapido),border-color var(--ds-t-rapido)}
+  .mic:hover{color:var(--ds-txt);border-color:rgba(255,255,255,.25)}
+  .mic.gravando{color:var(--ds-erro);border-color:rgba(248,113,113,.5);
+                animation:grava 1.4s ease-in-out infinite}
+  @keyframes grava{50%{box-shadow:0 0 0 5px rgba(248,113,113,.12)}}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo"><div><h1>Propostas</h1>
@@ -19,24 +33,32 @@
 {% if erro %}<div class="aviso aviso--erro"><div>{{ erro }}</div></div>{% endif %}
 
 <section class="ds-card ds-card--alto" style="margin-bottom:var(--ds-e-4)">
-  <h2>Proposta por voz</h2>
-  <div class="meta" style="margin-bottom:10px">Para a proposta sair <b>100%</b>, fale:</div>
+  {% macro gi(d) %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{ d }}"/></svg>{% endmacro %}
+  <h2 style="margin-bottom:4px">Proposta por voz</h2>
+  <div class="meta" style="margin-bottom:var(--ds-e-4)">Fale (ou digite) e o agente monta a
+    proposta em rascunho para você revisar. O que faltar vira aviso na proposta.</div>
+
   <div class="guia">
-    <span><i>1</i> <b>Cliente</b> — nome da empresa e de quem decide</span>
-    <span><i>2</i> <b>Serviço</b> — o que é (filmagem, edição, locação, evento…)</span>
-    <span><i>3</i> <b>O que inclui</b> — diárias, edição, drone, entregáveis</span>
-    <span><i>4</i> <b>Valor</b> — por item ou fechado (só entra o que você disser)</span>
-    <span><i>5</i> <b>Pagamento</b> — ex.: 50% na assinatura, 50% na entrega</span>
-    <span><i>6</i> <b>Datas</b> — data do evento/diária e validade da proposta</span>
+    <div class="tile"><i>{{ gi('M12 11.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM5 20c0-3.3 3-5.5 7-5.5s7 2.2 7 5.5') }}</i>
+      <span><b>Cliente</b><small>empresa e quem decide</small></span></div>
+    <div class="tile"><i>{{ gi('M4 7.5h11a5 5 0 010 10H8M4 7.5l3.5-3.5M4 7.5l3.5 3.5') }}</i>
+      <span><b>Serviço</b><small>filmagem, edição, locação, evento</small></span></div>
+    <div class="tile"><i>{{ gi('M8.5 6.5h12M8.5 12h12M8.5 17.5h12M4 6.5h.01M4 12h.01M4 17.5h.01') }}</i>
+      <span><b>O que inclui</b><small>diárias, edição, drone, entregáveis</small></span></div>
+    <div class="tile"><i>{{ gi('M12 3v18M16.5 6.5h-6.8a2.7 2.7 0 000 5.4h4.6a2.7 2.7 0 010 5.4H7') }}</i>
+      <span><b>Valor</b><small>por item ou fechado — só o que você disser</small></span></div>
+    <div class="tile"><i>{{ gi('M3.5 6.5h17a1 1 0 011 1v9a1 1 0 01-1 1h-17a1 1 0 01-1-1v-9a1 1 0 011-1zM2.5 10.5h19M6 14.5h4') }}</i>
+      <span><b>Pagamento</b><small>ex.: 50% assinatura, 50% entrega</small></span></div>
+    <div class="tile"><i>{{ gi('M5 5.5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1v-13a1 1 0 011-1zM8 3.5v4M16 3.5v4M4 10.5h16') }}</i>
+      <span><b>Datas</b><small>evento/diária e validade</small></span></div>
   </div>
-  <div class="meta" style="margin:10px 0 var(--ds-e-3)">O que faltar vira aviso amarelo na
-    proposta — dá para completar depois. O texto abaixo é editável antes de gerar.</div>
-  <form method="post" action="/propostas/voz" id="fvoz"
-        style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
-    <button type="button" id="mic" class="ds-btn" style="min-width:64px" title="Falar"></button>
+
+  <form method="post" action="/propostas/voz" id="fvoz" class="voz-form">
+    <button type="button" id="mic" class="mic" title="Gravar fala"></button>
     <textarea class="ds-campo" name="texto" id="texto" rows="3" style="flex:1;min-width:260px;
               resize:vertical" placeholder="Ex.: proposta para a Alvorada Contabilidade, vídeo institucional com uma diária de filmagem e edição, doze mil reais, cinquenta por cento na assinatura e o resto na entrega"></textarea>
-    <button class="ds-btn" style="align-self:end">Gerar proposta</button>
+    <button class="ds-btn">Gerar proposta</button>
   </form>
   <div class="meta" id="mic-estado" style="margin-top:8px"></div>
 </section>
@@ -77,13 +99,10 @@
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 const mic = document.getElementById('mic'), area = document.getElementById('texto'),
       estado = document.getElementById('mic-estado');
-const IC_MIC = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" ' +
-  'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+mic.innerHTML = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" ' +
+  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
   '<rect x="9" y="3" width="6" height="11" rx="3"/>' +
   '<path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></svg>';
-const IC_PARAR = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">' +
-  '<rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>';
-mic.innerHTML = IC_MIC;
 if (!Rec) {
   mic.disabled = true; mic.style.opacity = .4;
   estado.textContent = 'Este navegador não transcreve voz — digite o texto (Chrome e Safari transcrevem).';
@@ -99,11 +118,11 @@ if (!Rec) {
       for (const r of e.results) (r.isFinal ? fin += r[0].transcript : parcial += r[0].transcript);
       area.value = (base + fin + parcial).trim();
     };
-    rec.onend = () => { rec = null; mic.innerHTML = IC_MIC; estado.textContent = 'Gravação parada — revise o texto e gere.'; };
+    rec.onend = () => { rec = null; mic.classList.remove('gravando'); estado.textContent = 'Gravação parada — revise o texto e gere.'; };
     rec.onerror = (e) => { estado.textContent = 'Microfone: ' + e.error +
       (e.error === 'not-allowed' ? ' — libere o microfone para o site' : ''); };
     rec.start();
-    mic.innerHTML = IC_PARAR; estado.textContent = 'Ouvindo… fale cliente, serviço, valor e pagamento. Clique no quadrado para parar.';
+    mic.classList.add('gravando'); estado.textContent = 'Ouvindo… fale cliente, serviço, valor e pagamento. Clique de novo para parar.';
   });
 }
 </script>

@@ -34,11 +34,11 @@
                inset 0 1px 0 rgba(255,255,255,.07);
   --ds-elev-afundado: inset 0 2px 6px rgba(0,0,0,.55),
                       inset 0 -1px 0 rgba(255,255,255,.04);
-  --ds-glow-acao:     0 6px 20px -6px rgba(241,142,37,.45);
+  --ds-glow-acao:     0 6px 20px -6px rgba(18,181,174,.4);
 
   --ds-grad-surface:   linear-gradient(180deg, #191C20 0%, #121417 100%);
   --ds-grad-surface-2: linear-gradient(180deg, #23272C 0%, #1A1D21 100%);
-  --ds-grad-acao:      linear-gradient(180deg, #F79E3F 0%, #ED8418 100%);
+  --ds-grad-acao:      linear-gradient(180deg, #14B4AC 0%, #028A85 100%);
 
   /* Neutros do catálogo, para peças que precisam ficar idênticas a ele */
   --ds-cat-bg:        #161616;
@@ -50,12 +50,12 @@
   --ds-txt-3:         rgba(255,255,255,.45);
 
   /* ---- Ação e estado -----------------------------------------------------
-     v2: LARANJA é a ação primária (botão, CTA) — texto escuro em cima, branco reprova.
-     TEAL segue sendo a cor da marca: link, seleção, indicador "ao vivo". */
+     Decisão do dono (13/09): ação primária é o VERDE/teal da marca; o laranja do bico
+     volta ao papel original — acento raro, nunca botão. */
   --ds-acao:          #2DBDB8;   /* links e acentos teal — 8,4:1 no fundo */
-  --ds-acao-fundo:    var(--ds-laranja);
-  --ds-acao-txt:      #221204;   /* texto sobre laranja: 8,9:1 */
-  --ds-acao-hover:    #FFA94D;
+  --ds-acao-fundo:    var(--ds-teal);
+  --ds-acao-txt:      #032220;   /* texto escuro sobre o teal: contraste alto */
+  --ds-acao-hover:    #3ED3CE;
   --ds-acento:        var(--ds-laranja);
   --ds-ok:            #4ADE80;
   --ds-atencao:       #FBBF24;
@@ -111,7 +111,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: rgba(241,142,37,.3); }
+::selection { background: rgba(45,189,184,.3); }
 
 /* Barra de rolagem discreta — a nativa clara denuncia "site sem acabamento" no dark */
 * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.16) transparent; }
@@ -185,11 +185,11 @@ body {
   transition: border-color var(--ds-t-rapido), outline-color var(--ds-t-rapido);
 }
 .ds-campo::placeholder { color: rgba(255,255,255,.3); }
-.ds-campo:focus { outline: 2px solid var(--ds-laranja); outline-offset: 1px;
-                  border-color: rgba(241,142,37,.4); }
+.ds-campo:focus { outline: 2px solid var(--ds-acao); outline-offset: 1px;
+                  border-color: rgba(45,189,184,.4); }
 textarea.ds-campo { padding: 10px var(--ds-e-4); }
 
-:focus-visible { outline: 2px solid var(--ds-laranja); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ds-acao); outline-offset: 2px; }
 
 .ds-hero { font-size: var(--ds-t-hero); font-weight: var(--ds-peso-titulo); line-height: 1.05; }
 .ds-meta { font-size: var(--ds-t-meta); color: var(--ds-txt-3); }
