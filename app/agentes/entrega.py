@@ -42,7 +42,7 @@ def rodar():
             rotulo = "ESTOUROU" if d["estourado"] else "vence em ≤2 dias"
             db.exec_("""INSERT INTO approval_request (run_id, titulo, descricao, payload)
                         VALUES (%s, %s, %s, %s)""",
-                     (ex.id, f"⏰ Prazo {rotulo} — {d['nome']} ({d['projeto']})",
+                     (ex.id, f"Prazo {rotulo} — {d['nome']} ({d['projeto']})",
                       f"Entregável '{d['nome']}' do projeto {d['projeto']} com prazo "
                       f"{d['prazo'].strftime('%d/%m')} ainda não está aprovado. "
                       f"Aprovar = estou ciente e tratando.",
@@ -68,7 +68,7 @@ def rodar():
                 continue
             db.exec_("""INSERT INTO approval_request (run_id, titulo, descricao, payload)
                         VALUES (%s, %s, %s, %s)""",
-                     (ex.id, f"🧹 Limpar Drive — {p['nome']} (entregue há {DIAS_DRIVE}+ dias)",
+                     (ex.id, f"Limpar Drive — {p['nome']} (entregue há {DIAS_DRIVE}+ dias)",
                       f"O projeto {p['nome']} está entregue desde "
                       f"{p['entregue_em'].strftime('%d/%m')}. O backup definitivo é o storage "
                       f"local. Aprovar manda a pasta do projeto no ESPELHO do Drive para a "

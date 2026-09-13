@@ -87,13 +87,20 @@
   tbody tr:hover{background:var(--ds-surface-2)}
   .num{font-variant-numeric:tabular-nums;text-align:right}
 
-  .aviso{display:flex;gap:10px;padding:12px 16px;border-radius:14px;font-size:.875rem;
-         margin-bottom:var(--ds-e-4);border:1px solid transparent}
+  .aviso{display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-radius:14px;
+         font-size:.875rem;margin-bottom:var(--ds-e-4);border:1px solid transparent}
+  /* Ícone do aviso: SVG por máscara, definido UMA vez — nenhum emoji no HTML */
+  .aviso::before{content:"";width:18px;height:18px;flex:none;margin-top:1px;
+         background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;
+         mask:var(--ic) center/contain no-repeat}
   .aviso--erro{background:var(--ds-erro-bg);color:var(--ds-erro);
-               border-color:rgba(248,113,113,.2)}
-  .aviso--ok{background:var(--ds-ok-bg);color:var(--ds-ok);border-color:rgba(74,222,128,.2)}
+               border-color:rgba(248,113,113,.2);
+    --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6'/%3E%3C/svg%3E")}
+  .aviso--ok{background:var(--ds-ok-bg);color:var(--ds-ok);border-color:rgba(74,222,128,.2);
+    --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M8.3 12.3l2.4 2.4 5-5.2'/%3E%3C/svg%3E")}
   .aviso--at{background:var(--ds-atencao-bg);color:var(--ds-atencao);
-             border-color:rgba(251,191,36,.2)}
+             border-color:rgba(251,191,36,.2);
+    --ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 4.2L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z'/%3E%3Cpath d='M12 9.5v4.5'/%3E%3Cpath d='M12 17.3h.01'/%3E%3C/svg%3E")}
 
   @media (max-width:860px){
     body{grid-template-columns:1fr}
@@ -154,15 +161,18 @@
       <span class="eu-quem"><b>{{ usuario.nome }}</b>
         <small>{{ 'Dev' if usuario.papel == 'dev' else 'Diretor' }}</small></span>
     </a>
-    <form method="post" action="/sair"><button class="eu-sair" title="Sair">⏻</button></form>
+    <form method="post" action="/sair"><button class="eu-sair" title="Sair">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round"><path d="M12 3v8"/>
+        <path d="M17.7 6.3a8 8 0 11-11.4 0"/></svg></button></form>
   </div>
   {% endif %}
 </aside>
 <main>
 <div id="ds-pendentes" class="aviso aviso--at" hidden></div>
-<div id="ds-offline" class="aviso aviso--at" hidden>⚠︎ <div>Sem rede. As bipadas ficam guardadas
+<div id="ds-offline" class="aviso aviso--at" hidden><div>Sem rede. As bipadas ficam guardadas
   no aparelho e sobem sozinhas quando a conexão voltar.</div></div>
-{% if sem_senha %}<div class="aviso aviso--erro">⚠︎ <div><b>Sem senha.</b>
+{% if sem_senha %}<div class="aviso aviso--erro"><div><b>Sem senha.</b>
   Qualquer pessoa com a URL vê seu patrimônio, seus valores e seus clientes.
   Defina <code>APP_SENHA</code> nas variáveis do serviço.</div></div>{% endif %}
 {% block conteudo %}{% endblock %}</main>

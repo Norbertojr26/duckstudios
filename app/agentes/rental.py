@@ -84,7 +84,7 @@ def rodar():
                    f"{r['previsao_devolucao'].strftime('%d/%m')} ({r['dias']} dia(s)). "
                    f"Precisamos combinar a devolução ainda hoje — o atraso gera diária "
                    f"adicional conforme o termo assinado.")
-            titulo = (f"⚠ Atraso de {r['dias']} dia(s) — {r['responsavel']} ({r['numero']}) · "
+            titulo = (f"Atraso de {r['dias']} dia(s) — {r['responsavel']} ({r['numero']}) · "
                       + f"exposição R$ {float(r['exposicao']):,.0f}".replace(",", "."))
             criados += _pedir_aprovacao(ex, r, "cobranca_atraso", titulo, msg)
 

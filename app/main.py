@@ -1564,7 +1564,7 @@ def api_dit_offload(dados: dict):
                 db.exec_("""INSERT INTO approval_request (run_id, titulo, descricao, payload)
                             VALUES (%s, %s, %s, %s)""",
                          (ex.id,
-                          f"💾 Liberar cartão para formatação — {proj['nome']} · "
+                          f"Liberar cartão para formatação — {proj['nome']} · "
                           f"{dados['camera']} {dados.get('card', '')}",
                           f"{dados['arquivos']} arquivos ({dados['bytes']/1e9:.1f} GB) "
                           f"verificados em {len(dados['destinos'])} destinos. Aprovar libera a "

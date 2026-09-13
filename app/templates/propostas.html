@@ -16,10 +16,10 @@
 <div class="topo"><div><h1>Propostas</h1>
   <div class="sub">Montada a partir da tabela de preços e do inventário — sem inventar número</div></div></div>
 
-{% if erro %}<div class="aviso aviso--erro">✕ <div>{{ erro }}</div></div>{% endif %}
+{% if erro %}<div class="aviso aviso--erro"><div>{{ erro }}</div></div>{% endif %}
 
 <section class="ds-card ds-card--alto" style="margin-bottom:var(--ds-e-4)">
-  <h2>🎤 Proposta por voz</h2>
+  <h2>Proposta por voz</h2>
   <div class="meta" style="margin-bottom:10px">Para a proposta sair <b>100%</b>, fale:</div>
   <div class="guia">
     <span><i>1</i> <b>Cliente</b> — nome da empresa e de quem decide</span>
@@ -33,8 +33,7 @@
     proposta — dá para completar depois. O texto abaixo é editável antes de gerar.</div>
   <form method="post" action="/propostas/voz" id="fvoz"
         style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap">
-    <button type="button" id="mic" class="ds-btn" style="min-width:64px;font-size:1.4rem"
-            title="Falar">🎤</button>
+    <button type="button" id="mic" class="ds-btn" style="min-width:64px" title="Falar"></button>
     <textarea class="ds-campo" name="texto" id="texto" rows="3" style="flex:1;min-width:260px;
               resize:vertical" placeholder="Ex.: proposta para a Alvorada Contabilidade, vídeo institucional com uma diária de filmagem e edição, doze mil reais, cinquenta por cento na assinatura e o resto na entrega"></textarea>
     <button class="ds-btn" style="align-self:end">Gerar proposta</button>
@@ -78,6 +77,13 @@
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 const mic = document.getElementById('mic'), area = document.getElementById('texto'),
       estado = document.getElementById('mic-estado');
+const IC_MIC = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" ' +
+  'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="9" y="3" width="6" height="11" rx="3"/>' +
+  '<path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></svg>';
+const IC_PARAR = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">' +
+  '<rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>';
+mic.innerHTML = IC_MIC;
 if (!Rec) {
   mic.disabled = true; mic.style.opacity = .4;
   estado.textContent = 'Este navegador não transcreve voz — digite o texto (Chrome e Safari transcrevem).';
@@ -93,11 +99,11 @@ if (!Rec) {
       for (const r of e.results) (r.isFinal ? fin += r[0].transcript : parcial += r[0].transcript);
       area.value = (base + fin + parcial).trim();
     };
-    rec.onend = () => { rec = null; mic.textContent = '🎤'; estado.textContent = 'Gravação parada — revise o texto e gere.'; };
+    rec.onend = () => { rec = null; mic.innerHTML = IC_MIC; estado.textContent = 'Gravação parada — revise o texto e gere.'; };
     rec.onerror = (e) => { estado.textContent = 'Microfone: ' + e.error +
       (e.error === 'not-allowed' ? ' — libere o microfone para o site' : ''); };
     rec.start();
-    mic.textContent = '⏹'; estado.textContent = 'Ouvindo… fale cliente, serviço, valor e pagamento. Clique ⏹ para parar.';
+    mic.innerHTML = IC_PARAR; estado.textContent = 'Ouvindo… fale cliente, serviço, valor e pagamento. Clique no quadrado para parar.';
   });
 }
 </script>

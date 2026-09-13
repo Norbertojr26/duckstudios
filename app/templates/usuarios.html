@@ -30,7 +30,7 @@
           {% elif u.tem_senha %}<span class="ds-chip ds-chip--ok" style="font-size:.6875rem">ativo</span>
           {% else %}<span class="ds-chip ds-chip--atencao" style="font-size:.6875rem">convite pendente</span>{% endif %}
           {% if u.convite_token and u.ativo %}
-          <div class="linha-conv">🔗 <code>{{ base }}/convite/{{ u.convite_token }}</code></div>
+          <div class="linha-conv"><code>{{ base }}/convite/{{ u.convite_token }}</code></div>
           {% endif %}
         </td>
         <td style="text-align:right;white-space:nowrap">

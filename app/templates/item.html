@@ -17,11 +17,11 @@
 </div>
 
 {% if a.proprietario == 'proprio' and not a.valor_reposicao_confirmado %}
-<div class="aviso aviso--at">⚠︎ <div>Valor de reposição <b>não confirmado</b>.
+<div class="aviso aviso--at"><div>Valor de reposição <b>não confirmado</b>.
   O termo sai com {{ a.valor_reposicao|brl }} (valor de compra) — confirme antes de imprimir.</div></div>
 {% endif %}
 {% if a.requer_cotacao %}
-<div class="aviso aviso--at">⚠︎ <div>Item <b>sublocado</b>: cote com o fornecedor antes de fechar preço.</div></div>
+<div class="aviso aviso--at"><div>Item <b>sublocado</b>: cote com o fornecedor antes de fechar preço.</div></div>
 {% endif %}
 
 <div class="grade">

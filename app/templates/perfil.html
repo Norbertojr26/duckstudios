@@ -17,15 +17,15 @@
     <b>{{ 'Dev' if eu.papel == 'dev' else 'Diretor' }}</b> ·
     {{ sessoes }} sessão(ões) ativa(s)</div></div></div>
 
-{% if ok == 'dados' %}<div class="aviso aviso--ok">✓ <div>Dados atualizados.</div></div>{% endif %}
-{% if ok == 'senha' %}<div class="aviso aviso--ok">✓ <div>Senha trocada — suas outras sessões
+{% if ok == 'dados' %}<div class="aviso aviso--ok"><div>Dados atualizados.</div></div>{% endif %}
+{% if ok == 'senha' %}<div class="aviso aviso--ok"><div>Senha trocada — suas outras sessões
   foram encerradas.</div></div>{% endif %}
-{% if ok == 'foto' %}<div class="aviso aviso--ok">✓ <div>Foto atualizada.</div></div>{% endif %}
-{% if erro == 'email' %}<div class="aviso aviso--erro">⚠︎ <div>Esse e-mail já está em uso.</div></div>{% endif %}
-{% if erro == 'atual' %}<div class="aviso aviso--erro">⚠︎ <div>A senha atual não confere.</div></div>{% endif %}
-{% if erro == 'nova' %}<div class="aviso aviso--erro">⚠︎ <div>A nova senha precisa de 8+
+{% if ok == 'foto' %}<div class="aviso aviso--ok"><div>Foto atualizada.</div></div>{% endif %}
+{% if erro == 'email' %}<div class="aviso aviso--erro"><div>Esse e-mail já está em uso.</div></div>{% endif %}
+{% if erro == 'atual' %}<div class="aviso aviso--erro"><div>A senha atual não confere.</div></div>{% endif %}
+{% if erro == 'nova' %}<div class="aviso aviso--erro"><div>A nova senha precisa de 8+
   caracteres e os dois campos devem ser iguais.</div></div>{% endif %}
-{% if erro == 'foto' %}<div class="aviso aviso--erro">⚠︎ <div>Envie uma imagem de até 3 MB.</div></div>{% endif %}
+{% if erro == 'foto' %}<div class="aviso aviso--erro"><div>Envie uma imagem de até 3 MB.</div></div>{% endif %}
 
 <div class="grade">
   <section class="ds-card ds-card--alto">

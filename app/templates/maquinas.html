@@ -17,10 +17,13 @@
 <div class="topo"><div><h1>Máquinas</h1>
   <div class="sub">O Mac liga <b>para</b> o CRM — sem porta aberta. O que ele pode tocar é a
     lista de pastas abaixo; revogar é remover daqui.</div></div>
+  {% macro ic_baixar() %}<svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+    ><path d="M12 4v10M7.5 9.5L12 14l4.5-4.5M4 18.5h16"/></svg>{% endmacro %}
   <div style="display:flex;gap:8px">
     <a class="ds-btn {{ 'ds-btn--fantasma' if linhas else '' }}"
-       href="/maquinas/instalador">⬇ Instalar (Mac)</a>
-    <a class="ds-btn ds-btn--fantasma" href="/maquinas/instalador.ps1">⬇ Instalar (Windows)</a>
+       href="/maquinas/instalador">{{ ic_baixar() }} Instalar (Mac)</a>
+    <a class="ds-btn ds-btn--fantasma" href="/maquinas/instalador.ps1">{{ ic_baixar() }} Instalar (Windows)</a>
   </div></div>
 
 {% if not linhas %}

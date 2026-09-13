@@ -33,8 +33,8 @@
   <a class="ds-btn ds-btn--fantasma" href="/saidas">Todas as saídas</a>
 </div>
 
-{% if erro %}<div class="aviso aviso--erro">✕ <div>{{ erro }}</div></div>{% endif %}
-{% if ok %}<div class="aviso aviso--ok">✓ <div>{{ ok }}</div></div>{% endif %}
+{% if erro %}<div class="aviso aviso--erro"><div>{{ erro }}</div></div>{% endif %}
+{% if ok %}<div class="aviso aviso--ok"><div>{{ ok }}</div></div>{% endif %}
 
 <div class="grade">
   <section class="ds-card ds-card--alto">
@@ -96,14 +96,14 @@
       <a class="ds-btn {{ 'ds-btn--fantasma' if r.termo_assinado_em }}"
          style="width:100%;margin-top:var(--ds-e-4);text-decoration:none;box-sizing:border-box"
          href="/saidas/{{ r.id }}/termo">
-         {{ '✓ Termo assinado — ver' if r.termo_assinado_em else 'Gerar termo e assinar' }}</a>
+         {{ 'Termo assinado — ver' if r.termo_assinado_em else 'Gerar termo e assinar' }}</a>
       {% if aberto %}
       <form method="post" action="/saidas/{{ r.id }}/fechar">
         <button class="ds-btn ds-btn--fantasma" style="width:100%;margin-top:8px">Encerrar saída</button>
       </form>
       <div class="meta" style="margin-top:10px;line-height:1.5">Não fecha com item pendente —
         a regra é do servidor, não da tela.</div>
-      {% else %}<div class="aviso aviso--ok" style="margin:var(--ds-e-4) 0 0">✓ <div>Encerrada</div></div>{% endif %}
+      {% else %}<div class="aviso aviso--ok" style="margin:var(--ds-e-4) 0 0"><div>Encerrada</div></div>{% endif %}
     </section>
   </div>
 </div>
@@ -139,7 +139,7 @@ async function processar(codigo){
     return;
   }
   resposta.style.color = r.ok ? 'var(--ds-ok)' : 'var(--ds-erro)';
-  resposta.textContent = (r.ok ? '✓ ' : '✕ ') + r.mensagem;
+  resposta.textContent = r.mensagem;
   if (r.ok) setTimeout(() => location.reload(), 550);
 }
 

@@ -18,7 +18,7 @@
     <a class="ds-btn ds-btn--fantasma" href="/propostas/{{ c.proposta_id }}">Proposta</a></div>
 </div>
 
-<div class="aviso aviso--at">⚖️ <div><b>Minuta gerada automaticamente</b> a partir da proposta —
+<div class="aviso aviso--at"><div><b>Minuta gerada automaticamente</b> a partir da proposta —
   revise (e, em contratos relevantes, passe por advogado) antes de assinar. Campos
   <code>[PREENCHER]</code> precisam ser completados.</div></div>
 
@@ -43,10 +43,10 @@
       {% if c.status == 'rascunho' %}
         <button class="ds-btn" name="status" value="enviado">Marcar como enviado</button>
       {% elif c.status == 'enviado' %}
-        <button class="ds-btn" name="status" value="assinado">Assinado ✍️</button>
+        <button class="ds-btn" name="status" value="assinado">Marcar como assinado</button>
         <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Voltar a rascunho</button>
       {% elif c.status == 'assinado' %}
-        <div class="meta">Assinado — arquivo morto. </div>
+        <div class="meta">Assinado — arquivo morto.</div>
       {% else %}
         <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Reabrir</button>
       {% endif %}

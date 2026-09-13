@@ -35,8 +35,8 @@
     <a class="ds-btn ds-btn--fantasma" href="/propostas">Voltar</a></div>
 </div>
 
-{% if erro %}<div class="aviso aviso--erro">✕ <div>{{ erro }}</div></div>{% endif %}
-{% if aviso %}<div class="aviso aviso--at">⚠︎ <div>{{ aviso }} — complete abaixo antes de enviar.</div></div>{% endif %}
+{% if erro %}<div class="aviso aviso--erro"><div>{{ erro }}</div></div>{% endif %}
+{% if aviso %}<div class="aviso aviso--at"><div>{{ aviso }} — complete abaixo antes de enviar.</div></div>{% endif %}
 
 <div class="grade">
   <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
@@ -178,7 +178,7 @@
     {% endfor %}
     {% if q.status in ('enviada', 'aceita') %}
       <a class="ds-btn" href="/propostas/{{ q.id }}/contrato"
-         style="width:100%;margin-top:var(--ds-e-3)">{{ 'Gerar outra minuta' if contratos else '📄 Gerar minuta de contrato' }}</a>
+         style="width:100%;margin-top:var(--ds-e-3)">{{ 'Gerar outra minuta' if contratos else 'Gerar minuta de contrato' }}</a>
       <div class="meta" style="margin-top:var(--ds-e-3);line-height:1.55">Próximo passo:
         itens, valores, etapas e condições viram cláusulas; você completa os dados da
         empresa e revisa o texto.</div>
@@ -197,7 +197,7 @@
         <button class="ds-btn" name="status" value="enviada">Aprovado — marcar enviada</button>
         <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Voltar a rascunho</button>
       {% elif q.status == 'enviada' %}
-        <button class="ds-btn" name="status" value="aceita">Cliente aceitou 🎉</button>
+        <button class="ds-btn" name="status" value="aceita">Cliente aceitou</button>
         <button class="ds-btn ds-btn--fantasma" name="status" value="recusada">Recusada</button>
       {% else %}
         <button class="ds-btn ds-btn--fantasma" name="status" value="rascunho">Reabrir como rascunho</button>
