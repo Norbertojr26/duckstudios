@@ -667,13 +667,15 @@ def proposta_nova(deal_id: str = Form(...), validade_dias: int = Form(15)):
 
 @app.get("/propostas/{qid}", response_class=HTMLResponse)
 def proposta(request: Request, qid: str, erro: str = "", aviso: str = ""):
-    q = db.q1("""SELECT q.*, d.titulo, d.data_evento, co.nome AS empresa, c.nome AS contato
+    q = db.q1("""SELECT q.*, d.titulo, d.data_evento, d.company_id,
+                        co.nome AS empresa, c.nome AS contato
                    FROM quote q LEFT JOIN deal d ON d.id = q.deal_id
                    LEFT JOIN company co ON co.id = d.company_id
                    LEFT JOIN contact c ON c.id = d.contact_id WHERE q.id = %s""", (qid,))
     if not q:
         return HTMLResponse("Proposta não encontrada", status_code=404)
     return pag(request, "proposta.html", ativo="propostas", q=q, erro=erro, aviso=aviso,
+               empresas=db.q("SELECT id, nome FROM company ORDER BY nome"),
                contratos=db.q("""SELECT id, numero, titulo, status FROM contrato
                                   WHERE quote_id = %s ORDER BY criado_em DESC""", (qid,)),
                itens=db.q("SELECT * FROM quote_item WHERE quote_id=%s ORDER BY descricao", (qid,)),
@@ -739,6 +741,20 @@ def proposta_item_editar(qid: str, iid: str, descricao: str = Form(...),
                  WHERE id = %s AND quote_id = %s""",
              (descricao.strip(), quantidade, valor_unitario, iid, qid))
     _recalcular(qid)
+    return RedirectResponse(f"/propostas/{qid}", 303)
+
+
+@app.post("/propostas/{qid}/cabecalho")
+def proposta_cabecalho(qid: str, titulo: str = Form(...), company_id: str = Form(""),
+                       data_evento: str = Form("")):
+    """Título do trabalho, cliente e data vivem no negócio — editar daqui é editar lá,
+    e o funil enxerga a mesma verdade."""
+    db.exec_("""UPDATE deal SET titulo = %s,
+                                company_id = NULLIF(%s, '')::uuid,
+                                data_evento = NULLIF(%s, '')::date,
+                                atualizado_em = now()
+                 WHERE id = (SELECT deal_id FROM quote WHERE id = %s)""",
+             (titulo.strip(), company_id, data_evento.strip(), qid))
     return RedirectResponse(f"/propostas/{qid}", 303)
 
 

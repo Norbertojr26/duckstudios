@@ -131,6 +131,28 @@
   </section>
 
   <section class="ds-card">
+    <h2>Dados da proposta</h2>
+    <form method="post" action="/propostas/{{ q.id }}/cabecalho">
+      <label class="rot">Título do trabalho</label>
+      <input class="ds-campo" name="titulo" value="{{ q.titulo or '' }}" required
+             style="width:100%">
+      <label class="rot" style="margin-top:10px">Cliente</label>
+      <select class="ds-campo" name="company_id" style="width:100%">
+        <option value="">— sem cliente —</option>
+        {% for e in empresas %}
+        <option value="{{ e.id }}" {{ 'selected' if e.id == q.company_id }}>{{ e.nome }}</option>
+        {% endfor %}
+      </select>
+      <label class="rot" style="margin-top:10px">Data do evento / diária</label>
+      <input class="ds-campo" type="date" name="data_evento" style="width:100%"
+             value="{{ q.data_evento.isoformat() if q.data_evento else '' }}">
+      <button class="ds-btn" style="margin-top:var(--ds-e-3);width:100%">Salvar</button>
+    </form>
+    <div class="meta" style="margin-top:var(--ds-e-3)">Edita o negócio junto — funil e
+      contrato enxergam o mesmo dado.</div>
+  </section>
+
+  <section class="ds-card">
     <h2>Pagamento e validade</h2>
     <form method="post" action="/propostas/{{ q.id }}/dados">
       <label class="rot">Condições de pagamento</label>
