@@ -47,6 +47,9 @@ MIGRACOES = [
          criado_em timestamptz NOT NULL DEFAULT now())""",
     "ALTER TABLE quote ADD COLUMN IF NOT EXISTS condicoes_pagamento text",
     "ALTER TABLE quote ADD COLUMN IF NOT EXISTS etapas jsonb NOT NULL DEFAULT '[]'",
+    # Padrão sem emoji (13/09) também vale para o que os agentes já gravaram no banco
+    """UPDATE approval_request SET titulo = regexp_replace(titulo, '^(⏰|🧹|💾|⚠)\\s*', '')
+        WHERE titulo ~ '^(⏰|🧹|💾|⚠)'""",
     """CREATE TABLE IF NOT EXISTS contrato (
          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
          quote_id uuid NOT NULL REFERENCES quote(id),

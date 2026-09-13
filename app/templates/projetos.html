@@ -3,12 +3,17 @@
   .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
   .form label{font-size:var(--ds-t-meta);color:var(--ds-txt-3);display:block;margin-bottom:6px}
   .num{font-variant-numeric:tabular-nums;text-align:right}
+  .fase{white-space:nowrap;color:var(--ds-txt-2)}
+  .fase::before{content:"";display:inline-block;width:8px;height:8px;border-radius:99px;
+                background:var(--c);margin-right:6px}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo"><div><h1>Projetos</h1>
   <div class="sub">O <code>slug</code> é o nome da pasta na mídia · a fase segue as cores do seu Finder:
-    <span style="color:#F87171">● não iniciado</span> <span style="color:#FBBF24">● em edição</span>
-    <span style="color:#4ADE80">● aprovado</span> <span style="color:#C084FC">● no Drive</span></div></div></div>
+    <span class="fase" style="--c:#F87171">não iniciado</span>
+    <span class="fase" style="--c:#FBBF24">em edição</span>
+    <span class="fase" style="--c:#4ADE80">aprovado</span>
+    <span class="fase" style="--c:#C084FC">no Drive</span></div></div></div>
 
 <section class="ds-card" style="margin-bottom:var(--ds-e-4)">
   <h2>Novo projeto</h2>

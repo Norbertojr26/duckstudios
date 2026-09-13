@@ -36,7 +36,7 @@
       <td class="num">{{ a.valor_diaria|brl if a.valor_diaria else ('cotar' if a.requer_cotacao else '—') }}</td>
       <td class="num">{{ a.valor_reposicao|brl }}
         {% if a.valor_reposicao and not a.valor_reposicao_confirmado %}
-          <span class="ds-chip ds-chip--atencao" style="font-size:.625rem">estimado</span>{% endif %}</td>
+          <span class="meta" style="font-size:.625rem">estimado</span>{% endif %}</td>
       <td class="meta">{{ a.numero_serie or '—' }}</td>
       <td>{% if a.situacao == 'em_campo' %}
             <span class="ds-chip ds-chip--info">com {{ a.com_quem or '—' }}</span>
