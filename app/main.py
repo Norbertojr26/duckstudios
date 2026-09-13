@@ -342,8 +342,21 @@ def usuarios_ativo(request: Request, uid: str):
 
 @app.get("/", response_class=HTMLResponse)
 def painel(request: Request):
+    hora = (datetime.now(timezone.utc) - timedelta(hours=3)).hour   # Brasília
+    saudacao = "Bom dia" if 5 <= hora < 12 else ("Boa tarde" if hora < 18 else "Boa noite")
+    # Propostas dos últimos 6 meses — meses vazios entram zerados, sem buraco no eixo
+    meses = db.q("""
+        SELECT to_char(m.mes, 'MM/YY') AS rotulo,
+               to_char(m.mes, 'YYYY-MM') = to_char(now(), 'YYYY-MM') AS atual,
+               coalesce(sum(q.total), 0) AS total, count(q.id) AS n
+          FROM generate_series(date_trunc('month', now()) - interval '5 months',
+                               date_trunc('month', now()), '1 month') AS m(mes)
+          LEFT JOIN quote q ON date_trunc('month', q.criado_em) = m.mes
+                            AND q.status <> 'recusada'
+         GROUP BY m.mes ORDER BY m.mes""")
     return pag(request, "painel.html",
                ativo="painel", r=db.q1(db.RESUMO), saidas=db.q(db.EM_CAMPO),
+               saudacao=saudacao, meses=meses,
                pendentes=db.q("""SELECT titulo, descricao FROM approval_request
                                   WHERE status = 'pendente' ORDER BY criado_em DESC LIMIT 5"""))
 

@@ -1,11 +1,13 @@
 {% extends "base.html" %}{% block titulo %}Painel — Duck Studios{% endblock %}
 {% block estilo %}<style>
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
-         gap:var(--ds-e-4);margin-bottom:var(--ds-e-5)}
-  .stat .rot{font-size:var(--ds-t-meta);color:var(--ds-txt-3);letter-spacing:.04em;
-             text-transform:uppercase}
-  .stat .n{font-size:2rem;font-weight:700;letter-spacing:-.02em;margin:10px 0 2px;
-           font-variant-numeric:tabular-nums}
+  .ola .quando{font-family:var(--ds-mono);font-size:.6875rem;letter-spacing:.09em;
+               text-transform:uppercase;color:var(--ds-txt-3);margin-bottom:6px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));
+         gap:var(--ds-e-4);margin-bottom:var(--ds-e-4)}
+  .stat .rot{font-family:var(--ds-mono);font-size:.6875rem;color:var(--ds-txt-3);
+             letter-spacing:.08em;text-transform:uppercase}
+  .stat .n{font-size:2.25rem;font-weight:700;letter-spacing:-.03em;margin:12px 0 2px;
+           font-variant-numeric:tabular-nums;line-height:1}
   .grade{display:grid;grid-template-columns:1fr 340px;gap:var(--ds-e-4);align-items:start}
   @media (max-width:1100px){.grade{grid-template-columns:1fr}}
   .ini{width:38px;height:38px;border-radius:13px;display:grid;place-items:center;
@@ -14,10 +16,38 @@
   .lista{font-size:.8125rem;color:var(--ds-txt-3);margin-top:3px;
          display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .vazio{padding:var(--ds-e-6) 0;text-align:center;color:var(--ds-txt-3)}
+
+  /* Gráfico: barras finas com topo arredondado, mês atual em laranja, grade recessiva */
+  .graf{position:relative;height:190px;display:grid;
+        grid-template-columns:repeat(6,1fr);gap:14px;align-items:end;
+        padding:8px 4px 0;margin-top:var(--ds-e-4)}
+  .graf::before,.graf::after{content:"";position:absolute;left:0;right:0;height:1px;
+        background:var(--ds-border)}
+  .graf::before{top:8px}.graf::after{bottom:26px}
+  .col{display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;
+       justify-content:flex-end;position:relative;cursor:default}
+  .barra{width:100%;max-width:46px;border-radius:6px 6px 2px 2px;min-height:3px;
+         background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.1));
+         transition:filter var(--ds-t-rapido)}
+  .col.atual .barra{background:var(--ds-grad-acao);box-shadow:var(--ds-glow-acao)}
+  .col:hover .barra{filter:brightness(1.25)}
+  .col .mes{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.06em;
+            color:var(--ds-txt-3)}
+  .col .dica{position:absolute;bottom:calc(100% - 2px);left:50%;translate:-50% 0;
+             background:var(--ds-surface-3);border:1px solid var(--ds-border-forte);
+             border-radius:10px;padding:6px 10px;font-size:.75rem;white-space:nowrap;
+             box-shadow:var(--ds-elev-2);opacity:0;pointer-events:none;
+             transition:opacity var(--ds-t-rapido);z-index:2;
+             font-variant-numeric:tabular-nums}
+  .col:hover .dica{opacity:1}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo">
-  <div><h1>Painel</h1><div class="sub">{{ r.total_proprios }} itens próprios · dados reais do parque</div></div>
+  <div class="ola">
+    <div class="quando">{{ '%02d'|format(r.total_proprios) }} itens no parque · Brasília</div>
+    <h1>{{ saudacao }}{{ ', ' + usuario.nome.split(' ')[0] if usuario and usuario.get('nome') and usuario.get('id') else '' }}</h1>
+    <div class="sub">O estúdio num relance — equipamento, dinheiro e o que precisa de você.</div>
+  </div>
   <form method="post" action="/saidas/nova" style="display:flex;gap:8px;flex-wrap:wrap">
     <input class="ds-campo" name="responsavel" placeholder="Quem leva" required style="width:190px">
     <select class="ds-campo" name="tipo" style="width:auto">
@@ -41,6 +71,26 @@
     <div class="sub">de {{ r.total_proprios }} itens próprios</div></div>
   <div class="ds-card stat"><div class="rot">Patrimônio</div><div class="n">{{ r.patrimonio|curto }}</div>
     <div class="sub">{{ r.a_confirmar }} valores a confirmar</div></div>
+</section>
+
+<section class="ds-card ds-card--alto" style="margin-bottom:var(--ds-e-4)">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+              flex-wrap:wrap">
+    <h2 style="margin:0">Propostas por mês</h2>
+    <span class="meta">valor total proposto · exclui recusadas</span>
+  </div>
+  {% set maior = meses|map(attribute='total')|max %}
+  <div class="graf">
+    {% for m in meses %}
+    <div class="col {{ 'atual' if m.atual }}">
+      <div class="dica"><b>{{ m.total|brl }}</b> · {{ m.n }} proposta(s)</div>
+      <div class="barra" style="height:{{ (m.total / maior * 100)|round(1) if maior else 0 }}%"></div>
+      <div class="mes">{{ m.rotulo }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if not maior %}<div class="meta" style="text-align:center;margin-top:-14px">Nenhuma
+    proposta nos últimos 6 meses — a primeira pinta a barra.</div>{% endif %}
 </section>
 
 {% if r.sem_serie %}

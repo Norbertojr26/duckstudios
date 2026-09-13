@@ -3,76 +3,106 @@
 <title>{% block titulo %}Duck Studios{% endblock %}</title>
 <link rel="icon" href="/static/logo/marca-cor.svg">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<meta name="theme-color" content="#0A100F">
+<meta name="theme-color" content="#0C0D0F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="/static/tokens.css">
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap">
 <style>
   *{box-sizing:border-box}
   [hidden]{display:none !important}   /* classes com display próprio não podem vencer o hidden */
-  body{margin:0;display:grid;grid-template-columns:236px 1fr;min-height:100vh}
-  .rail{background:var(--ds-grad-surface);border-right:1px solid var(--ds-border);
+  body{margin:0;display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+
+  .rail{background:linear-gradient(180deg,#101215 0%,#0C0D0F 100%);
+        border-right:1px solid var(--ds-border);
         padding:var(--ds-e-5) var(--ds-e-4);display:flex;flex-direction:column;
-        gap:var(--ds-e-6);min-height:100vh}
-  .rail .logo{padding:0 var(--ds-e-3)}.rail .logo img{width:142px;display:block}
-  .nav{display:flex;flex-direction:column;gap:2px}
-  .nav a{display:flex;align-items:center;gap:var(--ds-e-3);min-height:var(--ds-toque-min);
-         padding:0 var(--ds-e-3);border-radius:var(--ds-r-campo);color:var(--ds-txt-2);
-         text-decoration:none;font-size:.875rem}
+        gap:var(--ds-e-4);min-height:100vh;position:sticky;top:0;max-height:100vh;
+        overflow-y:auto}
+  .rail .logo{padding:2px var(--ds-e-3) var(--ds-e-2)}
+  .rail .logo img{width:138px;display:block}
+
+  .busca{position:relative}
+  .busca input{min-height:38px;width:100%;padding:0 54px 0 34px;font-size:.8125rem;
+               border:1px solid var(--ds-border);border-radius:12px;background:#0A0C0E;
+               color:var(--ds-txt);font-family:inherit;box-shadow:var(--ds-elev-afundado)}
+  .busca input:focus{outline:2px solid var(--ds-laranja);outline-offset:1px}
+  .busca input::placeholder{color:rgba(255,255,255,.3)}
+  .busca svg{position:absolute;left:11px;top:50%;translate:0 -50%;opacity:.45}
+  .busca kbd{position:absolute;right:9px;top:50%;translate:0 -50%;
+             font-family:var(--ds-mono);font-size:.625rem;color:var(--ds-txt-3);
+             border:1px solid var(--ds-border);border-radius:6px;padding:2px 6px}
+
+  .nav{display:flex;flex-direction:column;gap:1px}
+  .nav a{position:relative;display:flex;align-items:center;gap:11px;min-height:38px;
+         padding:0 var(--ds-e-3);border-radius:11px;color:var(--ds-txt-2);
+         text-decoration:none;font-size:.875rem;
+         transition:background var(--ds-t-rapido),color var(--ds-t-rapido)}
   .nav a:hover{background:var(--ds-surface-2);color:var(--ds-txt)}
   .nav a.on{background:var(--ds-grad-surface-2);color:var(--ds-txt);font-weight:700;
             border:1px solid var(--ds-border);box-shadow:var(--ds-elev-1)}
-  .nav .ic{width:20px;text-align:center;opacity:.85}
-  .nav .grupo{font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;
-              color:var(--ds-txt-3);padding:var(--ds-e-4) var(--ds-e-3) var(--ds-e-2)}
-  .futuro{display:flex;align-items:center;gap:var(--ds-e-3);min-height:38px;
-          padding:0 var(--ds-e-3);color:var(--ds-txt-3);font-size:.875rem;opacity:.55;
-          cursor:default}
-  .futuro i{margin-left:auto;font-style:normal;font-size:.625rem;letter-spacing:.06em;
-            text-transform:uppercase;border:1px solid var(--ds-border);border-radius:999px;
-            padding:2px 7px}
+  .nav a.on::before{content:"";position:absolute;left:-3px;top:11px;bottom:11px;width:3px;
+                    border-radius:99px;background:var(--ds-laranja)}
+  .nav svg{width:17px;height:17px;flex:none;opacity:.8}
+  .nav a.on svg{opacity:1;color:var(--ds-laranja)}
+  .nav .grupo{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.12em;
+              text-transform:uppercase;color:var(--ds-txt-3);
+              padding:var(--ds-e-4) var(--ds-e-3) var(--ds-e-2)}
   .badge{margin-left:auto;background:var(--ds-erro-bg);color:var(--ds-erro);font-size:.6875rem;
          font-weight:700;padding:2px 8px;border-radius:999px}
-  .eu{margin-top:auto;display:flex;align-items:center;gap:6px}
+
+  .eu{margin-top:auto;display:flex;align-items:center;gap:6px;
+      border-top:1px solid var(--ds-border);padding-top:var(--ds-e-3)}
   .eu-link{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none;
-           padding:8px;border-radius:14px;color:var(--ds-txt-2)}
+           padding:8px;border-radius:13px;color:var(--ds-txt-2);
+           transition:background var(--ds-t-rapido)}
   .eu-link:hover,.eu-link.on{background:var(--ds-surface-2);color:var(--ds-txt)}
   .eu-foto{width:34px;height:34px;border-radius:12px;object-fit:cover;flex:none;
            border:1px solid var(--ds-border-forte)}
   .eu-inicial{display:grid;place-items:center;background:var(--ds-grad-surface-2);
-              font-weight:700;color:var(--ds-acao)}
+              font-weight:700;color:var(--ds-laranja)}
   .eu-quem{display:flex;flex-direction:column;min-width:0;line-height:1.25}
   .eu-quem b{font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .eu-quem small{font-size:.6875rem;color:var(--ds-txt-3)}
+  .eu-quem small{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.08em;
+                 text-transform:uppercase;color:var(--ds-txt-3)}
   .eu-sair{background:none;border:0;color:var(--ds-txt-3);cursor:pointer;font-size:1rem;
            padding:8px;border-radius:10px}
   .eu-sair:hover{color:var(--ds-erro);background:var(--ds-surface-2)}
-  @media (max-width:860px){.eu-quem{display:none}}
-  main{padding:var(--ds-e-6) var(--ds-e-6) var(--ds-e-7);max-width:1400px;min-width:0}
-  h1{font-size:2.25rem;font-weight:500;margin:0 0 4px;letter-spacing:-.02em}
+
+  main{padding:var(--ds-e-6) var(--ds-e-6) var(--ds-e-7);max-width:1440px;min-width:0}
+  h1{font-size:2.125rem;font-weight:500;margin:0 0 4px;letter-spacing:-.02em}
   h2{font-size:1.0625rem;font-weight:700;margin:0 0 var(--ds-e-4)}
   .topo{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--ds-e-5);
         margin-bottom:var(--ds-e-6);flex-wrap:wrap}
   .sub{font-size:.875rem;color:var(--ds-txt-2)}
   .meta{font-size:.8125rem;color:var(--ds-txt-3)}
   a{color:var(--ds-acao)}
+  code{font-family:var(--ds-mono);font-size:.85em;background:var(--ds-surface-2);
+       border:1px solid var(--ds-border);border-radius:6px;padding:1px 6px}
+
   table{width:100%;border-collapse:collapse;font-size:.875rem}
-  th{text-align:left;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;
-     color:var(--ds-txt-3);font-weight:600;padding:0 var(--ds-e-3) var(--ds-e-3)}
+  th{text-align:left;font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.09em;
+     text-transform:uppercase;color:var(--ds-txt-3);font-weight:600;
+     padding:0 var(--ds-e-3) var(--ds-e-3)}
   td{padding:var(--ds-e-3);border-top:1px solid var(--ds-border);vertical-align:middle}
+  tbody tr{transition:background var(--ds-t-rapido)}
   tbody tr:hover{background:var(--ds-surface-2)}
   .num{font-variant-numeric:tabular-nums;text-align:right}
+
   .aviso{display:flex;gap:10px;padding:12px 16px;border-radius:14px;font-size:.875rem;
-         margin-bottom:var(--ds-e-4)}
-  .aviso--erro{background:var(--ds-erro-bg);color:var(--ds-erro)}
-  .aviso--ok{background:var(--ds-ok-bg);color:var(--ds-ok)}
-  .aviso--at{background:var(--ds-atencao-bg);color:var(--ds-atencao)}
+         margin-bottom:var(--ds-e-4);border:1px solid transparent}
+  .aviso--erro{background:var(--ds-erro-bg);color:var(--ds-erro);
+               border-color:rgba(248,113,113,.2)}
+  .aviso--ok{background:var(--ds-ok-bg);color:var(--ds-ok);border-color:rgba(74,222,128,.2)}
+  .aviso--at{background:var(--ds-atencao-bg);color:var(--ds-atencao);
+             border-color:rgba(251,191,36,.2)}
+
   @media (max-width:860px){
     body{grid-template-columns:1fr}
-    .rail{min-height:0;flex-direction:row;align-items:center;gap:var(--ds-e-4);
-          overflow-x:auto;border-right:0;border-bottom:1px solid var(--ds-border);
-          padding:var(--ds-e-3)}
-    .rail .logo img{width:104px}.nav{flex-direction:row}.nav .grupo{display:none}
+    .rail{position:static;max-height:none;min-height:0;flex-direction:row;align-items:center;
+          gap:var(--ds-e-4);overflow-x:auto;border-right:0;
+          border-bottom:1px solid var(--ds-border);padding:var(--ds-e-3)}
+    .rail .logo img{width:100px}.busca{display:none}.nav{flex-direction:row}
+    .nav .grupo{display:none}.eu{margin-top:0;border-top:0;padding-top:0}
+    .eu-quem{display:none}
     main{padding:var(--ds-e-4)}h1{font-size:1.625rem}
   }
 </style>
@@ -80,30 +110,42 @@
 </head><body>
 <aside class="rail">
   <div class="logo"><a href="/"><img src="/static/logo/logo-horizontal-branco.svg" alt="Duck Studios"></a></div>
-  <nav class="nav">
-    <a href="/"            class="{{ 'on' if ativo=='painel' }}"><span class="ic">◧</span> Painel</a>
+
+  <div class="busca">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/>
+      <path d="M20 20l-3.8-3.8"/></svg>
+    <input id="nav-busca" placeholder="Buscar tela…" autocomplete="off">
+    <kbd>⌘K</kbd>
+  </div>
+
+  <nav class="nav" id="nav">
+    {% macro ic(d) %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{ d }}"/></svg>{% endmacro %}
+    <a href="/" class="{{ 'on' if ativo=='painel' }}">{{ ic('M3.5 3.5h7v7h-7zM13.5 3.5h7v4.5h-7zM13.5 12h7v8.5h-7zM3.5 14.5h7v6h-7z') }} Painel</a>
     <div class="grupo">Equipamento</div>
-    <a href="/equipamento" class="{{ 'on' if ativo=='equipamento' }}"><span class="ic">▤</span> Inventário</a>
-    <a href="/kits"        class="{{ 'on' if ativo=='kits' }}"><span class="ic">◫</span> Kits</a>
-    <a href="/saidas"      class="{{ 'on' if ativo=='saidas' }}"><span class="ic">↗</span> Saídas</a>
-    <a href="/conferencia" class="{{ 'on' if ativo=='conferencia' }}"><span class="ic">◎</span> Conferência</a>
+    <a href="/equipamento" class="{{ 'on' if ativo=='equipamento' }}">{{ ic('M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM12 12l8-4.5M12 12v9M12 12L4 7.5') }} Inventário</a>
+    <a href="/kits" class="{{ 'on' if ativo=='kits' }}">{{ ic('M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5') }} Kits</a>
+    <a href="/saidas" class="{{ 'on' if ativo=='saidas' }}">{{ ic('M7 17L17 7M8 7h9v9') }} Saídas</a>
+    <a href="/conferencia" class="{{ 'on' if ativo=='conferencia' }}">{{ ic('M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M8.7 12.2l2.3 2.3 4.6-4.8') }} Conferência</a>
     <div class="grupo">Comercial</div>
-    <a href="/precos"      class="{{ 'on' if ativo=='precos' }}"><span class="ic">$</span> Preços</a>
-    <a href="/funil"     class="{{ 'on' if ativo=='funil' }}"><span class="ic">◉</span> Funil</a>
-    <a href="/clientes"  class="{{ 'on' if ativo=='clientes' }}"><span class="ic">☺</span> Clientes</a>
-    <a href="/propostas" class="{{ 'on' if ativo=='propostas' }}"><span class="ic">◈</span> Propostas</a>
+    <a href="/precos" class="{{ 'on' if ativo=='precos' }}">{{ ic('M20.6 13.4L11 3.8H4v7.2l9.6 9.6a2 2 0 002.8 0l4.2-4.2a2 2 0 000-2.8zM7.5 7.5h.01') }} Preços</a>
+    <a href="/funil" class="{{ 'on' if ativo=='funil' }}">{{ ic('M3 5h18l-7 8v5l-4 2v-7L3 5z') }} Funil</a>
+    <a href="/clientes" class="{{ 'on' if ativo=='clientes' }}">{{ ic('M9 11.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16.5 11.4a3.5 3.5 0 000-6.8M21 20c0-2.7-1.6-4.6-3.9-5.3') }} Clientes</a>
+    <a href="/propostas" class="{{ 'on' if ativo=='propostas' }}">{{ ic('M6 3h8l4 4v14H6V3zM14 3v4h4M9 12.5h6M9 16.5h6') }} Propostas</a>
     <div class="grupo">Operação</div>
-    <a href="/projetos"  class="{{ 'on' if ativo=='projetos' }}"><span class="ic">▦</span> Projetos</a>
-    <a href="/agentes/sala" class="{{ 'on' if ativo=='sala' }}"><span class="ic">✦</span> Sala dos agentes</a>
-    <a href="/agentes"   class="{{ 'on' if ativo=='agentes' }}"><span class="ic">☑</span> Aprovações</a>
-    <a href="/maquinas" class="{{ 'on' if ativo=='maquinas' }}"><span class="ic">⌂</span> Máquinas</a>
-    <a href="/fluxos"   class="{{ 'on' if ativo=='fluxos' }}"><span class="ic">⧉</span> Fluxos</a>
+    <a href="/projetos" class="{{ 'on' if ativo=='projetos' }}">{{ ic('M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4') }} Projetos</a>
+    <a href="/agentes/sala" class="{{ 'on' if ativo=='sala' }}">{{ ic('M12 4l1.7 4.3L18 10l-4.3 1.7L12 16l-1.7-4.3L6 10l4.3-1.7L12 4zM19 15l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z') }} Sala dos agentes</a>
+    <a href="/agentes" class="{{ 'on' if ativo=='agentes' }}">{{ ic('M12 20.5a8.5 8.5 0 100-17 8.5 8.5 0 000 17zM8.5 12.2l2.4 2.4 4.8-5') }} Aprovações</a>
+    <a href="/maquinas" class="{{ 'on' if ativo=='maquinas' }}">{{ ic('M7 7h10v10H7zM10 3.5v3.5M14 3.5v3.5M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5') }} Máquinas</a>
+    <a href="/fluxos" class="{{ 'on' if ativo=='fluxos' }}">{{ ic('M6 8.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM6 20.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM18 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM6 8.5v7M15.6 9.6C12 11 8.6 12.6 6.9 15.4') }} Fluxos</a>
     {% if not usuario or usuario.get('papel') == 'dev' %}
     <div class="grupo">Dados</div>
-    <a href="/api/docs"><span class="ic">⌁</span> API dos agentes</a>
-    <a href="/usuarios" class="{{ 'on' if ativo=='usuarios' }}"><span class="ic">☩</span> Usuários</a>
+    <a href="/api/docs">{{ ic('M4 17l6-5-6-5M12 19h8') }} API dos agentes</a>
+    <a href="/usuarios" class="{{ 'on' if ativo=='usuarios' }}">{{ ic('M10 11.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM4 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M19 8v6M16 11h6') }} Usuários</a>
     {% endif %}
   </nav>
+
   {% if usuario and usuario.get('id') %}
   <div class="eu">
     <a href="/perfil" class="eu-link {{ 'on' if ativo=='perfil' }}">
@@ -125,4 +167,26 @@
   Defina <code>APP_SENHA</code> nas variáveis do serviço.</div></div>{% endif %}
 {% block conteudo %}{% endblock %}</main>
 <script src="/static/app.js"></script>
+<script>
+(function(){
+  const campo = document.getElementById('nav-busca');
+  if (!campo) return;
+  campo.addEventListener('input', () => {
+    const q = campo.value.trim().toLowerCase();
+    document.querySelectorAll('#nav a').forEach(a =>
+      a.hidden = q && !a.textContent.toLowerCase().includes(q));
+    document.querySelectorAll('#nav .grupo').forEach(g => g.hidden = !!q);
+  });
+  campo.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const alvo = document.querySelector('#nav a:not([hidden])');
+      if (alvo) location.href = alvo.href; }
+    if (e.key === 'Escape') { campo.value = ''; campo.dispatchEvent(new Event('input')); }
+  });
+  addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault(); campo.focus(); campo.select();
+    }
+  });
+})();
+</script>
 </body></html>
