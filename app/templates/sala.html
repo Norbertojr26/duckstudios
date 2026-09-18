@@ -1,371 +1,691 @@
 {% extends "base.html" %}{% block titulo %}Sala dos agentes — Duck Studios{% endblock %}
 {% block estilo %}<style>
-  .salao{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);
+  .salao{display:grid;grid-template-columns:minmax(0,7fr) minmax(300px,3fr);
          gap:var(--ds-e-4);align-items:start}
   @media (max-width:1150px){.salao{grid-template-columns:1fr}}
 
-  /* O escritório: cena isométrica própria (SVG desenhado em builders no JS abaixo) */
-  .escritorio{padding:var(--ds-e-4) var(--ds-e-4) var(--ds-e-3)}
-  .escritorio svg{width:100%;height:auto;display:block}
-  .placar{display:flex;gap:var(--ds-e-5);flex-wrap:wrap;padding:0 var(--ds-e-2)}
+  .palco{padding:var(--ds-e-3)}
+  .abas{display:flex;gap:6px;margin-bottom:var(--ds-e-3)}
+  .aba{min-height:34px;padding:0 16px;border-radius:99px;border:1px solid var(--ds-border);
+       background:var(--ds-grad-surface-2);color:var(--ds-txt-2);font:inherit;
+       font-size:.8125rem;font-weight:700;cursor:pointer}
+  .aba.on{background:var(--ds-grad-acao);color:var(--ds-acao-txt);border:0}
+  .abas .dica-cam{margin-left:auto;align-self:center;font-family:var(--ds-mono);
+       font-size:.625rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ds-txt-3)}
+
+  #cena3d{width:100%;height:600px;border-radius:16px;overflow:hidden;cursor:grab;
+          background:radial-gradient(80% 90% at 50% 20%, #14181d 0%, #0B0D10 70%)}
+  #cena3d:active{cursor:grabbing}
+  #grafo{width:100%;height:600px;border-radius:16px;background:radial-gradient(80% 90% at
+         50% 20%, #14181d 0%, #0B0D10 70%);display:none}
+
+  .placar{display:flex;gap:var(--ds-e-5);flex-wrap:wrap;padding:10px var(--ds-e-2) 0;
+          align-items:end}
   .placar .p{display:flex;flex-direction:column;gap:2px}
   .placar .rot{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.09em;
                text-transform:uppercase;color:var(--ds-txt-3)}
   .placar b{font-size:1.25rem;font-variant-numeric:tabular-nums;line-height:1.2}
-  .placar .pulso{margin-left:auto;align-self:end;font-size:.6875rem;color:var(--ds-txt-3);
+  .placar .pulso{margin-left:auto;font-size:.6875rem;color:var(--ds-txt-3);
                  font-variant-numeric:tabular-nums}
 
-  /* Texto dentro do SVG */
-  .iso-nome{font-family:var(--ds-font);font-size:12.5px;font-weight:700;fill:#fff}
-  .iso-papel{font-family:var(--ds-mono);font-size:8.5px;letter-spacing:.06em;
-             fill:rgba(255,255,255,.45);text-transform:uppercase}
-  .iso-detalhe{font-family:var(--ds-font);font-size:9.5px;fill:rgba(255,255,255,.55)}
-  .iso-hub{font-family:var(--ds-mono);font-size:9px;letter-spacing:.12em;
-           fill:rgba(255,255,255,.6);text-transform:uppercase}
+  .painel h2{margin-bottom:var(--ds-e-2)}
+  .foco-estado{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .foco-nums{display:flex;gap:var(--ds-e-4);font-size:.75rem;color:var(--ds-txt-3);
+             margin:8px 0 12px;flex-wrap:wrap}
+  .foco-nums b{color:var(--ds-txt);font-variant-numeric:tabular-nums}
+  .acoes{display:flex;flex-direction:column;gap:8px}
+  .acoes textarea{min-height:64px}
+  .resposta{font-size:.8125rem;margin-top:8px;line-height:1.5}
 
-  .mesa-hit{cursor:pointer}
-  .mesa-hit:hover .iso-nome{fill:var(--ds-acao)}
-  .mesa-hit.selecionada .iso-nome{fill:var(--ds-acao)}
+  .rotina{padding:9px 0;border-top:1px solid var(--ds-border);font-size:.8125rem}
+  .rotina:first-of-type{border-top:0}
+  .rotina b{display:block}
+  .rotina .meta{margin-top:2px}
+  .rotina .cad{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.06em;
+               text-transform:uppercase;color:var(--ds-acao);float:right}
 
-  /* Telas dos monitores por estado */
-  .tela-trabalhando{fill:#4ADE80;opacity:.9;animation:brilha 1.2s ease-in-out infinite}
-  .tela-aguardando{fill:#FBBF24;opacity:.85;animation:brilha 1.8s ease-in-out infinite}
-  .tela-plantao{fill:#60A5FA;opacity:.55}
-  .tela-sem_chave{fill:#FBBF24;opacity:.4}
-  .tela-futuro{fill:rgba(255,255,255,.12)}
-  @keyframes brilha{50%{opacity:.35}}
-
-  .fio{fill:none;stroke:rgba(255,255,255,.10);stroke-width:1.6}
-  .fio-trabalhando{stroke:#4ADE80;opacity:.5;stroke-dasharray:5 7;animation:anda 1s linear infinite}
-  .fio-aguardando{stroke:#FBBF24;opacity:.35}
-  @keyframes anda{to{stroke-dashoffset:-12}}
-
-  .nucleo-pulso{animation:nucleo 3s ease-in-out infinite;transform-origin:center;
-                transform-box:fill-box}
-  @keyframes nucleo{50%{opacity:.55}}
-
-  /* Esteira */
-  .esteira{max-height:640px;overflow-y:auto}
-  .ev{display:grid;grid-template-columns:14px 92px 1fr auto;gap:10px;align-items:baseline;
-      padding:9px 2px;font-size:.8125rem;border-top:1px solid var(--ds-border)}
+  .esteira{max-height:380px;overflow-y:auto}
+  .ev{display:grid;grid-template-columns:12px 86px 1fr auto;gap:9px;align-items:baseline;
+      padding:8px 2px;font-size:.78rem;border-top:1px solid var(--ds-border)}
   .ev:first-child{border-top:0}
   .ev .quem{font-weight:700}
   .ev .oque{color:var(--ds-txt-2);word-break:break-word}
   .ev .quando{color:var(--ds-txt-3);font-size:.6875rem;white-space:nowrap;
               font-variant-numeric:tabular-nums}
-  .ev .ponto{width:8px;height:8px;border-radius:99px;margin-top:2px}
+  .ev .ponto{width:7px;height:7px;border-radius:99px;margin-top:2px}
   .ev.novo{animation:chega .5s ease-out}
   @keyframes chega{from{background:rgba(45,189,184,.15)}to{background:transparent}}
-  .vazio{padding:var(--ds-e-6) 0;text-align:center;color:var(--ds-txt-3);line-height:1.7}
+  .vazio{padding:var(--ds-e-5) 0;text-align:center;color:var(--ds-txt-3);line-height:1.7}
   .filtro-chip{cursor:pointer}
+  .legenda-amb{font-size:.6875rem;color:var(--ds-txt-3);padding:8px var(--ds-e-2) 0;
+               line-height:1.5}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo">
   <div><h1>Sala dos agentes</h1>
-    <div class="sub">O escritório ao vivo — cada mesa é um agente, o núcleo é a memória do
-      estúdio (o CRM). Clique numa mesa para filtrar a esteira.</div></div>
+    <div class="sub">O escritório 3D ao vivo — arraste para girar, role para o zoom, clique
+      numa mesa para ver o que o agente faz e dar instruções.</div></div>
   <a class="ds-btn ds-btn--fantasma" href="/agentes">Aprovações e execuções</a>
 </div>
 
 <div class="salao">
-  <section class="ds-card ds-card--alto escritorio">
-    <div id="cena"></div>
+  <section class="ds-card ds-card--alto palco">
+    <div class="abas">
+      <button class="aba on" id="aba-office" onclick="verAba('office')">Escritório</button>
+      <button class="aba" id="aba-grafo" onclick="verAba('grafo')">Grafo do estúdio</button>
+      <span class="dica-cam">arrastar gira · scroll aproxima · botão direito move</span>
+    </div>
+    <div id="cena3d"></div>
+    <canvas id="grafo"></canvas>
     <div class="placar">
       <div class="p"><span class="rot">Execuções hoje</span><b id="pl-hoje">—</b></div>
       <div class="p"><span class="rot">Aguardando você</span><b id="pl-pend">—</b></div>
       <div class="p"><span class="rot">Agentes ativos</span><b id="pl-ativos">—</b></div>
-      <div class="p" style="justify-content:end"><span class="rot" style="display:flex;
-        align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:3px;
-        background:#0B3B37;border:1px solid rgba(45,189,184,.5)"></i>
-        núcleo = memória do estúdio (CRM)</span></div>
       <span class="pulso" id="pulso"></span>
     </div>
+    <div class="legenda-amb">Monitores, entregas ao núcleo e os painéis refletem o estado
+      real da auditoria; caminhadas e conversas entre mesas são ambientação. Núcleo teal =
+      a memória do estúdio (o CRM). Mesas apagadas são agentes que ainda vão nascer.</div>
   </section>
 
-  <section class="ds-card ds-card--alto">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--ds-e-3)">
-      <h2 style="margin:0">Esteira de trabalho</h2>
-      <span id="filtro-atual" class="ds-chip filtro-chip" hidden
-            title="Limpar filtro" onclick="filtrar(null)"></span>
-    </div>
-    <div class="meta" style="margin-bottom:var(--ds-e-3)">Últimas ações, direto da auditoria —
-      não de um log paralelo</div>
-    <div class="esteira" id="esteira"><div class="vazio">carregando…</div></div>
-  </section>
+  <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
+    <section class="ds-card painel" id="foco">
+      <h2 id="foco-nome">Escolha uma mesa</h2>
+      <div class="meta" id="foco-papel">Clique num agente no escritório para ver o
+        trabalho dele e dar instruções.</div>
+      <div id="foco-corpo" hidden>
+        <div class="foco-estado"><span class="ds-chip" id="foco-chip"></span>
+          <span class="meta" id="foco-detalhe"></span></div>
+        <div class="foco-nums">
+          <span><b id="foco-hoje">0</b> execuções hoje</span>
+          <span><b id="foco-pend">0</b> p/ aprovar</span>
+          <span>última: <b id="foco-ultima">—</b></span>
+        </div>
+        <div class="acoes" id="foco-acoes"></div>
+        <div class="resposta" id="foco-resposta"></div>
+      </div>
+    </section>
+
+    <section class="ds-card painel">
+      <h2>Rotinas do escritório</h2>
+      <div class="meta" id="rotinas-estado" style="margin-bottom:6px"></div>
+      <div id="rotinas"></div>
+    </section>
+
+    <section class="ds-card painel">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--ds-e-2)">
+        <h2 style="margin:0">Esteira</h2>
+        <span id="filtro-atual" class="ds-chip filtro-chip" hidden
+              title="Limpar filtro" onclick="filtrar(null)"></span>
+      </div>
+      <div class="esteira" id="esteira"><div class="vazio">carregando…</div></div>
+    </section>
+  </div>
 </div>
 
-<script>
-// ------------------------------------------------------------------ projeção
-// Cena isométrica própria: um helper de projeção e "builders" que devolvem SVG.
-// Nada de biblioteca — a cena inteira são polígonos calculados aqui.
-const CX = 500, CY = 226, UX = 52, UY = 26;          // centro e escala da grade
-const iso = (x, y, z=0) => [CX + (x - y) * UX, CY + (x + y) * UY - z];
-const pts = l => l.map(p => p.join(",")).join(" ");
-const sombra  = c => `${c}55`;
+<script type="importmap">
+{"imports": {"three": "/static/vendor/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/static/vendor/OrbitControls.js';
 
-// Caixa isométrica: topo + duas faces. (x,y) é o centro da base; w/d em unidades, h em px.
-function caixa(x, y, w, d, h, corTopo, corE, corD, extra=""){
-  const t = [iso(x-w, y-d, h), iso(x+w, y-d, h), iso(x+w, y+d, h), iso(x-w, y+d, h)];
-  const e = [t[3], t[0], iso(x-w, y-d, 0), iso(x-w, y+d, 0)];   // face esquerda
-  const dd = [t[2], t[3], iso(x-w, y+d, 0), iso(x+w, y+d, 0)];  // face direita
-  return `<polygon points="${pts(e)}" fill="${corE}" ${extra}/>
-          <polygon points="${pts(dd)}" fill="${corD}" ${extra}/>
-          <polygon points="${pts(t)}" fill="${corTopo}" ${extra}/>`;
+// ================================================================ escritório 3D
+// Cena própria: chão, núcleo (a memória do estúdio), mesas em anel e uma figura low-poly
+// por agente. Tudo que acende ou anda com significado responde ao /api/agentes/estado.
+const ALVO = document.getElementById('cena3d');
+const cena = new THREE.Scene();
+cena.fog = new THREE.Fog(0x0b0d10, 16, 34);
+
+const cam = new THREE.PerspectiveCamera(42, 1, .1, 100);
+cam.position.set(9.5, 8.5, 9.5);
+const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+ALVO.appendChild(renderer.domElement);
+
+const ctrl = new OrbitControls(cam, renderer.domElement);
+ctrl.target.set(0, .6, 0);
+ctrl.enableDamping = true; ctrl.dampingFactor = .08;
+ctrl.minDistance = 5; ctrl.maxDistance = 24;
+ctrl.maxPolarAngle = Math.PI * .46; ctrl.minPolarAngle = Math.PI * .12;
+
+function medir(){
+  const w = ALVO.clientWidth || 800, h = ALVO.clientHeight || 600;
+  renderer.setSize(w, h, false); renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  cam.aspect = w / h; cam.updateProjectionMatrix();
+}
+addEventListener('resize', medir);
+medir();
+
+cena.add(new THREE.HemisphereLight(0x8fb4c9, 0x1a1410, .85));
+const sol = new THREE.DirectionalLight(0xfff2df, 1.5);
+sol.position.set(7, 12, 4); sol.castShadow = true;
+sol.shadow.mapSize.set(1024, 1024);
+sol.shadow.camera.left = -12; sol.shadow.camera.right = 12;
+sol.shadow.camera.top = 12; sol.shadow.camera.bottom = -12;
+cena.add(sol);
+const luzNucleo = new THREE.PointLight(0x2dbdb8, 8, 9);
+luzNucleo.position.set(0, 1.6, 0); cena.add(luzNucleo);
+
+// chão
+const chao = new THREE.Mesh(new THREE.CylinderGeometry(9.4, 9.4, .3, 48),
+  new THREE.MeshStandardMaterial({color: 0x181c21, roughness: .95}));
+chao.position.y = -.15; chao.receiveShadow = true; cena.add(chao);
+const grade = new THREE.GridHelper(18, 18, 0x2a3038, 0x21262d);
+grade.position.y = .01; grade.material.opacity = .35;
+grade.material.transparent = true; cena.add(grade);
+
+// núcleo — a memória do estúdio
+const nucleoMat = new THREE.MeshStandardMaterial({color: 0x0d4a45,
+  emissive: 0x2dbdb8, emissiveIntensity: .55, roughness: .35});
+const bloco = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.9, 1.5), nucleoMat);
+bloco.position.y = .95; bloco.castShadow = true; cena.add(bloco);
+for (let i = 0; i < 3; i++){
+  const led = new THREE.Mesh(new THREE.BoxGeometry(.08, .08, .02),
+    new THREE.MeshBasicMaterial({color: 0x6ff5ef}));
+  led.position.set(-.5 + i * .22, 1.62, .76); cena.add(led);
+}
+const anel = new THREE.Mesh(new THREE.TorusGeometry(1.55, .03, 10, 60),
+  new THREE.MeshBasicMaterial({color: 0x2dbdb8, transparent: true, opacity: .35}));
+anel.rotation.x = Math.PI / 2; anel.position.y = .06; cena.add(anel);
+
+// materiais e cores de estado
+const COR_ESTADO = {trabalhando: 0x4ade80, aguardando: 0xfbbf24, plantao: 0x60a5fa,
+                    sem_chave: 0xfbbf24, futuro: 0x2a2f36};
+const madeira = new THREE.MeshStandardMaterial({color: 0x2b3138, roughness: .8});
+const metal   = new THREE.MeshStandardMaterial({color: 0x1b1f24, roughness: .5,
+                                                metalness: .4});
+
+// rótulo flutuante (canvas → sprite)
+function rotulo(texto, cor='#ffffff', tam=44){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.font = `700 ${tam}px Satoshi, Arial`; g.textAlign = 'center';
+  g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 10;
+  g.fillStyle = cor; g.fillText(texto, 256, 78);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map: t, transparent: true,
+    depthWrite: false}));
+  s.scale.set(2.6, .65, 1);
+  return s;
 }
 
-// Uma mesa de trabalho: tapete, mesa, monitor (tela = estado), cadeira, figura e rótulos.
-function mesaIso(m, lugar){
-  const [gx, gy] = grade(lugar.dx, lugar.dy);
-  const [bx, by] = iso(gx, gy);
-  const frente = lugar.f;                       // fileira da frente olha para o núcleo
-  let s = `<g class="mesa-hit" id="mesa-${m.chave}" onclick="filtrar('${m.chave}')"
-              opacity="${m.estado === 'futuro' ? .45 : 1}">`;
-  s += `<ellipse cx="${bx}" cy="${by+6}" rx="${UX*1.5}" ry="${UY*1.35}"
-          fill="rgba(255,255,255,.03)"/>`;                                   // tapete
-  // cadeira + figura (atrás da mesa, do lado oposto ao núcleo)
-  const fy = frente ? gy + .78 : gy - .78;
-  const [px, py] = iso(gx, fy);
-  s += `<ellipse cx="${px}" cy="${py+2}" rx="13" ry="6" fill="rgba(0,0,0,.35)"/>
-        <rect x="${px-9}" y="${py-24}" width="18" height="26" rx="8"
-              fill="#232830" stroke="${m.cor}" stroke-width="1.4"/>
-        <circle cx="${px}" cy="${py-31}" r="7.5" fill="#2E343D" stroke="${m.cor}"
-                stroke-width="1.4"/>`;
-  // mesa
-  s += caixa(gx, gy, .95, .5, 26, "#2A2F36", "#1C2026", "#22262D");
-  // monitor sobre a mesa, voltado para a figura
-  const [mx, my] = iso(gx, gy, 26);
-  const vy = frente ? -1 : 1;
-  s += `<rect x="${mx-14}" y="${my-24}" width="28" height="19" rx="2.5"
-          fill="#14171B" stroke="rgba(255,255,255,.14)"/>
-        <rect x="${mx-11.5}" y="${my-21.5}" width="23" height="14" rx="1.5"
-          class="tela tela-${m.estado}" id="tela-${m.chave}"/>
-        <rect x="${mx-2}" y="${my-5}" width="4" height="6" fill="#0E1114"/>`;
-  // rótulos: fileira da frente abaixo da mesa; a de trás acima, longe do núcleo
-  if (frente || Math.abs(lugar.dx) > 120){
-    const ty = by + UY*1.35 + 14;
-    s += `<text class="iso-nome" x="${bx}" y="${ty}" text-anchor="middle">${m.nome}</text>
-          <text class="iso-papel" x="${bx}" y="${ty+11}" text-anchor="middle">${m.sop}</text>
-          <text class="iso-detalhe" x="${bx}" y="${ty+23}" text-anchor="middle"
-                id="detalhe-${m.chave}"></text>`;
-  } else {
-    const ty = by - 96;
-    s += `<text class="iso-detalhe" x="${bx}" y="${ty-22}" text-anchor="middle"
-                id="detalhe-${m.chave}"></text>
-          <text class="iso-papel" x="${bx}" y="${ty-11}" text-anchor="middle">${m.sop}</text>
-          <text class="iso-nome" x="${bx}" y="${ty}" text-anchor="middle">${m.nome}</text>`;
+// figura low-poly com a cor do agente
+function figura(cor){
+  const g = new THREE.Group();
+  const corpo = new THREE.Mesh(new THREE.CapsuleGeometry(.17, .34, 6, 14),
+    new THREE.MeshStandardMaterial({color: cor, roughness: .6}));
+  corpo.position.y = .46; corpo.castShadow = true; g.add(corpo);
+  const cabeca = new THREE.Mesh(new THREE.SphereGeometry(.14, 18, 14),
+    new THREE.MeshStandardMaterial({color: 0xE8C39E, roughness: .7}));
+  cabeca.position.y = .88; cabeca.castShadow = true; g.add(cabeca);
+  const boina = new THREE.Mesh(new THREE.SphereGeometry(.145, 18, 10,
+    0, Math.PI * 2, 0, Math.PI / 2.4),
+    new THREE.MeshStandardMaterial({color: 0x14171b, roughness: .9}));
+  boina.position.y = .93; g.add(boina);
+  return g;
+}
+
+const ORDEM = ["rental","comercial","propostas","dit","entrega",
+               "secretaria","financeiro","trafego"];
+const RAIO = 6.1;
+const estacoes = {};
+
+function estacao(m, i, total){
+  const ang = (i / total) * Math.PI * 2 + Math.PI / total;
+  const px = Math.sin(ang) * RAIO, pz = Math.cos(ang) * RAIO;
+  const g = new THREE.Group();
+  g.position.set(px, 0, pz);
+  g.lookAt(0, 0, 0);
+
+  const tampo = new THREE.Mesh(new THREE.BoxGeometry(1.7, .09, .8), madeira);
+  tampo.position.y = .72; tampo.castShadow = true; g.add(tampo);
+  for (const sx of [-.72, .72]){
+    const perna = new THREE.Mesh(new THREE.BoxGeometry(.09, .72, .7), metal);
+    perna.position.set(sx, .36, 0); g.add(perna);
   }
-  return s + `</g>`;
+  const moldura = new THREE.Mesh(new THREE.BoxGeometry(.78, .5, .05), metal);
+  moldura.position.set(0, 1.12, .1); g.add(moldura);
+  const tela = new THREE.Mesh(new THREE.PlaneGeometry(.68, .4),
+    new THREE.MeshBasicMaterial({color: COR_ESTADO.plantao, transparent: true}));
+  tela.position.set(0, 1.12, .13); g.add(tela);
+  const pesc = new THREE.Mesh(new THREE.BoxGeometry(.07, .18, .07), metal);
+  pesc.position.set(0, .85, .08); g.add(pesc);
+
+  const assento = new THREE.Mesh(new THREE.CylinderGeometry(.26, .3, .1, 16), metal);
+  assento.position.set(0, .42, .95); g.add(assento);
+
+  const fig = figura(m.cor);
+  fig.position.set(0, 0, .95);
+  fig.rotation.y = Math.PI;
+  g.add(fig);
+
+  const nome = rotulo(m.nome);
+  nome.position.set(0, 2.05, 0); g.add(nome);
+  const alerta = rotulo('!', '#FBBF24', 84);
+  alerta.position.set(.55, 1.75, .4); alerta.visible = false; g.add(alerta);
+  const balao = rotulo('…', '#ffffff', 70);
+  balao.position.set(0, 1.35, .95); balao.visible = false; g.add(balao);
+
+  g.traverse(o => o.userData.chave = m.chave);
+  cena.add(g);
+  estacoes[m.chave] = {m, g, tela, fig, alerta, balao,
+    figCasaLocal: fig.position.clone(), anda: null};
 }
 
-// O núcleo: a memória do estúdio (Postgres) como um bloco central com anel pulsante.
-function nucleoIso(){
-  const [bx, by] = iso(0, 0);
-  let s = `<g id="nucleo">
-    <ellipse cx="${bx}" cy="${by+8}" rx="${UX*1.9}" ry="${UY*1.7}"
-             fill="rgba(1,134,130,.07)" class="nucleo-pulso"/>`;
-  s += caixa(0, 0, .8, .8, 46, "#0B3B37", "#072522", "#0A302C",
-             `stroke="rgba(45,189,184,.35)" stroke-width="1"`);
-  for (const h of [14, 26, 38]){
-    const [lx, ly] = iso(-.8, .8, h);
-    s += `<circle cx="${lx+8}" cy="${ly+3}" r="1.6" fill="#2DBDB8" class="nucleo-pulso"/>`;
+// caixinha de entrega que voa até o núcleo (ação real registrada na auditoria)
+function entregaAoNucleo(chave, corHex){
+  const e = estacoes[chave]; if (!e) return;
+  const caixa = new THREE.Mesh(new THREE.BoxGeometry(.16, .16, .16),
+    new THREE.MeshBasicMaterial({color: corHex}));
+  const a = e.g.position.clone().setY(1.15);
+  cena.add(caixa);
+  const t0 = performance.now();
+  function passo(t){
+    const k = Math.min((t - t0) / 900, 1);
+    caixa.position.lerpVectors(a, new THREE.Vector3(0, 1.3, 0), k);
+    caixa.position.y += Math.sin(k * Math.PI) * .8;
+    caixa.rotation.y += .12;
+    if (k < 1) requestAnimationFrame(passo); else cena.remove(caixa);
   }
-  return s + `</g>`;
+  requestAnimationFrame(passo);
 }
 
-// Fio do núcleo até a base de uma mesa (curva leve); anima quando o agente trabalha.
-function fioIso(chave, lugar){
-  const [gx, gy] = grade(lugar.dx, lugar.dy);
-  const [ax, ay] = iso(0, 0);
-  const [bx, by] = iso(gx, gy + (lugar.f ? -0.75 : 0.75));
-  const mx = (ax + bx) / 2, my = (ay + by) / 2 + 14;
-  return `<path id="fio-${chave}" class="fio"
-            d="M${ax},${ay+8} Q${mx},${my} ${bx},${by+4}"/>`;
+// caminhada: sai da cadeira, vai a um ponto do mundo, pausa, volta
+function caminhar(chave, destinoMundo, pausaMs=1200, aoChegar){
+  const e = estacoes[chave]; if (!e || e.anda || e.m.estado === 'futuro') return;
+  const origem = e.g.localToWorld(e.figCasaLocal.clone());
+  e.anda = {fase: 'ida', origem, destino: destinoMundo.clone(), t0: performance.now(),
+            dur: origem.distanceTo(destinoMundo) * 420 + 300, pausaMs, aoChegar};
 }
 
-// ------------------------------------------------------------------- posições
-// 6 lugares num anel: definidos em deslocamento de TELA (dx,dy a partir do centro) e
-// convertidos para a grade — assim as mesas laterais ficam na mesma profundidade visual.
-const grade = (dx, dy) => [ (dx/UX + dy/UY) / 2, (dy/UY - dx/UX) / 2 ];
-const LUGARES = [{dx:-305,dy:-58,f:false},{dx:0,dy:-110,f:false},{dx:305,dy:-58,f:false},
-                 {dx:-305,dy:80,f:true},{dx:0,dy:132,f:true},{dx:305,dy:80,f:true}];
-const ORDEM = ["dit","rental","entrega","comercial","propostas","trafego"];
-let lugarDe = {};
-
-function montar(mesas){
-  const usados = new Set();
-  lugarDe = {};
-  for (const m of mesas){
-    let i = ORDEM.indexOf(m.chave);
-    if (i < 0 || usados.has(i)) i = LUGARES.findIndex((_, j) => !usados.has(j));
-    usados.add(i);
-    lugarDe[m.chave] = LUGARES[i];
+function animarFiguras(t){
+  for (const e of Object.values(estacoes)){
+    const a = e.anda;
+    if (!a){
+      const base = e.figCasaLocal;
+      const digita = e.m.estado === 'trabalhando' ? Math.sin(t / 90) * .015 : 0;
+      e.fig.position.set(base.x, Math.sin(t / 600) * .01 + digita, base.z);
+      continue;
+    }
+    const k = Math.min((t - a.t0) / a.dur, 1);
+    const alvo = a.fase === 'volta' ? a.origem : a.destino;
+    const de   = a.fase === 'volta' ? a.destino : a.origem;
+    if (a.fase !== 'pausa'){
+      const p = de.clone().lerp(alvo, k);
+      p.y = Math.abs(Math.sin(k * Math.PI * (a.dur / 260))) * .05;
+      const local = e.g.worldToLocal(p.clone());
+      e.fig.position.copy(local);
+      const dir = e.g.worldToLocal(alvo.clone()).sub(local);
+      if (dir.lengthSq() > .001) e.fig.rotation.y = Math.atan2(dir.x, dir.z);
+    }
+    if (k >= 1){
+      if (a.fase === 'ida'){
+        a.fase = 'pausa'; a.t0 = t; a.dur = a.pausaMs;
+        if (a.aoChegar) a.aoChegar();
+      } else if (a.fase === 'pausa'){
+        a.fase = 'volta'; a.t0 = t;
+        a.dur = a.origem.distanceTo(a.destino) * 420 + 300;
+      } else {
+        e.anda = null; e.fig.position.copy(e.figCasaLocal);
+        e.fig.rotation.y = Math.PI; e.balao.visible = false;
+      }
+    }
   }
-  // piso: losangos da grade
-  let piso = "";
-  for (let x = -5; x <= 5; x++) for (let y = -4; y <= 4; y++){
-    piso += `<polygon points="${pts([iso(x-.5,y-.5), iso(x+.5,y-.5), iso(x+.5,y+.5), iso(x-.5,y+.5)])}"
-               fill="none" stroke="rgba(255,255,255,.028)"/>`;
-  }
-  const fios = mesas.map(m => fioIso(m.chave, lugarDe[m.chave])).join("");
-  // pintor: fundo → frente (profundidade de tela), núcleo entra em dy=0
-  const pecas = [...mesas.map(m => ({z: lugarDe[m.chave].dy,
-                                     svg: mesaIso(m, lugarDe[m.chave])})),
-                 {z: 0, svg: nucleoIso()}].sort((a, b) => a.z - b.z);
-  document.getElementById("cena").innerHTML =
-    `<svg viewBox="0 -14 1000 520" role="img" aria-label="Escritório dos agentes">
-       ${piso}${fios}<g id="blips"></g>${pecas.map(p => p.svg).join("")}</svg>`;
 }
 
-// Blip: um pacote de trabalho viajando da mesa para a memória (ação registrada).
-function blip(chave, cor){
-  const p = document.getElementById(`fio-${chave}`);
-  const alvo = document.getElementById("blips");
-  if (!p || !alvo) return;
-  const d = p.getAttribute("d").split(" ");
-  const inverso = `M${d[2].split(",").slice(-2).join(",")} Q${d[1].replace("Q","")} ${d[0].slice(1)}`;
-  alvo.insertAdjacentHTML("beforeend",
-    `<circle r="3.2" fill="${cor}"><animateMotion dur="1.1s" fill="freeze"
-       path="${inverso}"/></circle>`);
-  const el = alvo.lastElementChild;
-  setTimeout(() => el && el.remove(), 1200);
+// conversa ambiente: dois presentes se encontram no meio e trocam reticências
+function conversaAmbiente(){
+  const presentes = Object.values(estacoes)
+    .filter(e => e.m.estado !== 'futuro' && !e.anda);
+  if (presentes.length < 2) return;
+  const [a, b] = presentes.sort(() => Math.random() - .5).slice(0, 2);
+  const meio = a.g.position.clone().add(b.g.position).multiplyScalar(.5);
+  if (meio.length() < 2.4) meio.normalize().multiplyScalar(3.2);
+  caminhar(a.m.chave, meio.clone().add(new THREE.Vector3(.4, 0, 0)), 4200,
+           () => { a.balao.visible = true; });
+  caminhar(b.m.chave, meio.clone().add(new THREE.Vector3(-.4, 0, 0)), 4200,
+           () => { b.balao.visible = true; });
+}
+setInterval(conversaAmbiente, 50000);
+setTimeout(conversaAmbiente, 6000);
+
+// clique → foco no agente
+const ray = new THREE.Raycaster(), ponteiro = new THREE.Vector2();
+renderer.domElement.addEventListener('click', ev => {
+  const r = renderer.domElement.getBoundingClientRect();
+  ponteiro.set(((ev.clientX - r.left) / r.width) * 2 - 1,
+               -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ponteiro, cam);
+  const hit = ray.intersectObjects(cena.children, true)
+                 .find(h => h.object.userData.chave);
+  if (hit) focar(hit.object.userData.chave);
+});
+
+function laco(t){
+  requestAnimationFrame(laco);
+  nucleoMat.emissiveIntensity = .45 + Math.sin(t / 700) * .18;
+  anel.material.opacity = .25 + Math.sin(t / 700) * .12;
+  luzNucleo.intensity = 7 + Math.sin(t / 700) * 2.5;
+  animarFiguras(t);
+  ctrl.update();
+  renderer.render(cena, cam);
 }
 
-// ------------------------------------------------------------------- dados
+// ================================================================ dados vivos
 const CORES = {};
-let vistos = new Set(), montado = false, filtro = null, ultimoFeed = [];
+let vistos = new Set(), montado = false, filtro = null, ultimoFeed = [], mesasAgora = [];
 
-function tempo(iso){
-  if (!iso) return "nunca";
+const tempo = iso => {
+  if (!iso) return 'nunca';
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 60) return "agora mesmo";
+  if (s < 60) return 'agora mesmo';
   if (s < 3600) return `há ${Math.floor(s/60)} min`;
   if (s < 86400) return `há ${Math.floor(s/3600)} h`;
   return `há ${Math.floor(s/86400)} d`;
-}
-function hora(iso){ return new Date(iso).toLocaleTimeString("pt-BR",
-  {hour:"2-digit", minute:"2-digit", second:"2-digit"}); }
+};
+const hora = iso => new Date(iso).toLocaleTimeString('pt-BR',
+  {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 
-const DETALHE_CURTO = {trabalhando:"trabalhando agora", sem_chave:"aguardando configuração",
-                       futuro:"em breve"};
+const ROTULOS = {trabalhando:'trabalhando', aguardando:'precisa de você',
+                 plantao:'de plantão', sem_chave:'aguardando configuração',
+                 futuro:'em breve'};
+const CHIP = {trabalhando:'ds-chip--ok', aguardando:'ds-chip--atencao',
+              plantao:'ds-chip--info', sem_chave:'ds-chip--atencao', futuro:''};
 
 const NARRA = {
   ronda: r => (r.devolve_hoje || r.atrasados)
       ? `fez a ronda: ${r.devolve_hoje} devolução(ões) hoje, ${r.atrasados} atraso(s)`
-        + (r.aprovacoes_criadas ? ` — ${r.aprovacoes_criadas} mensagem(ns) para você aprovar` : "")
-      : "fez a ronda das devoluções — tudo em dia",
-  pedir_aprovacao: r => `redigiu uma mensagem e pediu sua aprovação${r.titulo ? " — " + r.titulo : ""}`,
-  resolver_contato: r => `identificou o contato ${r.nome || ""}`,
-  llm_qualificar: r => `analisou a mensagem do lead — ${r.ramo || "?"}`
-      + (r.faltantes && r.faltantes.length ? ` · falta perguntar: ${r.faltantes.length} item(ns)` : ""),
-  resolver_deal: r => `vinculou ao negócio "${r.titulo || ""}"`,
-  resolver_cliente: () => "identificou o cliente da proposta",
+        + (r.aprovacoes_criadas ? ` — ${r.aprovacoes_criadas} mensagem(ns) para você aprovar` : '')
+      : 'fez a ronda das devoluções — tudo em dia',
+  pedir_aprovacao: r => `redigiu uma mensagem e pediu sua aprovação${r.titulo ? ' — ' + r.titulo : ''}`,
+  resolver_contato: r => `identificou o contato ${r.nome || ''}`,
+  llm_qualificar: r => `analisou a mensagem do lead — ${r.ramo || '?'}`
+      + (r.faltantes && r.faltantes.length ? ` · falta perguntar: ${r.faltantes.length} item(ns)` : ''),
+  resolver_deal: r => `vinculou ao negócio "${r.titulo || ''}"`,
+  resolver_cliente: () => 'identificou o cliente da proposta',
   llm_estruturar_proposta: r => `estruturou a fala em proposta — ${r.itens || 0} item(ns)`,
-  criar_proposta_rascunho: () => "montou a proposta em rascunho para sua revisão",
+  criar_proposta_rascunho: () => 'montou a proposta em rascunho para sua revisão',
   varredura_reativacao: r => r.propostos
-      ? `achou ${r.adormecidos} cliente(s) parados e propôs ${r.propostos} contato(s) de reativação`
-      : `varreu a base — ${r.adormecidos} cliente(s) parados, nenhum contato novo a propor`,
+      ? `achou ${r.adormecidos} cliente(s) parados e propôs ${r.propostos} contato(s)`
+      : `varreu a base — ${r.adormecidos} cliente(s) parados, nada novo a propor`,
   vigia_entregas: r => (r.prazos_em_risco || r.drives_a_limpar)
       ? `vigia: ${r.prazos_em_risco} prazo(s) em risco, ${r.drives_a_limpar} Drive(s) para limpar`
-      : "vigiou prazos e Drive — nada pendente",
-  registrar_offload: r => `registrou offload: ${r.arquivos} arquivos (${r.tamanho || ''}) em ${r.destinos} destinos — ${r.status}`,
-  pedir_liberacao_formatacao: () => "pediu sua liberação para formatar o cartão",
-  inventariar_pastas: () => "inventariou as pastas autorizadas da máquina",
-  enviar_lixeira: r => r.lixeira ? "moveu a pasta do espelho do Drive para a lixeira" : "",
-  verificar_configuracao: () => "checou a configuração",
+      : 'vigiou prazos e Drive — nada pendente',
+  registrar_offload: r => `registrou offload: ${r.arquivos} arquivos em ${r.destinos} destinos — ${r.status}`,
+  pedir_liberacao_formatacao: () => 'pediu sua liberação para formatar o cartão',
+  inventariar_pastas: () => 'inventariou as pastas autorizadas da máquina',
+  enviar_lixeira: r => r.lixeira ? 'moveu a pasta do espelho do Drive para a lixeira' : '',
+  verificar_configuracao: () => 'checou a configuração',
 };
 
 function narrar(f){
   let r = {};
-  try { r = typeof f.resultado === "string" ? JSON.parse(f.resultado) : (f.resultado || {}); } catch {}
-  if (f.erro) return `${f.tool.replaceAll("_", " ")} — erro: ${f.erro}`;
+  try { r = typeof f.resultado === 'string' ? JSON.parse(f.resultado) : (f.resultado || {}); } catch {}
+  if (f.erro) return `${f.tool.replaceAll('_', ' ')} — erro: ${f.erro}`;
   const fn = NARRA[f.tool];
-  if (fn) { try { const t = fn(r); if (t) return t; } catch { } }
+  if (fn) { try { const s = fn(r); if (s) return s; } catch {} }
   const extra = Object.entries(r).slice(0, 2)
-    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ");
-  return f.tool.replaceAll("_", " ") + (extra ? " · " + extra : "");
-}
-
-function evento(f, novo, repetidos){
-  const cor = CORES[f.agente] || "var(--ds-txt-3)";
-  const badge = repetidos > 1
-    ? `<span class="ds-chip" style="font-size:.625rem;padding:1px 7px;margin-left:6px">×${repetidos}</span>` : "";
-  return `<div class="ev ${novo?'novo':''}">
-    <div class="ponto" style="background:${cor}"></div>
-    <span class="quem" style="color:${cor}">${f.agente}</span>
-    <span class="oque">${narrar(f)}${badge}
-      <span class="ds-chip" style="font-size:.625rem;padding:1px 7px;margin-left:6px">${f.nivel||""}</span></span>
-    <span class="quando">${hora(f.quando)}</span>
-  </div>`;
+    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ');
+  return f.tool.replaceAll('_', ' ') + (extra ? ' · ' + extra : '');
 }
 
 function agrupar(feed){
   const out = [];
   for (const f of feed){
-    const ult = out[out.length - 1];
-    if (ult && ult.f.agente === f.agente && ult.f.tool === f.tool
-        && ult.f.resultado === f.resultado) { ult.n++; continue; }
+    const u = out[out.length - 1];
+    if (u && u.f.agente === f.agente && u.f.tool === f.tool
+        && u.f.resultado === f.resultado){ u.n++; continue; }
     out.push({f, n: 1});
   }
   return out;
-}
-
-function filtrar(chave){
-  filtro = (filtro === chave) ? null : chave;
-  document.querySelectorAll(".mesa-hit").forEach(g =>
-    g.classList.toggle("selecionada", g.id === `mesa-${filtro}`));
-  const chip = document.getElementById("filtro-atual");
-  chip.hidden = !filtro;
-  if (filtro) chip.textContent = `só ${filtro} — limpar`;
-  esteira();
 }
 
 function esteira(){
   const feed = filtro ? ultimoFeed.filter(f => f.agente === filtro) : ultimoFeed;
   const grupos = agrupar(feed);
   const chaves = grupos.map(g => g.f.quando + g.f.tool);
-  document.getElementById("esteira").innerHTML = grupos.length
-    ? grupos.map((g,i) => evento(g.f, !vistos.has(chaves[i]) && vistos.size > 0, g.n)).join("")
-    : '<div class="vazio">Nenhuma ação registrada' + (filtro ? " desta mesa" : "") +
-      ' ainda.<br>Rode a régua de devoluções na tela de aprovações para ver a esteira andar.</div>';
+  document.getElementById('esteira').innerHTML = grupos.length
+    ? grupos.map((g, i) => `<div class="ev ${!vistos.has(chaves[i]) && vistos.size ? 'novo' : ''}">
+        <div class="ponto" style="background:${CORES[g.f.agente] || 'var(--ds-txt-3)'}"></div>
+        <span class="quem" style="color:${CORES[g.f.agente] || ''}">${g.f.agente}</span>
+        <span class="oque">${narrar(g.f)}${g.n > 1 ? `<span class="ds-chip" style="font-size:.625rem;padding:1px 7px;margin-left:6px">×${g.n}</span>` : ''}
+          <span class="ds-chip" style="font-size:.625rem;padding:1px 7px;margin-left:6px">${g.f.nivel || ''}</span></span>
+        <span class="quando">${hora(g.f.quando)}</span></div>`).join('')
+    : '<div class="vazio">Nenhuma ação registrada' + (filtro ? ' desta mesa' : '') + ' ainda.</div>';
   vistos = new Set(chaves);
 }
 
-async function atualizar(){
+window.filtrar = chave => {
+  filtro = (filtro === chave) ? null : chave;
+  const chip = document.getElementById('filtro-atual');
+  chip.hidden = !filtro;
+  if (filtro) chip.textContent = `só ${filtro} — limpar`;
+  esteira();
+};
+
+// -------- foco + instruções: só capacidades REAIS de cada mesa
+const ACOES = {
+  rental:   [{acao:'rodar', rotulo:'Rodar ronda agora'}],
+  entrega:  [{acao:'rodar', rotulo:'Rodar vigia agora'}],
+  comercial:[{acao:'qualificar', rotulo:'Qualificar como lead', texto:
+              'Cole aqui a mensagem do lead (WhatsApp/Instagram)…'},
+             {acao:'reativar', rotulo:'Rodar reativação (RFM)'}],
+  propostas:[{acao:'proposta', rotulo:'Gerar proposta', texto:
+              'Escreva: cliente, serviço, valores e pagamento…'}],
+  dit:      [{acao:'inventariar', rotulo:'Inventariar pastas da máquina'}],
+};
+
+window.focar = chave => {
+  const m = mesasAgora.find(x => x.chave === chave);
+  if (!m) return;
+  filtro = null; filtrar(chave);
+  document.getElementById('foco-nome').textContent = m.nome;
+  document.getElementById('foco-papel').textContent = `${m.papel} · ${m.sop}`;
+  document.getElementById('foco-corpo').hidden = false;
+  const chip = document.getElementById('foco-chip');
+  chip.textContent = ROTULOS[m.estado]; chip.className = 'ds-chip ' + (CHIP[m.estado] || '');
+  document.getElementById('foco-detalhe').textContent = m.detalhe || '';
+  document.getElementById('foco-hoje').textContent = m.hoje;
+  document.getElementById('foco-pend').textContent = m.pendentes;
+  document.getElementById('foco-ultima').textContent = tempo(m.ultima);
+  document.getElementById('foco-resposta').textContent = '';
+  const box = document.getElementById('foco-acoes');
+  const acoes = ACOES[chave];
+  if (m.estado === 'futuro' || !acoes){
+    box.innerHTML = `<div class="meta">${m.detalhe || 'Esta mesa ainda não recebe instruções.'}</div>`;
+    return;
+  }
+  box.innerHTML = acoes.map((a, i) =>
+    (a.texto ? `<textarea class="ds-campo" id="txt-${chave}-${i}"
+                  placeholder="${a.texto}"></textarea>` : '') +
+    `<button class="ds-btn ${i ? 'ds-btn--fantasma' : ''}"
+       onclick="ordenar('${chave}','${a.acao}','txt-${chave}-${i}')">${a.rotulo}</button>`
+  ).join('');
+};
+
+window.ordenar = async (agente, acao, idTexto) => {
+  const el = document.getElementById(idTexto);
+  const texto = el ? el.value.trim() : '';
+  const resp = document.getElementById('foco-resposta');
+  resp.textContent = 'executando…';
   try {
-    const r = await fetch("/api/agentes/estado");
-    if (!r.ok) return;
+    const r = await fetch('/api/sala/acao', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({agente, acao, texto})});
     const d = await r.json();
-    d.mesas.forEach(m => CORES[m.chave] = m.cor);
-    if (!montado){ montar(d.mesas); montado = true; }
-    let ativos = 0, pend = 0, hoje = 0;
-    for (const m of d.mesas){
-      hoje += m.hoje; pend += m.pendentes;
-      if (m.estado === "trabalhando") ativos++;
-      const tela = document.getElementById(`tela-${m.chave}`);
-      if (tela) tela.setAttribute("class", `tela tela-${m.estado}`);
-      const fio = document.getElementById(`fio-${m.chave}`);
-      if (fio) fio.setAttribute("class",
-        `fio ${m.estado === 'trabalhando' ? 'fio-trabalhando' :
-              m.estado === 'aguardando' ? 'fio-aguardando' : ''}`);
-      const det = document.getElementById(`detalhe-${m.chave}`);
-      if (det) det.textContent = DETALHE_CURTO[m.estado] ??
-        (m.pendentes ? `${m.pendentes} aprovação(ões) para você` : `última: ${tempo(m.ultima)}`);
-    }
-    document.getElementById("pl-hoje").textContent = hoje;
-    document.getElementById("pl-pend").textContent = pend;
-    document.getElementById("pl-ativos").textContent = `${ativos}/${d.mesas.length}`;
-    // ação nova na esteira = um pacote viaja da mesa até a memória
-    const vistosAntes = vistos;
-    for (const f of d.feed.slice(0, 6))
-      if (vistosAntes.size && !vistosAntes.has(f.quando + f.tool))
-        blip(f.agente, CORES[f.agente] || "#2DBDB8");
-    ultimoFeed = d.feed;
-    esteira();
-    document.getElementById("pulso").textContent =
-      "atualizado " + new Date().toLocaleTimeString("pt-BR");
+    resp.innerHTML = (d.ok ? '' : '<b style="color:var(--ds-erro)">não deu: </b>')
+      + (d.msg || '') + (d.url ? ` — <a href="${d.url}">abrir</a>` : '');
+    if (d.ok && el) el.value = '';
+    atualizar();
+  } catch (e){ resp.textContent = 'falhou: ' + e; }
+};
+
+// -------- rotinas
+async function rotinas(){
+  try {
+    const d = await (await fetch('/api/sala/rotinas')).json();
+    document.getElementById('rotinas-estado').textContent = d.ativo
+      ? 'Rodam dentro do próprio CRM — nada externo.'
+      : 'Agenda desligada neste ambiente (AGENTES_ATIVOS=0).';
+    document.getElementById('rotinas').innerHTML = d.rotinas.map(r =>
+      `<div class="rotina"><span class="cad">${r.cadencia}</span><b>${r.nome}</b>
+         <div class="meta">${r.faz}</div>
+         <div class="meta">última: ${tempo(r.ultima)} · próxima: ${r.proxima}</div></div>`
+    ).join('');
   } catch {}
 }
-atualizar();
-setInterval(atualizar, 5000);
+rotinas(); setInterval(rotinas, 60000);
+
+// -------- laço de estado
+async function atualizar(){
+  try {
+    const r = await fetch('/api/agentes/estado');
+    if (!r.ok) return;
+    const d = await r.json();
+    mesasAgora = d.mesas;
+    d.mesas.forEach(m => CORES[m.chave] = m.cor);
+    if (!montado){
+      const orden = [...d.mesas].sort((a, b) =>
+        ((i => i < 0 ? 99 : i)(ORDEM.indexOf(a.chave))) -
+        ((i => i < 0 ? 99 : i)(ORDEM.indexOf(b.chave))));
+      orden.forEach((m, i) => estacao(m, i, orden.length));
+      montado = true;
+    }
+    let ativos = 0, pend = 0, hojeN = 0;
+    const vistosAntes = new Set(vistos);
+    for (const m of d.mesas){
+      hojeN += m.hoje; pend += m.pendentes;
+      if (m.estado === 'trabalhando') ativos++;
+      const e = estacoes[m.chave];
+      if (!e) continue;
+      e.m = m;
+      e.tela.material.color.setHex(COR_ESTADO[m.estado] ?? COR_ESTADO.plantao);
+      e.tela.material.opacity = m.estado === 'futuro' ? .25 : 1;
+      e.fig.visible = m.estado !== 'futuro';
+      e.alerta.visible = m.estado !== 'futuro'
+                         && (m.estado === 'aguardando' || m.pendentes > 0);
+    }
+    document.getElementById('pl-hoje').textContent = hojeN;
+    document.getElementById('pl-pend').textContent = pend;
+    document.getElementById('pl-ativos').textContent = `${ativos}/${d.mesas.length}`;
+    // ação nova na auditoria → a figura leva a entrega até o núcleo
+    for (const f of d.feed.slice(0, 6))
+      if (vistosAntes.size && !vistosAntes.has(f.quando + f.tool) && estacoes[f.agente]){
+        const cor = parseInt((CORES[f.agente] || '#2dbdb8').slice(1), 16);
+        const e = estacoes[f.agente];
+        caminhar(f.agente,
+          e.g.position.clone().normalize().multiplyScalar(2.2), 900,
+          () => entregaAoNucleo(f.agente, cor));
+      }
+    ultimoFeed = d.feed;
+    esteira();
+    document.getElementById('pulso').textContent =
+      'atualizado ' + new Date().toLocaleTimeString('pt-BR');
+  } catch {}
+}
+atualizar(); setInterval(atualizar, 5000);
+requestAnimationFrame(laco);
+
+// ================================================================ grafo do estúdio
+// As notas do estúdio são as entidades reais do banco: cliente → negócio → proposta →
+// contrato/projeto. Força própria em canvas 2D — sem biblioteca.
+const COR_TIPO = {cliente:'#2DBDB8', negocio:'#60A5FA', proposta:'#F18E25',
+                  contrato:'#A78BFA', projeto:'#4ADE80'};
+let grafoLigado = false, gNos = [], gArestas = [], gHover = null;
+const cv = document.getElementById('grafo'), cg = cv.getContext('2d');
+
+async function grafoMontar(){
+  const d = await (await fetch('/api/sala/grafo')).json();
+  const W = cv.clientWidth || 800, H = 600;
+  gNos = d.nos.map((n, i) => ({...n,
+    x: W/2 + Math.cos(i * 2.4) * (110 + (i % 7) * 26),
+    y: H/2 + Math.sin(i * 2.4) * (85 + (i % 5) * 24), vx: 0, vy: 0}));
+  const porId = Object.fromEntries(gNos.map(n => [n.id, n]));
+  gArestas = d.arestas.map(([a, b]) => [porId[a], porId[b]]);
+}
+
+function grafoPasso(){
+  const W = cv.clientWidth || 800, H = 600;
+  for (const a of gNos){
+    a.vx += (W/2 - a.x) * .0012; a.vy += (H/2 - a.y) * .0012;
+    for (const b of gNos){
+      if (a === b) continue;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const d2 = dx*dx + dy*dy + .01, f = 14 / d2;
+      a.vx += dx * f; a.vy += dy * f;
+    }
+  }
+  for (const [a, b] of gArestas){
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.hypot(dx, dy) || 1, f = (d - 78) * .0035;
+    a.vx += dx / d * f * d * .02; a.vy += dy / d * f * d * .02;
+    b.vx -= dx / d * f * d * .02; b.vy -= dy / d * f * d * .02;
+  }
+  for (const n of gNos){
+    n.vx *= .82; n.vy *= .82; n.x += n.vx; n.y += n.vy;
+    n.x = Math.max(30, Math.min(W - 30, n.x));
+    n.y = Math.max(24, Math.min(H - 30, n.y));
+  }
+}
+
+function grafoDesenhar(){
+  const dpr = Math.min(devicePixelRatio, 2), W = cv.clientWidth || 800, H = 600;
+  if (cv.width !== Math.round(W * dpr)){ cv.width = W * dpr; cv.height = H * dpr; }
+  cg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cg.clearRect(0, 0, W, H);
+  cg.strokeStyle = 'rgba(255,255,255,.10)'; cg.lineWidth = 1;
+  for (const [a, b] of gArestas){
+    cg.beginPath(); cg.moveTo(a.x, a.y); cg.lineTo(b.x, b.y); cg.stroke();
+  }
+  cg.font = '10px Satoshi, Arial'; cg.textAlign = 'center';
+  for (const n of gNos){
+    const r = 4 + n.peso * 2;
+    cg.beginPath(); cg.arc(n.x, n.y, r, 0, 7);
+    cg.fillStyle = COR_TIPO[n.tipo]; cg.globalAlpha = .9; cg.fill();
+    cg.globalAlpha = 1;
+    if (n.peso >= 2.4 || n === gHover){
+      cg.fillStyle = 'rgba(255,255,255,.85)';
+      cg.fillText(n.rotulo.slice(0, 26), n.x, n.y - r - 5);
+      if (n === gHover && n.extra){
+        cg.fillStyle = 'rgba(255,255,255,.5)';
+        cg.fillText(n.extra, n.x, n.y + r + 12);
+      }
+    }
+  }
+  let lx = 16;
+  cg.textAlign = 'left'; cg.font = '10px ui-monospace, monospace';
+  for (const [tipo, cor] of Object.entries(COR_TIPO)){
+    cg.fillStyle = cor; cg.beginPath(); cg.arc(lx, H - 18, 4, 0, 7); cg.fill();
+    cg.fillStyle = 'rgba(255,255,255,.55)';
+    cg.fillText(tipo.toUpperCase(), lx + 9, H - 14);
+    lx += 26 + tipo.length * 7;
+  }
+}
+
+cv.addEventListener('mousemove', ev => {
+  const r = cv.getBoundingClientRect();
+  const x = ev.clientX - r.left, y = ev.clientY - r.top;
+  gHover = gNos.find(n => Math.hypot(n.x - x, n.y - y) < 14) || null;
+});
+
+function grafoLaco(){
+  if (!grafoLigado) return;
+  grafoPasso(); grafoDesenhar();
+  requestAnimationFrame(grafoLaco);
+}
+
+window.verAba = async aba => {
+  grafoLigado = aba === 'grafo';
+  document.getElementById('cena3d').style.display = grafoLigado ? 'none' : '';
+  cv.style.display = grafoLigado ? 'block' : 'none';
+  document.getElementById('aba-office').classList.toggle('on', !grafoLigado);
+  document.getElementById('aba-grafo').classList.toggle('on', grafoLigado);
+  if (grafoLigado){
+    if (!gNos.length) await grafoMontar();
+    grafoLaco();
+  } else medir();
+};
 </script>
 {% endblock %}

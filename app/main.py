@@ -1598,6 +1598,12 @@ MESAS = [
     {"chave": "trafego", "nome": "Tráfego", "papel": "Campanhas e tráfego pago",
      "sop": "—", "cor": "#A78BFA", "origem": "futuro",
      "motivo": "aguardando conexão com Meta/Google Ads"},
+    {"chave": "secretaria", "nome": "Secretária", "papel": "E-mail, agenda e triagem",
+     "sop": "—", "cor": "#38BDF8", "origem": "futuro",
+     "motivo": "aguardando conector de e-mail (Gmail)"},
+    {"chave": "financeiro", "nome": "Financeiro", "papel": "Conciliação e cobrança",
+     "sop": "—", "cor": "#FB923C", "origem": "futuro",
+     "motivo": "aguardando extrato/conta para conciliar"},
     {"chave": "dit", "nome": "DIT / Mídia", "papel": "Ingestão e verificação de cartões",
      "sop": "SOP-001", "cor": "#FBBF24", "origem": "futuro",
      "motivo": "precisa do Mac Mini (acesso físico aos volumes)"},
@@ -1609,6 +1615,130 @@ MESAS = [
 @app.get("/agentes/sala", response_class=HTMLResponse)
 def sala(request: Request):
     return pag(request, "sala.html", ativo="sala")
+
+
+@app.get("/api/sala/grafo")
+def api_sala_grafo():
+    """O grafo de notas do estúdio: as entidades reais do banco e suas ligações —
+    cliente → negócio → proposta → contrato/projeto. Nada é inventado para o desenho."""
+    nos, arestas = [], []
+    for c in db.q("""SELECT co.id, co.nome, count(d.id) n FROM company co
+                     LEFT JOIN deal d ON d.company_id = co.id
+                     GROUP BY co.id ORDER BY n DESC, co.nome LIMIT 25"""):
+        nos.append({"id": f"c{c['id']}", "rotulo": c["nome"], "tipo": "cliente",
+                    "peso": 2 + min(c["n"], 4)})
+    for d in db.q("""SELECT id, titulo, company_id, estagio FROM deal
+                     ORDER BY atualizado_em DESC LIMIT 30"""):
+        nos.append({"id": f"d{d['id']}", "rotulo": d["titulo"], "tipo": "negocio",
+                    "peso": 2, "extra": d["estagio"]})
+        if d["company_id"]:
+            arestas.append([f"c{d['company_id']}", f"d{d['id']}"])
+    for q in db.q("""SELECT id, numero, deal_id, status FROM quote
+                     ORDER BY criado_em DESC LIMIT 30"""):
+        nos.append({"id": f"q{q['id']}", "rotulo": q["numero"], "tipo": "proposta",
+                    "peso": 1.6, "extra": q["status"]})
+        arestas.append([f"d{q['deal_id']}", f"q{q['id']}"])
+    for ct in db.q("SELECT id, numero, quote_id FROM contrato ORDER BY criado_em DESC LIMIT 20"):
+        nos.append({"id": f"t{ct['id']}", "rotulo": ct["numero"], "tipo": "contrato",
+                    "peso": 1.6})
+        arestas.append([f"q{ct['quote_id']}", f"t{ct['id']}"])
+    for p in db.q("""SELECT id, nome, company_id, estado_editorial FROM project
+                     ORDER BY criado_em DESC LIMIT 25"""):
+        nos.append({"id": f"p{p['id']}", "rotulo": p["nome"], "tipo": "projeto",
+                    "peso": 2, "extra": p["estado_editorial"]})
+        if p["company_id"]:
+            arestas.append([f"c{p['company_id']}", f"p{p['id']}"])
+    ids = {n["id"] for n in nos}
+    return {"nos": nos, "arestas": [a for a in arestas if a[0] in ids and a[1] in ids]}
+
+
+@app.get("/api/sala/rotinas")
+def api_sala_rotinas():
+    """As rotinas reais do escritório (agenda dos agentes), com última e próxima passada."""
+    from .agentes.agenda import ATIVO, INTERVALO
+    ultimas = {r["agente"]: r["u"] for r in db.q(
+        "SELECT agente, max(iniciado_em) u FROM agent_run GROUP BY agente")}
+    agora = datetime.now(timezone.utc)
+
+    def prox_diaria(agente):
+        u = ultimas.get(agente)
+        if u and u.date() == agora.date():
+            return "amanhã, na primeira passada"
+        return "na próxima passada da agenda"
+
+    rot = [
+        {"agente": "rental", "nome": "Ronda de devoluções",
+         "cadencia": f"a cada {INTERVALO // 60} min",
+         "faz": "devolve amanhã? atrasou? — alerta e pede aprovação de mensagem"},
+        {"agente": "comercial", "nome": "Reativação RFM",
+         "cadencia": "1× ao dia",
+         "faz": "clientes 90+ dias parados viram rascunho de contato (A2)"},
+        {"agente": "entrega", "nome": "Vigia de prazos e Drive",
+         "cadencia": "1× ao dia",
+         "faz": "prazo D-2/estourado e projeto roxo 15+ dias → limpeza aprovável"},
+    ]
+    for r in rot:
+        u = ultimas.get(r["agente"])
+        r["ultima"] = u.isoformat() if u else None
+        if not ATIVO:
+            r["proxima"] = "agenda desligada (AGENTES_ATIVOS=0)"
+        elif r["agente"] == "rental":
+            if u:
+                falta = INTERVALO - (agora - u).total_seconds()
+                r["proxima"] = (f"em ~{max(1, int(falta // 60))} min" if falta > 0
+                                else "a caminho")
+            else:
+                r["proxima"] = "na próxima passada"
+        else:
+            r["proxima"] = prox_diaria(r["agente"])
+    return {"ativo": ATIVO, "rotinas": rot}
+
+
+# Ações que uma instrução da Sala pode disparar — só capacidades REAIS de cada agente.
+# Texto livre só onde existe pipeline de linguagem (propostas, comercial); o resto é botão.
+@app.post("/api/sala/acao")
+def api_sala_acao(dados: dict):
+    agente, acao = dados.get("agente"), dados.get("acao")
+    texto = (dados.get("texto") or "").strip()
+    try:
+        if agente == "rental" and acao == "rodar":
+            from .agentes import rental as ag
+            return {"ok": True, "resumo": ag.rodar(),
+                    "msg": "ronda executada — veja a esteira"}
+        if agente == "entrega" and acao == "rodar":
+            from .agentes import entrega as ag
+            return {"ok": True, "resumo": ag.rodar(),
+                    "msg": "vigia executada — veja a esteira"}
+        if agente == "comercial" and acao == "reativar":
+            from .agentes import comercial as ag
+            return {"ok": True, "resumo": ag.reativar(),
+                    "msg": "varredura de reativação feita — aprovações na fila"}
+        if agente == "comercial" and acao == "qualificar" and texto:
+            from .agentes import comercial as ag
+            if not ag.configurado():
+                return JSONResponse({"ok": False, "msg": "ANTHROPIC_API_KEY ausente"}, 503)
+            r = ag.qualificar(mensagem=texto, canal="sala")
+            return {"ok": True, "msg": f"lead qualificado ({r['ramo']}) — rascunho "
+                                       f"aguardando sua aprovação"}
+        if agente == "propostas" and acao == "proposta" and texto:
+            from .agentes import propostas as ag
+            if not ag.configurado():
+                return JSONResponse({"ok": False, "msg": "ANTHROPIC_API_KEY ausente"}, 503)
+            r = ag.proposta_por_voz(texto)
+            return {"ok": True, "url": f"/propostas/{r['quote_id']}",
+                    "msg": f"proposta em rascunho para {r['cliente']} — abrir e revisar"}
+        if agente == "dit" and acao == "inventariar":
+            m = db.q1("SELECT id, nome FROM maquina ORDER BY ultimo_heartbeat DESC "
+                      "NULLS LAST LIMIT 1")
+            if not m:
+                return JSONResponse({"ok": False,
+                                     "msg": "nenhuma máquina conectada em /maquinas"}, 400)
+            db.exec_("INSERT INTO job_queue (tipo, payload) VALUES ('mac:inventariar_pastas', %s)",
+                     (json.dumps({"maquina": m["nome"]}),))
+            return {"ok": True, "msg": f"inventário enfileirado para {m['nome']}"}
+        return JSONResponse({"ok": False, "msg": "essa mesa ainda não executa isso"}, 400)
+    except Exception as e:                                            # noqa: BLE001
+        return JSONResponse({"ok": False, "msg": f"{type(e).__name__}: {e}"}, 500)
 
 
 @app.get("/api/agentes/estado")
