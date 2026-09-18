@@ -1509,7 +1509,7 @@ set DUCK_MAQUINA=$NOME
 "$PY" "$DEST\duck_mac.py" >> "$DEST\duck_mac.log" 2>&1
 "@ | Set-Content -Path $BAT -Encoding ASCII
 $VBS = "$DEST\duck_mac.vbs"
-"CreateObject(""Wscript.Shell"").Run """"""$BAT"""""", 0, False" |
+"CreateObject(""Wscript.Shell"").Run ""$BAT"", 0, False" |
   Set-Content -Path $VBS -Encoding ASCII
 
 $ACAO = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$VBS`""
