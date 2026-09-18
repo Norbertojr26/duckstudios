@@ -502,6 +502,19 @@ CREATE TABLE email_visto (
     criado_em       timestamptz NOT NULL DEFAULT now()
 );
 
+-- Barramento de eventos: tudo que acontece vira linha aqui; agentes assinam e reagem
+-- (app/agentes/barramento.py). `reacoes` grava quem reagiu e com que resultado.
+CREATE TABLE evento (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tipo            text NOT NULL,
+    origem          text NOT NULL,
+    payload         jsonb NOT NULL DEFAULT '{}',
+    reacoes         jsonb NOT NULL DEFAULT '[]',
+    criado_em       timestamptz NOT NULL DEFAULT now(),
+    processado_em   timestamptz
+);
+CREATE INDEX evento_pendente_idx ON evento (criado_em) WHERE processado_em IS NULL;
+
 -- Credenciais das ferramentas conectadas (tela Dados → Conexões). Env vars são fallback.
 CREATE TABLE conexao (
     servico         text PRIMARY KEY,

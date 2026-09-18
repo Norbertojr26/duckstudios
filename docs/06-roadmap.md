@@ -11,6 +11,11 @@ Cada fase tem **critério de saída**. Não começar a próxima sem cumprir.
 
 ## Próximas features (fila viva — atualizada 18/09/2026)
 
+Feito 18/09 (2): **modelo de eventos** — todos os agentes passam a trabalhar por
+evento/assinatura no barramento (`app/agentes/barramento.py`, [docs/20](20-modelo-eventos.md));
+o painel "Barramento de eventos" na Sala mostra o registro cru. Proposta aceita agora
+gera a minuta de contrato em rascunho sozinha (reação determinística).
+
 Feito 18/09: **Gmail conectado à Secretária** (triagem IMAP readonly a cada 15 min, dedupe
 por UID, lead → comercial, resposta A2 via SMTP só após aprovação) e tela **Dados →
 Conexões** — credenciais na tabela `conexao` com fallback nas env vars; Gmail e Anthropic

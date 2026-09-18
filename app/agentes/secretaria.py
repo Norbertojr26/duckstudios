@@ -24,6 +24,7 @@ from .. import db
 from .registro import execucao
 
 from .. import conexoes
+from . import barramento
 
 AGENTE = "secretaria"
 MODELO = os.environ.get("AGENTE_SECRETARIA_MODELO", "claude-opus-5")
@@ -71,7 +72,8 @@ def buscar_nao_lidos(limite=LIMITE_POR_PASSADA):
     """Não lidos ainda não triados. Caixa aberta em readonly + BODY.PEEK: o Gmail do dono
     fica exatamente como estava — quem marca como lido é ele, no cliente dele."""
     usuario, senha = conexoes.gmail()
-    with imaplib.IMAP4_SSL("imap.gmail.com") as im:
+    # timeout obrigatório: sem ele, Gmail inalcançável deixaria o barramento pendurado
+    with imaplib.IMAP4_SSL("imap.gmail.com", timeout=30) as im:
         im.login(usuario, senha)
         im.select("INBOX", readonly=True)
         _, dados = im.uid("SEARCH", None, "UNSEEN")
@@ -186,19 +188,20 @@ def triagem(emails=None):
                         VALUES (%s, %s, %s, %s, %s) ON CONFLICT (uid) DO NOTHING""",
                      (e["uid"], e["de"][:300], e["assunto"][:300],
                       item["classe"], item["resumo"][:500]))
+            if item["classe"] != "ignorar":
+                barramento.emitir("email.recebido", AGENTE,
+                                  {"classe": item["classe"], "assunto": e["assunto"][:200],
+                                   "resumo": item["resumo"][:300],
+                                   "urgente": item["urgente"]})
 
-            # lead por e-mail → handoff real para o comercial qualificar
+            # lead por e-mail → evento no barramento; o comercial assina e qualifica
             if item["classe"] == "lead":
-                try:
-                    from . import comercial
-                    nome = re.sub(r"<.*", "", e["de"]).strip().strip('"') or None
-                    comercial.qualificar(
-                        mensagem=f"(e-mail) {e['assunto']}\n\n{e['corpo'][:1500]}",
-                        nome=nome, canal="email")
-                    leads += 1
-                except Exception as err:                             # noqa: BLE001
-                    ex.acao("handoff_comercial", {"assunto": e["assunto"][:80]},
-                            {}, erro=str(err)[:200])
+                nome = re.sub(r"<.*", "", e["de"]).strip().strip('"') or None
+                barramento.emitir("email.lead_recebido", AGENTE,
+                                  {"mensagem": f"(e-mail) {e['assunto']}\n\n"
+                                               f"{e['corpo'][:1500]}",
+                                   "nome": nome, "canal": "email"})
+                leads += 1
 
             if item["precisa_resposta"] and item["rascunho_resposta"]:
                 destino = (re.search(r"<([^>]+)>", e["de"]) or [None, e["de"]])[1]

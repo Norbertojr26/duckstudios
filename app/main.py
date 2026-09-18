@@ -901,6 +901,9 @@ def proposta_status(qid: str, status: str = Form(...)):
         db.exec_("""UPDATE deal SET estagio = %s
                      WHERE id = %s AND estagio NOT IN ('ganho', 'perdido')""",
                  ("proposta_enviada" if status == "enviada" else "ganho", q["deal_id"]))
+    if q and status in ("enviada", "aceita", "recusada"):
+        from .agentes import barramento
+        barramento.emitir(f"proposta.{status}", "humano", {"quote_id": qid})
     return RedirectResponse(f"/propostas/{qid}", 303)
 
 
@@ -1258,6 +1261,12 @@ def aprovacao(aid: str, decisao: str = Form(...)):
         elif p.get("acao") == "liberar_formatacao" and p.get("offload_id"):
             db.exec_("UPDATE media_offload SET liberado_para_format = true WHERE id = %s",
                      (p["offload_id"],))
+    if a:
+        from .agentes import barramento
+        barramento.emitir(f"aprovacao.{'concedida' if novo == 'aprovado' else 'negada'}",
+                          "humano", {"aprovacao_id": aid,
+                                     "acao": (a["payload"] or {}).get("acao", "")
+                                     if isinstance(a["payload"], dict) else ""})
     return RedirectResponse("/agentes", 303)
 
 
@@ -1545,15 +1554,23 @@ def api_mac_heartbeat(dados: dict):
     nome = (dados.get("maquina") or "").strip()
     if not nome:
         return JSONResponse({"ok": False, "erro": "campo 'maquina' obrigatório"}, 400)
+    antes = db.q1("SELECT ultimo_heartbeat FROM maquina WHERE nome = %s", (nome,))
     m = db.q1("""INSERT INTO maquina (nome, ultimo_heartbeat, info)
                  VALUES (%s, now(), %s)
                  ON CONFLICT (nome) DO UPDATE
                    SET ultimo_heartbeat = now(), info = EXCLUDED.info
                  RETURNING id""",
               (nome, json.dumps(dados.get("info", {}), ensure_ascii=False)))
+    # nova ou de volta após sumiço → evento no barramento (aparece na Sala na hora)
+    if not antes or not antes["ultimo_heartbeat"] or db.q1(
+            "SELECT %s::timestamptz < now() - interval '5 minutes' AS off",
+            (antes["ultimo_heartbeat"],))["off"]:
+        from .agentes import barramento
+        barramento.emitir("maquina.conectada", "sistema",
+                          {"maquina": nome, "primeira_vez": not antes})
     pastas = db.q("""SELECT caminho, permissao FROM maquina_pasta
                       WHERE maquina_id = %s AND ativo""", (m["id"],))
-    return {"ok": True, "pastas": pastas}
+    return {"ok": True, "pastas": pastas, "maquina_id": str(m["id"]), "registrada": True}
 
 
 @app.get("/api/mac/proxima-tarefa")
@@ -1757,6 +1774,9 @@ def api_sala_rotinas():
         {"agente": "entrega", "nome": "Vigia de prazos e Drive",
          "cadencia": "1× ao dia",
          "faz": "prazo D-2/estourado e projeto roxo 15+ dias → limpeza aprovável"},
+        {"agente": "secretaria", "nome": "Triagem do Gmail",
+         "cadencia": f"a cada {INTERVALO // 60} min",
+         "faz": "classifica não lidos, lead vira evento p/ comercial, resposta pede OK"},
     ]
     for r in rot:
         u = ultimas.get(r["agente"])
@@ -1773,6 +1793,16 @@ def api_sala_rotinas():
         else:
             r["proxima"] = prox_diaria(r["agente"])
     return {"ativo": ATIVO, "rotinas": rot}
+
+
+@app.get("/api/sala/eventos")
+def api_sala_eventos():
+    """O barramento visível: últimos eventos com quem reagiu e com que resultado."""
+    evs = db.q("""SELECT tipo, origem, payload, reacoes, criado_em, processado_em
+                    FROM evento ORDER BY criado_em DESC LIMIT 20""")
+    return {"eventos": [{**e, "criado_em": e["criado_em"].isoformat(),
+                         "processado_em": e["processado_em"].isoformat()
+                         if e["processado_em"] else None} for e in evs]}
 
 
 # Ações que uma instrução da Sala pode disparar — só capacidades REAIS de cada agente.

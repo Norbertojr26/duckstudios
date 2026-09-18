@@ -113,6 +113,13 @@
     </section>
 
     <section class="ds-card painel">
+      <h2>Barramento de eventos</h2>
+      <div class="meta" style="margin-bottom:6px">Tudo que acontece vira evento; os agentes
+        assinam e reagem — aqui é o registro cru, com quem reagiu.</div>
+      <div id="eventos"><div class="vazio">carregando…</div></div>
+    </section>
+
+    <section class="ds-card painel">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--ds-e-2)">
         <h2 style="margin:0">Esteira</h2>
         <span id="filtro-atual" class="ds-chip filtro-chip" hidden
@@ -538,6 +545,27 @@ async function rotinas(){
   } catch {}
 }
 rotinas(); setInterval(rotinas, 60000);
+
+// -------- barramento de eventos
+async function eventos(){
+  try {
+    const d = await (await fetch('/api/sala/eventos')).json();
+    const alvo = document.getElementById('eventos');
+    if (!d.eventos.length){
+      alvo.innerHTML = '<div class="vazio">nenhum evento ainda</div>'; return;
+    }
+    alvo.innerHTML = d.eventos.slice(0, 12).map(e => {
+      const rea = (e.reacoes || []).map(r =>
+        `<div class="meta">${r.ok ? '→' : '✕'} ${r.agente}: ${(r.resumo || r.erro || '')
+          .slice(0, 90)}</div>`).join('');
+      return `<div class="rotina"><span class="cad">${tempo(e.criado_em)}</span>` +
+        `<b>${e.tipo}</b> <span class="meta">· ${e.origem}</span>` +
+        (e.processado_em ? '' : '<div class="meta">aguardando despacho…</div>') + rea +
+        '</div>';
+    }).join('');
+  } catch {}
+}
+eventos(); setInterval(eventos, 20000);
 
 // -------- laço de estado
 async function atualizar(){

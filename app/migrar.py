@@ -66,6 +66,16 @@ MIGRACOES = [
          contratada jsonb NOT NULL DEFAULT '{}',
          corpo text NOT NULL,
          criado_em timestamptz NOT NULL DEFAULT now())""",
+    """CREATE TABLE IF NOT EXISTS evento (
+         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+         tipo text NOT NULL,
+         origem text NOT NULL,
+         payload jsonb NOT NULL DEFAULT '{}',
+         reacoes jsonb NOT NULL DEFAULT '[]',
+         criado_em timestamptz NOT NULL DEFAULT now(),
+         processado_em timestamptz)""",
+    """CREATE INDEX IF NOT EXISTS evento_pendente_idx ON evento (criado_em)
+        WHERE processado_em IS NULL""",
     """CREATE TABLE IF NOT EXISTS conexao (
          servico text PRIMARY KEY,
          config jsonb NOT NULL DEFAULT '{}',

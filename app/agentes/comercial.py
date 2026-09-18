@@ -178,6 +178,11 @@ def qualificar(mensagem, nome=None, telefone=None, canal="whatsapp"):
         ex.acao("pedir_aprovacao", {"deal": str(deal["id"])},
                 {"rascunho_chars": len(dados["rascunho_resposta"])}, nivel="A2")
 
+        from . import barramento
+        barramento.emitir("lead.qualificado", AGENTE,
+                          {"ramo": dados["ramo"], "deal_id": str(deal["id"]),
+                           "nome": contato["nome"], "canal": canal})
+
         uso = resposta.usage
         ex.concluir(saida={"ramo": dados["ramo"], "deal_id": str(deal["id"])},
                     tokens_in=uso.input_tokens, tokens_out=uso.output_tokens)

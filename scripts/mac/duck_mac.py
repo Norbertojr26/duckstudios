@@ -263,6 +263,11 @@ if __name__ == "__main__":
     if not URL or not os.environ.get("DUCK_SENHA"):
         sys.exit("defina DUCK_URL e DUCK_SENHA (e DUCK_MAQUINA)")
     if "--uma-vez" in sys.argv:
+        # primeiro contato: imprime a PROVA de que o CRM registrou — se esta linha
+        # apareceu no instalador, a máquina está na tela /maquinas
+        hb = api("/api/mac/heartbeat", {"maquina": MAQUINA, "info": info_local()})
+        print(f"  ✓ CRM confirmou: '{MAQUINA}' registrada "
+              f"({len(hb.get('pastas', []))} pasta(s) autorizada(s) até agora)")
         while passada():
             pass
         sys.exit(0)
