@@ -50,6 +50,10 @@ MIGRACOES = [
     # Padrão sem emoji (13/09) também vale para o que os agentes já gravaram no banco
     """UPDATE approval_request SET titulo = regexp_replace(titulo, '^(⏰|🧹|💾|⚠)\\s*', '')
         WHERE titulo ~ '^(⏰|🧹|💾|⚠)'""",
+    """CREATE TABLE IF NOT EXISTS email_visto (
+         uid text PRIMARY KEY,
+         remetente text, assunto text, classe text, resumo text,
+         criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS contrato (
          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
          quote_id uuid NOT NULL REFERENCES quote(id),
@@ -62,6 +66,10 @@ MIGRACOES = [
          contratada jsonb NOT NULL DEFAULT '{}',
          corpo text NOT NULL,
          criado_em timestamptz NOT NULL DEFAULT now())""",
+    """CREATE TABLE IF NOT EXISTS conexao (
+         servico text PRIMARY KEY,
+         config jsonb NOT NULL DEFAULT '{}',
+         atualizado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS sessao (
          token text PRIMARY KEY,
          usuario_id uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,

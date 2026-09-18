@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import auth, contratos, db
+from . import auth, conexoes, contratos, db
 from .agentes import agenda as agentes_agenda
 
 RAIZ = Path(__file__).resolve().parent
@@ -55,7 +55,8 @@ USUARIO = os.environ.get("APP_USUARIO", "duck")
 SENHA = os.environ.get("APP_SENHA", "")
 LIVRE = ("/healthz", "/static", "/login", "/convite")
 # Diretor usa a plataforma inteira, menos o que é desenvolvimento:
-SO_DEV = ("/usuarios", "/api/docs", "/api/redoc", "/api/openapi.json")
+SO_DEV = ("/usuarios", "/conexoes", "/api/conexoes",
+          "/api/docs", "/api/redoc", "/api/openapi.json")
 
 
 def _basic_ok(request: Request) -> bool:
@@ -336,6 +337,72 @@ def usuarios_ativo(request: Request, uid: str):
     db.exec_("""DELETE FROM sessao s USING usuario u
                  WHERE s.usuario_id = u.id AND u.id = %s AND NOT u.ativo""", (uid,))
     return RedirectResponse("/usuarios", 303)
+
+
+# ------------------------------------------------ conexões (só papel dev)
+# A tela nunca recebe o VALOR de um segredo salvo — só quais campos estão preenchidos.
+
+@app.get("/conexoes", response_class=HTMLResponse)
+def conexoes_pagina(request: Request):
+    if not _sou_dev(request):
+        return RedirectResponse("/", 303)
+    cartoes = []
+    for c in conexoes.CATALOGO:
+        tem = conexoes.preenchidos(c["chave"])
+        cartoes.append({**c, "tem": tem,
+                        "conectado": all(f["chave"] in tem for f in c["campos"])})
+    return pag(request, "conexoes.html", ativo="conexoes", cartoes=cartoes)
+
+
+@app.post("/conexoes/{servico}")
+async def conexoes_salvar(request: Request, servico: str):
+    if not _sou_dev(request):
+        return RedirectResponse("/", 303)
+    cat = next((c for c in conexoes.CATALOGO if c["chave"] == servico), None)
+    if not cat:
+        return RedirectResponse("/conexoes", 303)
+    form = await request.form()
+    atual = conexoes.obter(servico)
+    for campo in cat["campos"]:
+        v = (form.get(campo["chave"]) or "").strip()
+        if v:                          # campo em branco = manter o que já está salvo
+            atual[campo["chave"]] = v
+        elif form.get(f"limpar_{campo['chave']}"):
+            atual.pop(campo["chave"], None)
+    conexoes.salvar(servico, atual)
+    return RedirectResponse("/conexoes", 303)
+
+
+@app.post("/api/conexoes/{servico}/testar")
+def conexoes_testar(request: Request, servico: str):
+    """Teste real, na hora: IMAP para o Gmail, chamada mínima para a Anthropic."""
+    if not _sou_dev(request):
+        return JSONResponse({"ok": False, "msg": "só o papel dev testa conexões"}, 403)
+    try:
+        if servico == "gmail":
+            usuario, senha = conexoes.gmail()
+            if not (usuario and senha):
+                return JSONResponse({"ok": False,
+                                     "msg": "preencha e salve antes de testar"}, 400)
+            import imaplib
+            with imaplib.IMAP4_SSL("imap.gmail.com", timeout=15) as im:
+                im.login(usuario, senha)
+                im.select("INBOX", readonly=True)
+                _, dados = im.uid("SEARCH", None, "UNSEEN")
+            n = len((dados[0] or b"").split())
+            return {"ok": True, "msg": f"conectado — {n} não lido(s) na caixa de entrada"}
+        if servico == "anthropic":
+            chave = conexoes.anthropic_key()
+            if not chave:
+                return JSONResponse({"ok": False,
+                                     "msg": "preencha e salve antes de testar"}, 400)
+            import anthropic
+            anthropic.Anthropic(api_key=chave).models.list(limit=1)
+            return {"ok": True, "msg": "chave válida — agentes com cérebro"}
+        return JSONResponse({"ok": False, "msg": "integração ainda na fila — a credencial "
+                                                 "fica guardada para quando chegar"}, 400)
+    except Exception as e:                                            # noqa: BLE001
+        return JSONResponse({"ok": False, "msg": f"falhou: {type(e).__name__}: {e}"}, 502)
 
 
 # ------------------------------------------------------------------ painel
@@ -1139,7 +1206,22 @@ def aprovacao(aid: str, decisao: str = Form(...)):
     # quando houver canal configurado (e-mail/WhatsApp) — nada sai por baixo dos panos.
     if a and novo == "aprovado":
         p = a["payload"] if isinstance(a["payload"], dict) else {}
-        if p.get("acao") == "enviar_mensagem":
+        if p.get("acao") == "enviar_email" and p.get("destino"):
+            from .agentes import secretaria as ag_secretaria
+            try:
+                ag_secretaria.enviar_email(p["destino"], p.get("assunto", ""),
+                                           p.get("corpo", ""))
+                db.exec_("""INSERT INTO outbox (canal, destino, assunto, corpo,
+                                                aprovado_por, status, enviado_em)
+                            VALUES ('email', %s, %s, %s, 'humano', 'enviado', now())""",
+                         (p["destino"], p.get("assunto", ""), p.get("corpo", "")))
+            except Exception as err:                                 # noqa: BLE001
+                db.exec_("""INSERT INTO outbox (canal, destino, assunto, corpo,
+                                                aprovado_por, status)
+                            VALUES ('email', %s, %s, %s, 'humano', 'falha')""",
+                         (p["destino"], p.get("assunto", ""),
+                          f"{p.get('corpo','')}\n\n[falha no envio: {err}]"))
+        elif p.get("acao") == "enviar_mensagem":
             db.exec_("""INSERT INTO outbox (canal, destino, corpo, aprovado_por)
                         VALUES (%s, %s, %s, 'humano')""",
                      (p.get("canal", "whatsapp"), p.get("destinatario", "a definir"),
@@ -1599,8 +1681,7 @@ MESAS = [
      "sop": "—", "cor": "#A78BFA", "origem": "futuro",
      "motivo": "aguardando conexão com Meta/Google Ads"},
     {"chave": "secretaria", "nome": "Secretária", "papel": "E-mail, agenda e triagem",
-     "sop": "—", "cor": "#38BDF8", "origem": "futuro",
-     "motivo": "aguardando conector de e-mail (Gmail)"},
+     "sop": "SOP-006", "cor": "#38BDF8", "origem": "agendado"},
     {"chave": "financeiro", "nome": "Financeiro", "papel": "Conciliação e cobrança",
      "sop": "—", "cor": "#FB923C", "origem": "futuro",
      "motivo": "aguardando extrato/conta para conciliar"},
@@ -1716,17 +1797,28 @@ def api_sala_acao(dados: dict):
         if agente == "comercial" and acao == "qualificar" and texto:
             from .agentes import comercial as ag
             if not ag.configurado():
-                return JSONResponse({"ok": False, "msg": "ANTHROPIC_API_KEY ausente"}, 503)
+                return JSONResponse({"ok": False,
+                    "msg": "conecte a chave Anthropic em Dados → Conexões"}, 503)
             r = ag.qualificar(mensagem=texto, canal="sala")
             return {"ok": True, "msg": f"lead qualificado ({r['ramo']}) — rascunho "
                                        f"aguardando sua aprovação"}
         if agente == "propostas" and acao == "proposta" and texto:
             from .agentes import propostas as ag
             if not ag.configurado():
-                return JSONResponse({"ok": False, "msg": "ANTHROPIC_API_KEY ausente"}, 503)
+                return JSONResponse({"ok": False,
+                    "msg": "conecte a chave Anthropic em Dados → Conexões"}, 503)
             r = ag.proposta_por_voz(texto)
             return {"ok": True, "url": f"/propostas/{r['quote_id']}",
                     "msg": f"proposta em rascunho para {r['cliente']} — abrir e revisar"}
+        if agente == "secretaria" and acao == "triagem":
+            from .agentes import secretaria as ag
+            if not ag.configurado():
+                return JSONResponse({"ok": False, "msg":
+                    "conecte o Gmail (e a chave Anthropic) em Dados → Conexões"}, 503)
+            r = ag.triagem()
+            return {"ok": True, "resumo": r,
+                    "msg": f"{r.get('novos', 0)} e-mail(s) triados — "
+                           f"{r.get('respostas_aguardando_ok', 0)} resposta(s) aguardando seu OK"}
         if agente == "dit" and acao == "inventariar":
             m = db.q1("SELECT id, nome FROM maquina ORDER BY ultimo_heartbeat DESC "
                       "NULLS LAST LIMIT 1")
@@ -1744,6 +1836,7 @@ def api_sala_acao(dados: dict):
 @app.get("/api/agentes/estado")
 def api_agentes_estado():
     from .agentes import comercial as ag_comercial
+    from .agentes import secretaria as ag_secretaria
     from .agentes.agenda import ATIVO, INTERVALO
 
     stats = {r["agente"]: r for r in db.q("""
@@ -1775,7 +1868,9 @@ def api_agentes_estado():
         elif m["origem"] == "futuro":
             estado, detalhe = "plantao", "recebendo offloads do Mac"
         elif m["chave"] in ("comercial", "propostas") and not ag_comercial.configurado():
-            estado, detalhe = "sem_chave", "aguardando ANTHROPIC_API_KEY"
+            estado, detalhe = "sem_chave", "conectar Anthropic em Dados → Conexões"
+        elif m["chave"] == "secretaria" and not ag_secretaria.configurado():
+            estado, detalhe = "sem_chave", "conectar o Gmail em Dados → Conexões"
         elif st.get("ativos"):
             estado, detalhe = "trabalhando", "executando agora"
         elif pend:

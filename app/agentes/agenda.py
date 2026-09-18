@@ -21,7 +21,7 @@ def _rodou_hoje(agente, gatilho):
 
 
 async def _laco():
-    from . import comercial, entrega, rental
+    from . import comercial, entrega, rental, secretaria
     await asyncio.sleep(10)                    # deixa o boot terminar antes da primeira passada
     while True:
         try:
@@ -39,6 +39,14 @@ async def _laco():
                     print(f"[agente {nome}] {await asyncio.to_thread(fn)}")
             except Exception:                                        # noqa: BLE001
                 print(f"[agente {nome}] falhou:\n" + traceback.format_exc())
+
+        if secretaria.configurado():
+            try:
+                resumo = await asyncio.to_thread(secretaria.triagem)
+                if resumo.get("novos"):
+                    print(f"[agente secretaria] {resumo}")
+            except Exception:                                        # noqa: BLE001
+                print("[agente secretaria] falhou:\n" + traceback.format_exc())
 
         await asyncio.sleep(INTERVALO)
 

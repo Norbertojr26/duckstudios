@@ -18,7 +18,8 @@ MODELO = os.environ.get("AGENTE_PROPOSTAS_MODELO", "claude-opus-5")
 
 
 def configurado():
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    from .. import conexoes
+    return bool(conexoes.anthropic_key())
 
 ESQUEMA_PROPOSTA = {
     "type": "object",
@@ -94,12 +95,14 @@ def proposta_por_voz(texto):
     with execucao(AGENTE, "SOP-003", "proposta:voz", {"chars": len(texto)},
                   modelo=MODELO) as ex:
         if not configurado():
-            ex.acao("verificar_configuracao", {}, {"erro": "ANTHROPIC_API_KEY ausente"},
+            ex.acao("verificar_configuracao", {}, {"erro": "chave Anthropic ausente"},
                     erro="sem chave")
-            raise RuntimeError("ANTHROPIC_API_KEY não configurada")
+            raise RuntimeError("chave Anthropic não configurada — Dados → Conexões")
 
         import anthropic
-        resposta = anthropic.Anthropic().messages.create(
+        from .. import conexoes
+        resposta = anthropic.Anthropic(
+            api_key=conexoes.anthropic_key() or None).messages.create(
             model=MODELO,
             max_tokens=16000,
             system=SISTEMA_PROPOSTA,

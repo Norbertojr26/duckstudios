@@ -9,7 +9,12 @@ Cada fase tem **critério de saída**. Não começar a próxima sem cumprir.
 
 ---
 
-## Próximas features (fila viva — atualizada 12/09/2026)
+## Próximas features (fila viva — atualizada 18/09/2026)
+
+Feito 18/09: **Gmail conectado à Secretária** (triagem IMAP readonly a cada 15 min, dedupe
+por UID, lead → comercial, resposta A2 via SMTP só após aprovação) e tela **Dados →
+Conexões** — credenciais na tabela `conexao` com fallback nas env vars; Gmail e Anthropic
+ativos, WhatsApp/Slack/Monday/Trello/Meta Ads/Google Ads já guardam credencial na fila.
 
 Decisão do dono: **WhatsApp fica para a próxima leva**, não agora. A fila, em ordem:
 

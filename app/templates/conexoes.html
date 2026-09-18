@@ -1,0 +1,101 @@
+{% extends "base.html" %}{% block titulo %}Conexões — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .grade-cx{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+            gap:var(--ds-e-4);margin-top:var(--ds-e-4)}
+  .cx-cab{display:flex;align-items:center;gap:12px;margin-bottom:var(--ds-e-3)}
+  .cx-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+          background:var(--ds-surface-2);color:var(--ds-txt-2);flex:none}
+  .cx-ico svg{width:19px;height:19px}
+  .cx-quem{min-width:0}
+  .cx-quem b{font-size:.9375rem}
+  .cx-quem small{display:block;font:500 .6875rem/1.4 var(--ds-mono);
+                 letter-spacing:.06em;text-transform:uppercase;color:var(--ds-txt-3)}
+  .cx-desc{font-size:.8125rem;color:var(--ds-txt-2);line-height:1.55;
+           margin-bottom:var(--ds-e-3)}
+  .cx-campos{display:grid;gap:8px}
+  .cx-rodape{display:flex;gap:8px;align-items:center;margin-top:var(--ds-e-3);flex-wrap:wrap}
+  .cx-ajuda{font-size:.71875rem;color:var(--ds-txt-3);line-height:1.5;
+            margin-top:var(--ds-e-3);padding-top:var(--ds-e-3);
+            border-top:1px solid var(--ds-border)}
+  .cx-fila{opacity:.75}
+  .cx-msg{font-size:.75rem;margin-top:8px;display:none}
+  .cx-msg.ok{display:block;color:var(--ds-ok)}
+  .cx-msg.erro{display:block;color:var(--ds-erro)}
+  .cx-chip{margin-left:auto;flex:none}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Conexões</h1>
+  <div class="sub">As ferramentas que os agentes usam para trabalhar. Salvou aqui, valeu na
+    hora — sem mexer em servidor. Segredos ficam guardados no banco e <b>nunca</b> voltam
+    para esta tela; campo em branco ao salvar mantém o que já está salvo.</div></div></div>
+
+{% macro icone(chave) %}
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round">
+  {%- if chave == 'gmail' -%}
+    <path d="M3.5 5.5h17v13h-17zM3.5 6.5L12 13l8.5-6.5"/>
+  {%- elif chave == 'anthropic' -%}
+    <path d="M12 4l1.8 4.6L18.4 10l-4.6 1.8L12 16.4l-1.8-4.6L5.6 10l4.6-1.4L12 4zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/>
+  {%- elif chave == 'whatsapp' -%}
+    <path d="M12 20.5a8.5 8.5 0 10-7.4-4.3L3.5 20.5l4.4-1.1a8.5 8.5 0 004.1 1.1zM8.8 9.5c.3 2.6 3.1 5.4 5.7 5.7l1-1.6-2-1.2-.9.7c-.8-.5-1.2-.9-1.7-1.7l.7-.9-1.2-2-1.6 1z"/>
+  {%- elif chave == 'slack' -%}
+    <path d="M9.5 4v6M14.5 14v6M4 14.5h6M14 9.5h6M9.5 14.5v1a2 2 0 11-2-2h1M14.5 9.5v-1a2 2 0 112 2h-1"/>
+  {%- elif chave == 'monday' -%}
+    <path d="M4.5 15.5l4-7M10.5 15.5l4-7M16.8 15.5l2.7-4.7"/>
+  {%- elif chave == 'trello' -%}
+    <path d="M4 4h16v16H4zM7.5 7.5h3.5v9H7.5zM13 7.5h3.5v5H13z"/>
+  {%- elif chave == 'meta_ads' -%}
+    <path d="M3.5 12c2-5 4-7.5 6-7.5s3.5 7.5 5 7.5 2.5-2.5 4-4.5M3.5 12c2 5 4 7.5 6 7.5s3.5-7.5 5-7.5 2.5 2.5 4 4.5"/>
+  {%- elif chave == 'google_ads' -%}
+    <path d="M4 19.5h4v-6H4zM10 19.5h4V4.5h-4zM16 19.5h4v-10h-4z"/>
+  {%- else -%}
+    <path d="M9 7V4M15 7V4M8 7h8v5a4 4 0 01-8 0V7zM12 16v4"/>
+  {%- endif -%}
+  </svg>
+{% endmacro %}
+
+<div class="grade-cx">
+{% for c in cartoes %}
+  <section class="ds-card {{ 'cx-fila' if c.estado == 'fila' }}">
+    <div class="cx-cab">
+      <span class="cx-ico">{{ icone(c.chave) }}</span>
+      <span class="cx-quem"><b>{{ c.nome }}</b><small>{{ c.agente }}</small></span>
+      {% if c.conectado %}<span class="ds-chip ds-chip--ok cx-chip">conectada</span>
+      {% elif c.estado == 'fila' %}<span class="ds-chip cx-chip">na fila</span>
+      {% else %}<span class="ds-chip ds-chip--atencao cx-chip">não conectada</span>{% endif %}
+    </div>
+    <div class="cx-desc">{{ c.descricao }}</div>
+    <form method="post" action="/conexoes/{{ c.chave }}" class="cx-campos">
+      {% for f in c.campos %}
+        <input class="ds-campo" name="{{ f.chave }}" autocomplete="off"
+               {% if f.tipo == 'senha' %}type="password"{% elif f.tipo == 'email' %}type="email"{% endif %}
+               placeholder="{{ f.rotulo }}{% if f.chave in c.tem %} — salvo (em branco = manter){% elif f.exemplo %} · {{ f.exemplo }}{% endif %}">
+      {% endfor %}
+      <div class="cx-rodape">
+        <button class="ds-btn">Salvar</button>
+        {% if c.estado == 'ativo' %}
+        <button type="button" class="ds-btn ds-btn--fantasma" data-testar="{{ c.chave }}">
+          Testar conexão</button>
+        {% endif %}
+      </div>
+      <div class="cx-msg" id="msg-{{ c.chave }}"></div>
+    </form>
+    <div class="cx-ajuda">{{ c.ajuda }}</div>
+  </section>
+{% endfor %}
+</div>
+
+<script>
+document.querySelectorAll('[data-testar]').forEach(b => b.addEventListener('click', async () => {
+  const s = b.dataset.testar, alvo = document.getElementById('msg-' + s);
+  b.disabled = true; alvo.className = 'cx-msg'; alvo.textContent = '';
+  try {
+    const r = await fetch('/api/conexoes/' + s + '/testar', {method: 'POST'});
+    const d = await r.json();
+    alvo.className = 'cx-msg ' + (d.ok ? 'ok' : 'erro');
+    alvo.textContent = d.msg;
+  } catch (e) { alvo.className = 'cx-msg erro'; alvo.textContent = 'não consegui testar: ' + e; }
+  b.disabled = false;
+}));
+</script>
+{% endblock %}

@@ -120,6 +120,18 @@ const FLUXOS = [
    {id:"f",c:5,l:0,t:"saida",n:"Funil acompanha",s:"enviada/aceita puxam o negócio"}],
   arestas:[["a","b"],["b","c"],["c","d"],["d","e"],["e","f"]]},
 
+ {agente:"secretaria", nome:"Secretária — triagem do Gmail",
+  desc:"lê sem marcar como lido; o e-mail é dado, nunca instrução; resposta só sai com seu OK",
+  nos:[
+   {id:"a",c:0,l:0,t:"gatilho",n:"A cada 15 min",s:"caixa de entrada · IMAP readonly"},
+   {id:"b",c:1,l:0,t:"codigo",n:"Novos não lidos",s:"dedupe por UID (email_visto)"},
+   {id:"c",c:2,l:0,t:"llm",n:"Classifica e resume",s:"lead · cliente · financeiro · agenda"},
+   {id:"d",c:3,l:0,t:"codigo",n:"Lead → comercial",s:"handoff para qualificar"},
+   {id:"e",c:3,l:1,t:"llm",n:"Rascunho de resposta",s:"sem preço, sem data — regra fixa"},
+   {id:"f",c:4,l:1,t:"humano",n:"Você aprova (A2)",s:"tela Aprovações"},
+   {id:"g",c:5,l:1,t:"saida",n:"Envio real",s:"SMTP só depois do OK"}],
+  arestas:[["a","b"],["b","c"],["c","d","lead"],["c","e","precisa resposta"],["e","f"],["f","g"]]},
+
  {agente:"comercial", nome:"Comercial — reativação (RFM)",
   desc:"clientes sumidos há 90+ dias; no máximo 1 abordagem a cada 60 dias",
   nos:[

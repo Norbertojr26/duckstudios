@@ -92,7 +92,8 @@ Tabela porte→equipe (eventos), para você dimensionar internamente e citar SEM
 
 
 def configurado():
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    from .. import conexoes
+    return bool(conexoes.anthropic_key())
 
 
 def qualificar(mensagem, nome=None, telefone=None, canal="whatsapp"):
@@ -101,14 +102,15 @@ def qualificar(mensagem, nome=None, telefone=None, canal="whatsapp"):
                   {"nome": nome, "telefone": telefone}, modelo=MODELO) as ex:
 
         if not configurado():
-            ex.acao("verificar_configuracao", {}, {"erro": "ANTHROPIC_API_KEY ausente"},
+            ex.acao("verificar_configuracao", {}, {"erro": "chave Anthropic ausente"},
                     erro="sem chave")
             raise RuntimeError(
-                "ANTHROPIC_API_KEY não configurada — defina a variável no serviço para "
+                "chave Anthropic não configurada — conecte em Dados → Conexões para "
                 "ativar o agente comercial.")
 
         import anthropic
-        client = anthropic.Anthropic()
+        from .. import conexoes
+        client = anthropic.Anthropic(api_key=conexoes.anthropic_key() or None)
 
         # ---- 1. [DET] contato: dedupe por telefone, nunca duplica ----
         contato = None

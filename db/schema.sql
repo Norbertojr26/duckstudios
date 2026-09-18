@@ -492,6 +492,23 @@ CREATE TABLE contrato (
     criado_em       timestamptz NOT NULL DEFAULT now()
 );
 
+-- E-mails já triados pela secretária — dedupe por UID do IMAP; o Gmail fica intocado.
+CREATE TABLE email_visto (
+    uid             text PRIMARY KEY,
+    remetente       text,
+    assunto         text,
+    classe          text,
+    resumo          text,
+    criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
+-- Credenciais das ferramentas conectadas (tela Dados → Conexões). Env vars são fallback.
+CREATE TABLE conexao (
+    servico         text PRIMARY KEY,
+    config          jsonb NOT NULL DEFAULT '{}',
+    atualizado_em   timestamptz NOT NULL DEFAULT now()
+);
+
 -- Pessoas que entram na plataforma. papel 'dev' vê tudo; 'diretor' tudo menos o que é
 -- desenvolvimento (API, gestão de usuários). senha_hash NULL = convite pendente: o link
 -- /convite/{token} define a primeira senha. Foto mora no banco (o CRM é a memória).
