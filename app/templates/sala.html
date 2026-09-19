@@ -247,11 +247,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from '/static/vendor/OrbitControls.js';
 import { GLTFLoader } from '/static/vendor/GLTFLoader.js';
+import { clone as clonarEsqueleto } from '/static/utils/SkeletonUtils.js';
 
-// ---------------- modelos .glb opcionais (packs CC0 em /static/modelos)
-// Convenção: pato.glb, arvore.glb, mesa.glb, cadeira.glb, pessoa_m.glb, pessoa_f.glb.
+// ---------------- modelos .glb/.gltf opcionais (packs CC0 em /static/modelos)
+// Convenção: pato, gato, arvore, mesa, cadeira, pessoa_m, pessoa_f.
 // Arquivo presente = substitui a peça procedural; ausente = o visual atual continua.
+// Personagem animado (rig) toca a animação "Idle" num mixer por instância.
 const MODELOS = {};
+const mixers = [];
 function normalizar(obj, altura){
   const cx = new THREE.Box3().setFromObject(obj);
   const tam = cx.getSize(new THREE.Vector3());
@@ -262,20 +265,38 @@ function normalizar(obj, altura){
   obj.position.sub(new THREE.Vector3(centro.x, cx2.min.y, centro.z));
   const raiz = new THREE.Group(); raiz.add(obj); return raiz;
 }
-const ALTURAS = {pato: .5, arvore: 1.5, mesa: .81, cadeira: .95,
-                 pessoa_m: 1.05, pessoa_f: 1.05, gato: .34};
+const ALTURAS = {pato: .5, arvore: 1.9, mesa: .78, cadeira: .92,
+                 pessoa_m: 1.15, pessoa_f: 1.15, gato: .3};
 const modelosProntos = (async () => {
   const loader = new GLTFLoader();
   for (const nome of Object.keys(ALTURAS)){
-    try {
-      const gl = await loader.loadAsync(`/static/modelos/${nome}.glb`);
-      gl.scene.traverse(o => { if (o.isMesh){ o.castShadow = true; } });
-      MODELOS[nome] = normalizar(gl.scene, ALTURAS[nome]);
-    } catch {}                                   // sem arquivo → segue o procedural
+    for (const caminho of [`/static/modelos/${nome}.glb`,
+                           `/static/modelos/${nome}.gltf`,
+                           `/static/modelos/${nome}/${nome}.glb`]){
+      try {
+        const gl = await loader.loadAsync(caminho);
+        gl.scene.traverse(o => { if (o.isMesh){ o.castShadow = true;
+          o.frustumCulled = false; } });
+        MODELOS[nome] = {raiz: normalizar(gl.scene, ALTURAS[nome]),
+                         anims: gl.animations || []};
+        break;
+      } catch {}                                 // sem arquivo → segue o procedural
+    }
   }
 })();
 function instanciar(nome){
-  return MODELOS[nome] ? MODELOS[nome].clone(true) : null;
+  const m = MODELOS[nome]; if (!m) return null;
+  let temPele = false;
+  m.raiz.traverse(o => { if (o.isSkinnedMesh) temPele = true; });
+  const c = temPele ? clonarEsqueleto(m.raiz) : m.raiz.clone(true);
+  if (m.anims.length && temPele){
+    const mixer = new THREE.AnimationMixer(c);
+    const idle = m.anims.find(a => /idle/i.test(a.name)) || m.anims[0];
+    mixer.clipAction(idle).play();
+    mixer.update(Math.random() * 2);             // dessincroniza as cópias
+    mixers.push(mixer);
+  }
+  return c;
 }
 
 // ================================================================ escritório 3D
@@ -634,8 +655,10 @@ function estacao(m, ilha, lx, lz){
   }
 
   const fig = figura(m.cor, m.chave);
-  // sentado DE VERDADE: erguido até o topo do assento (~.47) e à frente do encosto
-  fig.position.set(0, .34, .9);
+  // com personagem .glb (rig animado) ele trabalha DE PÉ ao lado da cadeira;
+  // o boneco procedural senta de verdade no assento
+  if (MODELOS.pessoa_m || MODELOS.pessoa_f) fig.position.set(.62, 0, 1.02);
+  else fig.position.set(0, .34, .9);
   fig.rotation.y = Math.PI;
   g.add(fig);
 
@@ -1172,6 +1195,7 @@ let tAnterior = 0;
 function laco(t){
   requestAnimationFrame(laco);
   const dt = Math.min((t - tAnterior) / 1000, .1); tAnterior = t;
+  for (const m of mixers) m.update(dt);
   nucleoMat.emissiveIntensity = .45 + Math.sin(t / 700) * .18;
   anel.material.opacity = .25 + Math.sin(t / 700) * .12;
   luzNucleo.intensity = 7 + Math.sin(t / 700) * 2.5;
