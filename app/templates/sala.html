@@ -179,10 +179,10 @@
       <div class="p"><span class="rot">Agentes ativos</span><b id="pl-ativos">—</b></div>
       <span class="pulso" id="pulso"></span>
     </div>
-    <div class="legenda-amb">Monitores, balões de pensamento, entregas ao núcleo e os
-      painéis refletem o estado real da auditoria; caminhadas, conversas de corredor, o
-      pato e o gato (nossos mascotes) são ambientação. Núcleo teal = a memória do estúdio
-      (o CRM). Mesas apagadas são agentes que ainda vão nascer.</div>
+    <div class="legenda-amb">Monitores, balões de pensamento, entregas ao núcleo, painéis
+      e as CAMINHADAS entre mesas refletem o fluxo real dos eventos (quem leva o quê a
+      quem); conversas de corredor, o pato e o gato são ambientação. Núcleo teal = a
+      memória do estúdio (o CRM). Mesas apagadas são agentes que ainda vão nascer.</div>
   </section>
 
   <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
@@ -255,10 +255,11 @@ import { clone as clonarEsqueleto } from '/static/utils/SkeletonUtils.js';
 // Personagem animado (rig) toca a animação "Idle" num mixer por instância.
 const MODELOS = {};
 const mixers = [];
-function normalizar(obj, altura){
+function normalizar(obj, altura, largura){
   const cx = new THREE.Box3().setFromObject(obj);
   const tam = cx.getSize(new THREE.Vector3());
-  const k = altura / (tam.y || 1);
+  const k = largura ? largura / (Math.max(tam.x, tam.z) || 1)
+                    : altura / (tam.y || 1);
   obj.scale.setScalar(k);
   const cx2 = new THREE.Box3().setFromObject(obj);
   const centro = cx2.getCenter(new THREE.Vector3());
@@ -487,6 +488,65 @@ function decorar(){
   }
 }
 modelosProntos.then(decorar);
+
+// -------- decoração dos kits do dono: quatro cantos vivos entre as ilhas
+// a = arquivo em /static/modelos/decor; h = altura-alvo OU w = largura-alvo (peça chata);
+// p = posição no mundo; r = rotação Y. Cantos nos ângulos livres entre as pontes.
+const DECOR = [
+  // Lounge (fundo): tapete, sofá, poltrona, mesinha, TV e luminária
+  {a: 'rugRound', w: 2.3, p: [0, .001, 6.4]},
+  {a: 'loungeSofa', h: .62, p: [.15, 0, 7.05], r: Math.PI},
+  {a: 'loungeChairRelax', h: .6, p: [-1.15, 0, 6.6], r: Math.PI * .68},
+  {a: 'tableCoffee', h: .34, p: [.1, 0, 6.2]},
+  {a: 'books', w: .26, p: [.05, .35, 6.2], r: .5},
+  {a: 'lampRoundFloor', h: 1.25, p: [1.25, 0, 7.0]},
+  {a: 'cabinetTelevision', h: .42, p: [0, 0, 5.45]},
+  {a: 'televisionModern', h: .32, p: [0, .43, 5.45]},
+  {a: 'plantSmall2', h: .45, p: [-1.35, 0, 7.3]},
+  // Copa do café (direita): armário com máquina, geladeira, mesa com lanches
+  {a: 'kitchenCabinet', h: .7, p: [6.9, 0, -.5], r: -Math.PI / 2},
+  {a: 'kitchenCoffeeMachine', h: .26, p: [6.88, .71, -.5], r: -Math.PI / 2},
+  {a: 'tableCoffeeSquare', h: .36, p: [6.1, 0, -.05]},
+  {a: 'cup', h: .09, p: [6.0, .37, .08]},
+  {a: 'cup', h: .09, p: [6.25, .37, -.18], r: 1.2},
+  {a: 'pizza-box', w: .32, p: [6.15, .37, -.02], r: .35},
+  {a: 'cupcake', h: .1, p: [5.98, .37, -.22]},
+  {a: 'plantSmall1', h: .45, p: [6.75, 0, 1.4]},
+  // Carga da locadora (fundo oposto): estante de mercado, caixas e carrinho
+  {a: 'shelf-boxes', h: 1.25, p: [.15, 0, -6.95], r: Math.PI},
+  {a: 'box-large', h: .52, p: [-1.1, 0, -6.4], r: .4},
+  {a: 'box-small', h: .32, p: [-.72, 0, -6.05], r: .9},
+  {a: 'box-long', h: .36, p: [1.0, 0, -6.3], r: -.3},
+  // Sala de espera (esquerda): tapete, duas poltronas de design e mesinha
+  {a: 'rugSquare', w: 2.0, p: [-6.3, .001, 0]},
+  {a: 'loungeDesignChair', h: .62, p: [-6.75, 0, .5], r: Math.PI / 2},
+  {a: 'loungeDesignChair', h: .62, p: [-6.75, 0, -.55], r: Math.PI / 2},
+  {a: 'tableCoffeeGlass', h: .34, p: [-5.95, 0, 0]},
+  {a: 'pottedPlant', h: .6, p: [-6.9, 0, 1.4]},
+];
+
+const decorCache = {};
+function pecaDecor(a, h, w){
+  decorCache[a] ||= (async () => {
+    const gl = await new GLTFLoader().loadAsync(`/static/modelos/decor/${a}.glb`);
+    gl.scene.traverse(o => { if (o.isMesh){ o.castShadow = true;
+      o.frustumCulled = false; } });
+    return normalizar(gl.scene, h, w);
+  })();
+  return decorCache[a];
+}
+
+async function montarDecor(){
+  for (const d of DECOR){
+    try {
+      const base = await pecaDecor(d.a, d.h, d.w);
+      const c = base.clone(true);
+      c.position.set(...d.p); c.rotation.y = d.r || 0;
+      cena.add(c);
+    } catch {}                       // peça ausente não derruba o salão
+  }
+}
+modelosProntos.then(montarDecor);
 
 // materiais e cores de estado
 const COR_ESTADO = {trabalhando: 0x4ade80, aguardando: 0xfbbf24, plantao: 0x60a5fa,
@@ -762,12 +822,13 @@ function montarEscritorio(mesas){
     const ang = (i / nomes.length) * Math.PI * 2 + Math.PI / nomes.length;
     const cx = Math.sin(ang) * R, cz = Math.cos(ang) * R;
     const ilha = new THREE.Group();
-    ilha.position.set(cx, .2, cz);
-    ilha.lookAt(0, .2, 0);
-    // plataforma do setor + friso na cor do time
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(larg, .22, prof),
+    ilha.position.set(cx, .06, cz);
+    ilha.lookAt(0, .06, 0);
+    // plataforma RASA (6 cm): marca o território do time sem virar degrau que buga
+    // objeto, mascote e caminhada
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(larg, .12, prof),
       new THREE.MeshStandardMaterial({color: 0x272c34, roughness: .85}));
-    slab.position.y = -.11; slab.receiveShadow = true; slab.castShadow = true;
+    slab.position.y = -.06; slab.receiveShadow = true; slab.castShadow = true;
     ilha.add(slab);
     const friso = new THREE.Mesh(new THREE.BoxGeometry(larg, .03, .08),
       new THREE.MeshBasicMaterial({color: COR_SETOR[nome] ?? 0x9ca3af,
@@ -784,10 +845,10 @@ function montarEscritorio(mesas){
     // ponte até a praça central
     const dist = Math.hypot(cx, cz), compr = dist - prof / 2 - 2.1;
     if (compr > .4){
-      const ponte = new THREE.Mesh(new THREE.BoxGeometry(1.1, .05, compr),
+      const ponte = new THREE.Mesh(new THREE.BoxGeometry(1.1, .04, compr),
         new THREE.MeshStandardMaterial({color: 0x20242b, roughness: .9}));
       const meioR = 2.1 + compr / 2;
-      ponte.position.set(Math.sin(ang) * meioR, .025, Math.cos(ang) * meioR);
+      ponte.position.set(Math.sin(ang) * meioR, .02, Math.cos(ang) * meioR);
       ponte.lookAt(0, .05, 0); ponte.receiveShadow = true;
       cena.add(ponte); ilhasGrupos.push(ponte);
     }
@@ -935,8 +996,8 @@ function conversaAmbiente(){
   caminhar(b.m.chave, meio.clone().add(new THREE.Vector3(-.4, 0, 0)), 4200,
            () => b.balao.set('…'));
 }
-setInterval(conversaAmbiente, 24000);
-setTimeout(conversaAmbiente, 5000);
+setInterval(conversaAmbiente, 55000);
+setTimeout(conversaAmbiente, 8000);
 
 // ================================================================ o pato (mascote)
 // Ambientação assumida: ronda de moral do escritório. Anda contornando o núcleo (nada
@@ -1038,9 +1099,10 @@ const FALAS_GATO_GENTE = ['oi, gato', 'que fofo…', 'desce daí!', 'de novo, ga
 function gatoProximaAcao(){
   const mesas = Object.values(estacoes).filter(e => e.m.estado !== 'futuro');
   const opcoes = [
-    ['vagar', 30], ['dormir', 14], ['sentar', 16], ['miar', 12],
-    ['esfregar', mesas.length ? 14 : 0], ['subir_mesa', mesas.length ? 14 : 0],
-    ['cacar_pato', pato && pato.g.position.y < .1 ? 10 : 0],
+    ['vagar', 26], ['dormir', 13], ['sentar', 14], ['miar', 11],
+    ['espreguicar', 9], ['brincar', 9],
+    ['esfregar', mesas.length ? 13 : 0], ['subir_mesa', mesas.length ? 13 : 0],
+    ['cacar_pato', pato && pato.g.position.y < .1 ? 9 : 0],
   ].filter(([nome, p]) => p > 0 && !gato.historico.slice(-2).includes(nome));
   const total = opcoes.reduce((a, [, p]) => a + p, 0);
   let r = Math.random() * total;
@@ -1065,6 +1127,8 @@ function gatoComecar(t, nome){
   else if (nome === 'dormir'){ gato.dormindo = true;
     gato.dur = 9000 + Math.random() * 14000;
     gato.balao.set('zzz'); setTimeout(() => gato.dormindo && gato.balao.set(null), 2600); }
+  else if (nome === 'espreguicar'){ gato.dur = 1700; }
+  else if (nome === 'brincar'){ gato.dur = 1900; }
   else if (nome === 'miar'){ gato.dur = 1600; gato.balao.set('miau');
     const perto = mesas.filter(m => m.g.position.distanceTo(gato.g.position) < 4)[0];
     if (perto && Math.random() < .6) perto.balao.set(
@@ -1117,12 +1181,21 @@ function gatoDerrubar(e){
 function animarGato(t, dt){
   if (!gato) return;
   gato.rabo.rotation.y = Math.sin(t / (gato.dormindo ? 900 : 260)) * .55;
+  // pose de corpo: deitado (achatado) quando dorme, volta ao normal suave
+  const deitado = gato.dormindo;
+  gato.g.scale.x += ((deitado ? 1.1 : 1) - gato.g.scale.x) * .07;
+  gato.g.scale.y += ((deitado ? .52 : 1) - gato.g.scale.y) * .07;
+  if (gato.acao !== 'espreguicar'){
+    gato.g.scale.z += ((deitado ? 1.1 : 1) - gato.g.scale.z) * .07;
+    gato.g.rotation.x *= .85;
+  }
   if (!gato.acao){ gatoComecar(t, gatoProximaAcao()); return; }
   const fim = t - gato.t0 > gato.dur;
 
   if (gato.acao === 'vagar' || gato.acao === 'esfregar'){
     const chegou = gatoAndarAte(t, dt, gato.alvoP, 1.1);
-    gato.g.position.y = Math.abs(Math.sin(t / 130)) * .02;
+    gato.g.position.y = Math.abs(Math.sin(t / 130)) * .025;
+    gato.g.rotation.x = Math.sin(t / 95) * .05;             // trote: passinhos
     if (chegou){
       if (gato.acao === 'esfregar' && gato.mesaAlvo){
         gato.balao.set('rrrr…');
@@ -1172,8 +1245,15 @@ function animarGato(t, dt){
       gato.acao = 'sentar'; gato.t0 = t; gato.dur = 3000;
     }
     if (t - gato.t0 > 6000) gato.acao = null;    // felino: cansa rápido
-  } else {                                       // sentar / dormir / miar
-    if (gato.dormindo) gato.g.position.y = Math.sin(t / 800) * .008;
+  } else {                                       // sentar/dormir/miar/espreguicar/brincar
+    const k = Math.min((t - gato.t0) / gato.dur, 1);
+    if (gato.acao === 'espreguicar'){            // alonga o corpo e empina
+      gato.g.scale.z = 1 + Math.sin(k * Math.PI) * .38;
+      gato.g.rotation.x = -Math.sin(k * Math.PI) * .3;
+    } else if (gato.acao === 'brincar'){         // três pulinhos girando
+      gato.g.position.y = Math.abs(Math.sin(k * Math.PI * 3)) * .22;
+      gato.g.rotation.y += dt * 5;
+    } else if (gato.dormindo) gato.g.position.y = Math.sin(t / 800) * .008;
     if (fim){ gato.balao.set(null); gato.acao = null; }
   }
 }
@@ -1491,6 +1571,55 @@ async function rotinas(){
 }
 rotinas(); setInterval(rotinas, 60000);
 
+// -------- coreografia REAL: evento do barramento → quem anda até quem, com o conteúdo
+// verdadeiro no balão. [de, para, fala(payload)] — para=null: leva ao núcleo.
+const COREOGRAFIA = {
+  'email.lead_recebido': ['secretaria', 'comercial',
+    p => 'lead' + (p.nome ? ' de ' + p.nome : ' novo') + ' pra você'],
+  'email.recebido': ['secretaria', null,
+    p => (p.classe || 'e-mail') + ': ' + (p.assunto || '').slice(0, 26)],
+  'lead.qualificado': ['comercial', null,
+    p => 'lead qualificado (' + (p.ramo || '?') + ')'],
+  'tarefa.delegada': [null, null, p => 'tarefa: ' + (p.texto || '').slice(0, 30) + '…'],
+  'gerente.verificacao': ['gerente', null,
+    p => (p.achados || 0) + ' pendência(s) na casa'],
+  'proposta.aceita': [null, 'propostas', () => 'proposta aceita — vou gerar a minuta'],
+  'contrato.rascunho_criado': ['propostas', null,
+    p => 'minuta ' + (p.numero || '') + ' pronta'],
+  'aprovacao.concedida': [null, null, () => 'aprovado pelo dono'],
+  'maquina.conectada': ['dit', null, p => 'máquina ' + (p.maquina || '') + ' on-line'],
+};
+
+function pontoDianteDe(chave){
+  const e = estacoes[chave]; if (!e) return null;
+  const p = mesaMundo(e); p.y = 0;
+  const d = p.length();
+  return p.multiplyScalar(Math.max(d - 1.35, 2.6) / d);
+}
+
+function coreografar(ev){
+  const c = COREOGRAFIA[ev.tipo]; if (!c) return;
+  const p = ev.payload || {};
+  let [de, para, fala] = c;
+  if (ev.tipo === 'tarefa.delegada'){ de = null; para = p.destino; }
+  const texto = (() => { try { return fala(p); } catch { return ''; } })();
+  const quem = de || para;                       // quem protagoniza a cena
+  const eDe = estacoes[de], ePara = estacoes[para];
+  if (eDe && ePara && de !== para){
+    // A leva o assunto até a mesa de B — e B responde
+    caminhar(de, pontoDianteDe(para), 4200, () => {
+      eDe.balao.set(texto);
+      setTimeout(() => { if (!ePara.anda) ePara.balao.set('deixa comigo'); }, 1300);
+      setTimeout(() => ePara.balao.set(null), 5200);
+    });
+  } else if (estacoes[quem]){
+    // protagonista vai ao núcleo resolver, falando do assunto real
+    const eQ = estacoes[quem];
+    caminhar(quem, mesaMundo(eQ).setY(0).normalize().multiplyScalar(2.5), 3600,
+             () => eQ.balao.set(texto));
+  }
+}
+
 // -------- barramento de eventos (+ pulsos de fluxo entre setores no 3D)
 let eventosVistos = new Set();
 async function eventos(){
@@ -1505,6 +1634,7 @@ async function eventos(){
         const para = setorDaMesa(alvoAg)?.centro || NUCLEO_V;
         if (!de.equals(para)) pulso(de, para, 0x2dbdb8);
         else pulso(de, NUCLEO_V, 0x2dbdb8);
+        coreografar(e);
       }
     }
     eventosVistos = new Set(d.eventos.map(e => e.id));
