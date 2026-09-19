@@ -147,6 +147,31 @@
             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cal-item i{width:6px;height:6px;border-radius:99px;flex:none;font-style:normal}
   .cal-mais{color:var(--ds-txt-3);margin-top:3px}
+
+  /* -------- quadro de tarefas: estados reais */
+  .tf-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .tf-chip{font-size:.6875rem;padding:3px 10px;border-radius:999px;cursor:pointer;
+           border:1px solid var(--ds-border);color:var(--ds-txt-2);
+           background:var(--ds-surface);display:inline-flex;gap:5px;align-items:center}
+  .tf-chip b{font-variant-numeric:tabular-nums}
+  .tf-chip.on{border-color:var(--ds-acao);color:var(--ds-txt)}
+  .tf{display:grid;grid-template-columns:86px 1fr auto;gap:8px;align-items:baseline;
+      padding:8px 2px;font-size:.78rem;border-top:1px solid var(--ds-border)}
+  .tf:first-child{border-top:0}
+  .tf .est{font-family:var(--ds-mono);font-size:.5625rem;letter-spacing:.06em;
+           text-transform:uppercase;padding:2px 7px;border-radius:99px;text-align:center}
+  .tf .est--fazendo{background:var(--ds-ok-bg);color:var(--ds-ok);
+                    animation:pulsa 1.2s ease-in-out infinite}
+  .tf .est--feita{background:var(--ds-surface-2);color:var(--ds-txt-3)}
+  .tf .est--aguardando{background:var(--ds-atencao-bg);color:var(--ds-atencao)}
+  .tf .est--agendada{background:var(--ds-info-bg);color:var(--ds-info)}
+  .tf .est--falhou{background:var(--ds-erro-bg);color:var(--ds-erro)}
+  @keyframes pulsa{0%,100%{opacity:1}50%{opacity:.45}}
+  .tf .oq{min-width:0}
+  .tf .oq b{display:block}
+  .tf .oq .meta{word-break:break-word}
+  .tf .qd{color:var(--ds-txt-3);font-size:.6875rem;white-space:nowrap;
+          font-variant-numeric:tabular-nums}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo">
@@ -227,6 +252,16 @@
       <div class="meta" style="margin-bottom:6px">Tudo que acontece vira evento; os agentes
         assinam e reagem — aqui é o registro cru, com quem reagiu.</div>
       <div id="eventos"><div class="vazio">carregando…</div></div>
+    </section>
+
+    <section class="ds-card painel">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--ds-e-2)">
+        <h2 style="margin:0">Tarefas do escritório</h2>
+      </div>
+      <div class="meta" style="margin-bottom:8px">O estado real de cada trabalho, direto
+        da auditoria — nada aqui é decorativo.</div>
+      <div class="tf-filtros" id="tf-filtros"></div>
+      <div class="esteira" id="tarefas"><div class="vazio">carregando…</div></div>
     </section>
 
     <section class="ds-card painel">
@@ -1455,6 +1490,7 @@ window.filtrar = chave => {
   chip.hidden = !filtro;
   if (filtro) chip.textContent = `só ${filtro} — limpar`;
   esteira();
+  tarefasRender();
 };
 
 // -------- foco + instruções: só capacidades REAIS de cada mesa
@@ -1570,6 +1606,43 @@ async function rotinas(){
   } catch {}
 }
 rotinas(); setInterval(rotinas, 60000);
+
+// -------- quadro de tarefas: o estado real de cada trabalho
+const ROT_TAREFA = {fazendo: 'fazendo', aguardando: 'aguardando', agendada: 'agendada',
+                    feita: 'feita', falhou: 'falhou'};
+let tfFiltro = 'todas', tfDados = null;
+async function tarefas(){
+  try {
+    tfDados = await (await fetch('/api/sala/tarefas')).json();
+    tarefasRender();
+  } catch {}
+}
+function tarefasRender(){
+  if (!tfDados) return;
+  const c = tfDados.contagem;
+  document.getElementById('tf-filtros').innerHTML =
+    [['todas', tfDados.tarefas.length], ['fazendo', c.fazendo || 0],
+     ['aguardando', c.aguardando || 0], ['agendada', c.agendada || 0],
+     ['feita', c.feita || 0], ['falhou', c.falhou || 0]]
+    .filter(([n, q]) => n === 'todas' || q > 0 || n === tfFiltro)
+    .map(([n, q]) => `<span class="tf-chip ${tfFiltro === n ? 'on' : ''}"
+        onclick="tfFiltrar('${n}')">${n} <b>${q}</b></span>`).join('');
+  let lista = tfDados.tarefas.filter(t => tfFiltro === 'todas' || t.estado === tfFiltro);
+  if (filtro) lista = lista.filter(t => t.quem === filtro);
+  const ordem = {fazendo: 0, aguardando: 1, agendada: 2, falhou: 3, feita: 4};
+  lista.sort((a, b) => (ordem[a.estado] - ordem[b.estado])
+                       || (b.quando || '').localeCompare(a.quando || ''));
+  document.getElementById('tarefas').innerHTML = lista.length
+    ? lista.slice(0, 22).map(t => `<div class="tf">
+        <span class="est est--${t.estado}">${ROT_TAREFA[t.estado]}</span>
+        <span class="oq"><b style="color:${CORES[t.quem] || ''}">${t.quem}</b>
+          ${t.titulo}${t.motivo ? `<div class="meta">${t.motivo}</div>` : ''}
+          ${t.resultado ? `<div class="meta">${t.resultado}</div>` : ''}</span>
+        <span class="qd">${t.quando ? tempo(t.quando) : ''}</span></div>`).join('')
+    : '<div class="vazio">nada neste estado' + (filtro ? ' para esta mesa' : '') + '</div>';
+}
+window.tfFiltrar = n => { tfFiltro = n; tarefasRender(); };
+tarefas(); setInterval(tarefas, 10000);
 
 // -------- coreografia REAL: evento do barramento → quem anda até quem, com o conteúdo
 // verdadeiro no balão. [de, para, fala(payload)] — para=null: leva ao núcleo.

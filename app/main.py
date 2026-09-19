@@ -992,7 +992,7 @@ def contratos_lista(request: Request):
                              FROM quote q
                              LEFT JOIN deal d ON d.id = q.deal_id
                              LEFT JOIN company co ON co.id = d.company_id
-                            WHERE q.status IN ('enviada', 'aceita')
+                            WHERE q.status IN ('rascunho', 'enviada', 'aceita')
                               AND NOT EXISTS (SELECT 1 FROM contrato c
                                                WHERE c.quote_id = q.id)
                             ORDER BY q.criado_em DESC LIMIT 12""")
@@ -2056,6 +2056,86 @@ def api_sala_funcao(dados: dict):
     barramento.emitir("funcao.criada", "humano",
                       {"chave": chave, "mesa": mesa, "nome": nome})
     return {"ok": True, "msg": f"função '{nome}' criada na equipe {mesa}", "chave": chave}
+
+
+TITULO_GATILHO = {
+    "agenda:triagem": "Triagem da caixa de e-mail",
+    "agenda:reativacao": "Reativação de clientes parados (RFM)",
+    "agenda": "Vigia de prazos e Drive",
+    "agenda:verificacao": "Verificação de pendências da casa",
+    "proposta:voz": "Montar proposta a partir da fala",
+    "tarefa:delegada": "Tarefa delegada pelo dono",
+    "mensagem:sala": "Qualificar lead (instrução da Sala)",
+    "mensagem:email": "Qualificar lead vindo por e-mail",
+    "mensagem:whatsapp": "Qualificar lead do WhatsApp",
+    "webhook": "Lead recebido por webhook",
+}
+
+
+@app.get("/api/sala/tarefas")
+def api_sala_tarefas():
+    """O quadro REAL de trabalho: cada linha nasce de uma tabela da casa — execuções da
+    auditoria (fazendo/feita/falhou), aprovações abertas e funções sem credencial
+    (aguardando + o quê), rotinas e fila de máquina (agendada). Nada é desenhado."""
+    itens = []
+
+    def resumo_saida(s):
+        if not isinstance(s, dict):
+            return ""
+        return " · ".join(f"{k}: {v}" for k, v in list(s.items())[:3]
+                          if not isinstance(v, (dict, list)))[:120]
+
+    for r in db.q("""SELECT agente, gatilho, status, saida, iniciado_em, concluido_em
+                       FROM agent_run ORDER BY iniciado_em DESC LIMIT 30"""):
+        estado = ("fazendo" if r["status"] == "em_progresso"
+                  else "feita" if r["status"] in ("sucesso", "parcial") else "falhou")
+        itens.append({
+            "quem": r["agente"], "estado": estado,
+            "titulo": TITULO_GATILHO.get(r["gatilho"], r["gatilho"]),
+            "motivo": None, "resultado": resumo_saida(r["saida"]),
+            "quando": (r["concluido_em"] or r["iniciado_em"]).isoformat()})
+
+    for a in db.q("""SELECT ar.agente, a.titulo, a.criado_em
+                       FROM approval_request a JOIN agent_run ar ON ar.id = a.run_id
+                      WHERE a.status = 'pendente'
+                      ORDER BY a.criado_em DESC LIMIT 15"""):
+        itens.append({"quem": a["agente"], "estado": "aguardando",
+                      "titulo": a["titulo"],
+                      "motivo": "sua aprovação (tela Aprovações)", "resultado": "",
+                      "quando": a["criado_em"].isoformat()})
+
+    from . import funcoes as mod_funcoes
+    vistos = set()
+    for f in mod_funcoes.listar():
+        if f["estado"] == "precisa_conexao" and f["conexao"]:
+            chave = (f["mesa"], f["conexao"])
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            itens.append({"quem": f["mesa"], "estado": "aguardando",
+                          "titulo": f["nome"],
+                          "motivo": f"conexão {f['conexao']} em Dados → Conexões",
+                          "resultado": "", "quando": None})
+
+    for r in api_sala_rotinas()["rotinas"]:
+        itens.append({"quem": r["agente"], "estado": "agendada",
+                      "titulo": r["nome"], "motivo": f"próxima: {r['proxima']}",
+                      "resultado": "", "quando": r["ultima"]})
+
+    for j in db.q("""SELECT tipo, status, criado_em FROM job_queue
+                      WHERE tipo LIKE 'mac:%%' AND status IN ('pendente','processando')
+                      ORDER BY criado_em DESC LIMIT 10"""):
+        itens.append({"quem": "dit",
+                      "estado": "fazendo" if j["status"] == "processando" else "agendada",
+                      "titulo": "Máquina: " + j["tipo"][4:].replace("_", " "),
+                      "motivo": ("a máquina está executando" if j["status"] == "processando"
+                                 else "esperando a máquina buscar (polling de 20 s)"),
+                      "resultado": "", "quando": j["criado_em"].isoformat()})
+
+    contagem = {}
+    for t in itens:
+        contagem[t["estado"]] = contagem.get(t["estado"], 0) + 1
+    return {"tarefas": itens, "contagem": contagem}
 
 
 # Ações que uma instrução da Sala pode disparar — só capacidades REAIS de cada agente.# Texto livre só onde existe pipeline de linguagem (propostas, comercial); o resto é botão.
