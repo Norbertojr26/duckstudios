@@ -265,11 +265,14 @@ function normalizar(obj, altura){
   obj.position.sub(new THREE.Vector3(centro.x, cx2.min.y, centro.z));
   const raiz = new THREE.Group(); raiz.add(obj); return raiz;
 }
-const ALTURAS = {pato: .5, arvore: 1.9, mesa: .78, cadeira: .92,
-                 pessoa_m: 1.15, pessoa_f: 1.15, gato: .3};
+const ALTURAS = {pato: .5, arvore: 1.9, mesa: .78, cadeira: .92, gato: .42, pessoa: 1.15};
+const ARQUIVOS = ['pato', 'arvore', 'mesa', 'cadeira', 'gato',
+                  ...[1, 2, 3, 4].map(i => `pessoa_m${i}`),
+                  ...[1, 2, 3, 4].map(i => `pessoa_f${i}`)];
 const modelosProntos = (async () => {
   const loader = new GLTFLoader();
-  for (const nome of Object.keys(ALTURAS)){
+  for (const nome of ARQUIVOS){
+    const altura = ALTURAS[nome] ?? ALTURAS.pessoa;
     for (const caminho of [`/static/modelos/${nome}.glb`,
                            `/static/modelos/${nome}.gltf`,
                            `/static/modelos/${nome}/${nome}.glb`]){
@@ -277,26 +280,50 @@ const modelosProntos = (async () => {
         const gl = await loader.loadAsync(caminho);
         gl.scene.traverse(o => { if (o.isMesh){ o.castShadow = true;
           o.frustumCulled = false; } });
-        MODELOS[nome] = {raiz: normalizar(gl.scene, ALTURAS[nome]),
-                         anims: gl.animations || []};
+        const item = {raiz: normalizar(gl.scene, altura), anims: gl.animations || []};
+        const grupo = nome.match(/^(pessoa_[mf])\d+$/);
+        if (grupo) (MODELOS[grupo[1]] ||= []).push(item);
+        else MODELOS[nome] = item;
         break;
       } catch {}                                 // sem arquivo → segue o procedural
     }
   }
 })();
-function instanciar(nome){
-  const m = MODELOS[nome]; if (!m) return null;
+
+// troca de animação com crossfade; "once" congela no último quadro (ex.: SitDown)
+function tocar(fig, nome, once = false){
+  const r = fig.userData.rig; if (!r) return;
+  const acao = r.acoes[nome] || r.acoes.idle;
+  if (!acao || r.atual === nome) return;
+  acao.reset();
+  if (once){ acao.setLoop(THREE.LoopOnce, 1); acao.clampWhenFinished = true; }
+  else acao.setLoop(THREE.LoopRepeat, Infinity);
+  if (r.atualAcao) acao.crossFadeFrom(r.atualAcao, .22, false);
+  acao.play(); r.atualAcao = acao; r.atual = nome;
+}
+
+function montarInstancia(m){
   let temPele = false;
   m.raiz.traverse(o => { if (o.isSkinnedMesh) temPele = true; });
   const c = temPele ? clonarEsqueleto(m.raiz) : m.raiz.clone(true);
   if (m.anims.length && temPele){
     const mixer = new THREE.AnimationMixer(c);
-    const idle = m.anims.find(a => /idle/i.test(a.name)) || m.anims[0];
-    mixer.clipAction(idle).play();
-    mixer.update(Math.random() * 2);             // dessincroniza as cópias
+    const acha = re => { const cl = m.anims.find(a => re.test(a.name));
+                         return cl ? mixer.clipAction(cl) : null; };
+    c.userData.rig = {mixer, atual: null, atualAcao: null,
+      acoes: {idle: acha(/^idle/i), walk: acha(/^walk$/i),
+              sentar: acha(/sitdown/i), levantar: acha(/standup/i)}};
     mixers.push(mixer);
+    tocar(c, 'idle');
+    mixer.update(Math.random() * 2);             // dessincroniza as cópias
   }
   return c;
+}
+
+function instanciar(nome, semente = 0){
+  const m = MODELOS[nome]; if (!m) return null;
+  if (Array.isArray(m)) return m.length ? montarInstancia(m[semente % m.length]) : null;
+  return montarInstancia(m);
 }
 
 // ================================================================ escritório 3D
@@ -487,7 +514,7 @@ const hashCh = s => [...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0);
 function figura(cor, chave=''){
   const h = hashCh(chave);
   const fem = (GENERO[chave] || (h % 2 ? 'f' : 'm')) === 'f';
-  const mod = instanciar(fem ? 'pessoa_f' : 'pessoa_m');
+  const mod = instanciar(fem ? 'pessoa_f' : 'pessoa_m', h);
   if (mod) return mod;                       // pack .glb presente → usa o modelo
   const pele = new THREE.MeshStandardMaterial({color: TONS_PELE[h % TONS_PELE.length],
                                                roughness: .7});
@@ -655,10 +682,12 @@ function estacao(m, ilha, lx, lz){
   }
 
   const fig = figura(m.cor, m.chave);
-  // com personagem .glb (rig animado) ele trabalha DE PÉ ao lado da cadeira;
-  // o boneco procedural senta de verdade no assento
-  if (MODELOS.pessoa_m || MODELOS.pessoa_f) fig.position.set(.62, 0, 1.02);
-  else fig.position.set(0, .34, .9);
+  // personagem com rig SENTA de verdade (SitDown congelado); sem rig, o boneco
+  // procedural senta erguido no assento
+  if (fig.userData.rig){
+    fig.position.set(0, .4, .78);
+    tocar(fig, 'sentar', true);
+  } else fig.position.set(0, .34, .9);
   fig.rotation.y = Math.PI;
   g.add(fig);
 
@@ -716,10 +745,10 @@ function montarEscritorio(mesas){
     // ponte até a praça central
     const dist = Math.hypot(cx, cz), compr = dist - prof / 2 - 2.1;
     if (compr > .4){
-      const ponte = new THREE.Mesh(new THREE.BoxGeometry(1.1, .1, compr),
+      const ponte = new THREE.Mesh(new THREE.BoxGeometry(1.1, .05, compr),
         new THREE.MeshStandardMaterial({color: 0x20242b, roughness: .9}));
       const meioR = 2.1 + compr / 2;
-      ponte.position.set(Math.sin(ang) * meioR, .05, Math.cos(ang) * meioR);
+      ponte.position.set(Math.sin(ang) * meioR, .025, Math.cos(ang) * meioR);
       ponte.lookAt(0, .05, 0); ponte.receiveShadow = true;
       cena.add(ponte); ilhasGrupos.push(ponte);
     }
@@ -808,18 +837,25 @@ function animarFiguras(t){
     const a = e.anda;
     if (!a){
       const base = e.figCasaLocal;
-      const digita = e.m.estado === 'trabalhando' ? Math.sin(t / 90) * .015 : 0;
-      e.fig.position.set(base.x, base.y + Math.sin(t / 600) * .01 + digita, base.z);
+      if (e.fig.userData.rig){
+        e.fig.position.copy(base);
+        tocar(e.fig, 'sentar', true);
+      } else {
+        const digita = e.m.estado === 'trabalhando' ? Math.sin(t / 90) * .015 : 0;
+        e.fig.position.set(base.x, base.y + Math.sin(t / 600) * .01 + digita, base.z);
+      }
       continue;
     }
     const k = Math.min((t - a.t0) / a.dur, 1);
     const alvo = a.fase === 'volta' ? a.origem : a.destino;
     const de   = a.fase === 'volta' ? a.destino : a.origem;
     if (a.fase !== 'pausa'){
+      tocar(e.fig, 'walk');
       const p = de.clone().lerp(alvo, k);
       // levanta/senta suave: interpola a altura dos extremos + o quique do passo
-      p.y = de.y + (alvo.y - de.y) * k
-            + Math.abs(Math.sin(k * Math.PI * (a.dur / 260))) * .05;
+      const quique = e.fig.userData.rig ? 0
+        : Math.abs(Math.sin(k * Math.PI * (a.dur / 260))) * .05;
+      p.y = de.y + (alvo.y - de.y) * k + quique;
       const local = e.g.worldToLocal(p.clone());
       e.fig.position.copy(local);
       const dir = e.g.worldToLocal(alvo.clone()).sub(local);
@@ -828,6 +864,7 @@ function animarFiguras(t){
     if (k >= 1){
       if (a.fase === 'ida'){
         a.fase = 'pausa'; a.t0 = t; a.dur = a.pausaMs;
+        tocar(e.fig, 'idle');
         if (a.aoChegar) a.aoChegar();
       } else if (a.fase === 'pausa'){
         a.fase = 'volta'; a.t0 = t;
@@ -835,6 +872,7 @@ function animarFiguras(t){
       } else {
         e.anda = null; e.fig.position.copy(e.figCasaLocal);
         e.fig.rotation.y = Math.PI; e.balao.set(null);
+        tocar(e.fig, 'sentar', true);
       }
     }
   }
@@ -858,8 +896,8 @@ function conversaAmbiente(){
   caminhar(b.m.chave, meio.clone().add(new THREE.Vector3(-.4, 0, 0)), 4200,
            () => b.balao.set('…'));
 }
-setInterval(conversaAmbiente, 50000);
-setTimeout(conversaAmbiente, 6000);
+setInterval(conversaAmbiente, 24000);
+setTimeout(conversaAmbiente, 5000);
 
 // ================================================================ o pato (mascote)
 // Ambientação assumida: ronda de moral do escritório. Anda contornando o núcleo (nada
@@ -972,7 +1010,7 @@ function gatoProximaAcao(){
 }
 
 function gatoPontoLivre(){
-  const ang = Math.random() * Math.PI * 2, r = 2.7 + Math.random() * 4.2;
+  const ang = Math.random() * Math.PI * 2, r = 2.6 + Math.random() * 1.5;
   return new THREE.Vector3(Math.sin(ang) * r, 0, Math.cos(ang) * r);
 }
 
@@ -993,7 +1031,8 @@ function gatoComecar(t, nome){
     if (perto && Math.random() < .6) perto.balao.set(
       FALAS_GATO_GENTE[Math.floor(Math.random() * FALAS_GATO_GENTE.length)]); }
   else if (nome === 'esfregar' && e){
-    gato.alvoP = mesaMundo(e).multiplyScalar(.78); gato.alvoP.y = 0;
+    gato.alvoP = mesaMundo(e); gato.alvoP.y = 0;
+    gato.alvoP.normalize().multiplyScalar(3.0);
     gato.mesaAlvo = e; gato.alvoY = 0; gato.dur = 99999; }
   else if (nome === 'subir_mesa' && e){
     gato.alvoP = e.g.localToWorld(new THREE.Vector3(.35, .77, -.1));
@@ -1108,12 +1147,12 @@ function patoNovoAlvo(){
     const p = e.g.localToWorld(new THREE.Vector3(-.55, .77, -.05));
     return {p, visita: e, voa: true, alt: p.y};
   }
-  if (mesas.length && sorte < .55){                   // visita a pé, ao lado da mesa
+  if (mesas.length && sorte < .55){                   // visita a pé: beira da praça
     const e = mesas[Math.floor(Math.random() * mesas.length)];
-    const p = mesaMundo(e).multiplyScalar(.72); p.y = 0;
+    const p = mesaMundo(e); p.y = 0; p.normalize().multiplyScalar(3.05);
     return {p, visita: e, voa: false, alt: 0};
   }
-  const ang = Math.random() * Math.PI * 2, r = 2.8 + Math.random() * 3.4;
+  const ang = Math.random() * Math.PI * 2, r = 2.7 + Math.random() * 1.5;
   return {p: new THREE.Vector3(Math.sin(ang) * r, 0, Math.cos(ang) * r),
           visita: null, voa: Math.random() < .25, alt: 0};
 }
@@ -1138,7 +1177,7 @@ function animarPato(t, dt){
     const k = Math.min((t - pato.t0) / pato.dur, 1);
     pos.lerpVectors(pato.origem, alvo, k);
     pos.y = pato.altBase + (pato.altAlvo - pato.altBase) * k
-            + Math.sin(k * Math.PI) * 1.7;                      // arco do voo
+            + Math.sin(k * Math.PI) * 2.5;                      // arco por cima do núcleo
     const dir = alvo.clone().sub(pato.origem);
     if (dir.lengthSq() > .001) pato.g.rotation.y = Math.atan2(dir.x, dir.z);
     pato.asas.forEach((a, i) => a.rotation.z = (i ? -1 : 1) * Math.sin(t / 55) * .9);
