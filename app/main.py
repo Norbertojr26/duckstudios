@@ -373,6 +373,14 @@ async def conexoes_salvar(request: Request, servico: str):
     return RedirectResponse("/conexoes", 303)
 
 
+@app.get("/api/conexoes")
+def api_conexoes():
+    """Catálogo das conexões (nomes e estado de preenchimento — nunca valores)."""
+    return {"conexoes": [{"chave": c["chave"], "nome": c["nome"], "agente": c["agente"],
+                          "conectada": conexoes.conectada(c["chave"])}
+                         for c in conexoes.CATALOGO]}
+
+
 @app.post("/api/conexoes/{servico}/testar")
 def conexoes_testar(request: Request, servico: str):
     """Teste real, na hora: IMAP para o Gmail, chamada mínima para a Anthropic."""
@@ -1697,8 +1705,13 @@ MESAS = [
     {"chave": "trafego", "nome": "Tráfego", "papel": "Campanhas e tráfego pago",
      "sop": "—", "cor": "#A78BFA", "origem": "futuro",
      "motivo": "aguardando conexão com Meta/Google Ads"},
+    {"chave": "marketing", "nome": "Marketing", "papel": "Artes, posts e divulgação",
+     "sop": "—", "cor": "#F472B6", "origem": "futuro",
+     "motivo": "aguardando conexão de imagem (OpenAI/Gemini) e Meta"},
     {"chave": "secretaria", "nome": "Secretária", "papel": "E-mail, agenda e triagem",
      "sop": "SOP-006", "cor": "#38BDF8", "origem": "agendado"},
+    {"chave": "gerente", "nome": "Gerente", "papel": "Garante entregas e verifica "
+     "cada solicitação", "sop": "SOP-007", "cor": "#E879F9", "origem": "agendado"},
     {"chave": "financeiro", "nome": "Financeiro", "papel": "Conciliação e cobrança",
      "sop": "—", "cor": "#FB923C", "origem": "futuro",
      "motivo": "aguardando extrato/conta para conciliar"},
@@ -1924,6 +1937,51 @@ chave inédita, minúscula; nome próprio brasileiro de uma palavra.
         return JSONResponse({"ok": False, "msg": f"{type(e).__name__}: {e}"}, 500)
 
 
+@app.get("/api/sala/equipes")
+def api_sala_equipes():
+    """A visão de equipes (estilo Maestri): cada mesa com contadores reais e as tags de
+    função — ativas, aguardando conexão, prontas e na fila."""
+    from . import funcoes as mod_funcoes
+    estado = api_agentes_estado()
+    por_mesa = {}
+    for f in mod_funcoes.listar():
+        por_mesa.setdefault(f["mesa"], []).append(f)
+    equipes = []
+    for m in estado["mesas"]:
+        fs = por_mesa.get(m["chave"], [])
+        equipes.append({**m, "funcoes": fs,
+                        "ativas": sum(1 for f in fs if f["estado"] == "ativa")})
+    return {"equipes": equipes, "conexoes_url": "/conexoes"}
+
+
+@app.post("/api/sala/funcao")
+def api_sala_funcao(dados: dict):
+    """O dono cria uma função nova e liga a uma equipe — vira tag na hora; se apontar
+    uma conexão do catálogo, o estado passa a acompanhar a credencial."""
+    nome = (dados.get("nome") or "").strip()[:60]
+    mesa = (dados.get("mesa") or "").strip()
+    if not nome or not mesa:
+        return JSONResponse({"ok": False, "msg": "nome e equipe são obrigatórios"}, 400)
+    from .agentes import custom as ag_custom
+    validas = {m["chave"] for m in MESAS} | {c["chave"] for c in ag_custom.listar()}
+    if mesa not in validas:
+        return JSONResponse({"ok": False, "msg": "equipe desconhecida"}, 400)
+    cx = (dados.get("conexao") or "").strip() or None
+    if cx and cx not in {c["chave"] for c in conexoes.CATALOGO}:
+        return JSONResponse({"ok": False, "msg": "conexão desconhecida"}, 400)
+    chave = re.sub(r"[^a-z0-9_]", "", nome.lower().replace(" ", "_"))[:40] or "funcao"
+    db.exec_("""INSERT INTO funcao (chave, mesa, nome, descricao, requisito, conexao,
+                                    embutida, origem)
+                VALUES (%s,%s,%s,%s,%s,%s,false,'dono')
+                ON CONFLICT (chave) DO NOTHING""",
+             (chave, mesa, nome, (dados.get("descricao") or "").strip()[:300],
+              (dados.get("requisito") or "").strip()[:200], cx))
+    from .agentes import barramento
+    barramento.emitir("funcao.criada", "humano",
+                      {"chave": chave, "mesa": mesa, "nome": nome})
+    return {"ok": True, "msg": f"função '{nome}' criada na equipe {mesa}", "chave": chave}
+
+
 # Ações que uma instrução da Sala pode disparar — só capacidades REAIS de cada agente.# Texto livre só onde existe pipeline de linguagem (propostas, comercial); o resto é botão.
 @app.post("/api/sala/acao")
 def api_sala_acao(dados: dict):
@@ -1967,6 +2025,12 @@ def api_sala_acao(dados: dict):
             return {"ok": True, "resumo": r,
                     "msg": f"{r.get('novos', 0)} e-mail(s) triados — "
                            f"{r.get('respostas_aguardando_ok', 0)} resposta(s) aguardando seu OK"}
+        if agente == "gerente" and acao == "verificar":
+            from .agentes import gerente as ag
+            r = ag.verificar()
+            return {"ok": True, "resumo": r,
+                    "msg": (f"{r['achados']} pendência(s): " + "; ".join(r["itens"][:3])
+                            if r["achados"] else "verificado — nada parado na casa")}
         if agente == "dit" and acao == "inventariar":
             m = db.q1("SELECT id, nome FROM maquina ORDER BY ultimo_heartbeat DESC "
                       "NULLS LAST LIMIT 1")

@@ -515,8 +515,21 @@ CREATE TABLE evento (
 );
 CREATE INDEX evento_pendente_idx ON evento (criado_em) WHERE processado_em IS NULL;
 
--- Agentes admitidos pela delegação da Sala (modelo Maestri): mesa própria, missão fixa.
--- Um agente custom REDIGE e analisa dentro da missão; nunca executa nada (A2 é teto).
+-- Funções: as tags de trabalho de cada equipe/mesa (catálogo em app/funcoes.py; o dono
+-- cria as dele na Sala). Estado é calculado na leitura a partir das conexões.
+CREATE TABLE funcao (
+    chave           text PRIMARY KEY,
+    mesa            text NOT NULL,
+    nome            text NOT NULL,
+    descricao       text NOT NULL DEFAULT '',
+    requisito       text NOT NULL DEFAULT '',
+    conexao         text,
+    embutida        boolean NOT NULL DEFAULT false,
+    origem          text NOT NULL DEFAULT 'catalogo' CHECK (origem IN ('catalogo','dono')),
+    criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
+-- Agentes admitidos pela delegação da Sala (modelo Maestri): mesa própria, missão fixa.-- Um agente custom REDIGE e analisa dentro da missão; nunca executa nada (A2 é teto).
 CREATE TABLE agente_custom (
     chave           text PRIMARY KEY,
     nome            text NOT NULL,

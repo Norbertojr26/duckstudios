@@ -59,6 +59,41 @@
   .filtro-chip{cursor:pointer}
   .legenda-amb{font-size:.6875rem;color:var(--ds-txt-3);padding:8px var(--ds-e-2) 0;
                line-height:1.5}
+
+  /* -------- aba Equipes: cartões por mesa + tags de função (estilo Maestri) */
+  #equipes{max-height:600px;overflow-y:auto;padding:4px 2px}
+  .eq-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+            gap:var(--ds-e-3)}
+  .eq{border:1px solid var(--ds-border-forte);border-radius:16px;
+      background:var(--ds-grad-surface-2);box-shadow:var(--ds-elev-1);padding:14px 15px}
+  .eq-cab{display:flex;align-items:baseline;gap:8px}
+  .eq-cab i{width:9px;height:9px;border-radius:99px;font-style:normal;flex:none;
+            align-self:center}
+  .eq-cab b{font-size:.9375rem}
+  .eq-cab small{margin-left:auto;font-family:var(--ds-mono);font-size:.625rem;
+                letter-spacing:.07em;text-transform:uppercase;color:var(--ds-txt-3)}
+  .eq-nums{display:flex;gap:var(--ds-e-4);margin:8px 0 10px;font-size:.6875rem;
+           color:var(--ds-txt-3);font-family:var(--ds-mono);letter-spacing:.05em;
+           text-transform:uppercase}
+  .eq-nums b{color:var(--ds-txt);font-size:.9375rem;font-family:var(--ds-font);
+             display:block;font-variant-numeric:tabular-nums}
+  .eq-tags{display:flex;flex-wrap:wrap;gap:6px}
+  .tagf{font-size:.71875rem;padding:4px 10px;border-radius:999px;cursor:pointer;
+        border:1px solid var(--ds-border-forte);color:var(--ds-txt-2);
+        display:inline-flex;align-items:center;gap:6px;background:var(--ds-surface)}
+  .tagf::before{content:"";width:6px;height:6px;border-radius:99px;background:var(--ds-txt-3)}
+  .tagf--ativa{color:var(--ds-txt)} .tagf--ativa::before{background:var(--ds-ok)}
+  .tagf--precisa_conexao::before{background:var(--ds-atencao)}
+  .tagf--pronta::before{background:var(--ds-info)}
+  .eq-det{font-size:.75rem;color:var(--ds-txt-2);line-height:1.5;margin-top:9px;
+          border-top:1px solid var(--ds-border);padding-top:9px;display:none}
+  .eq-det b{color:var(--ds-txt)}
+  .eq-nova{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:var(--ds-e-3)}
+  .eq-nova .ds-campo{min-height:36px}
+  .eq-legenda{display:flex;gap:var(--ds-e-4);flex-wrap:wrap;font-size:.6875rem;
+              color:var(--ds-txt-3);margin-bottom:var(--ds-e-3)}
+  .eq-legenda span{display:inline-flex;align-items:center;gap:6px}
+  .eq-legenda i{width:7px;height:7px;border-radius:99px;font-style:normal}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo">
@@ -72,10 +107,12 @@
   <section class="ds-card ds-card--alto palco">
     <div class="abas">
       <button class="aba on" id="aba-office" onclick="verAba('office')">Escritório</button>
+      <button class="aba" id="aba-equipes" onclick="verAba('equipes')">Equipes</button>
       <button class="aba" id="aba-grafo" onclick="verAba('grafo')">Grafo do estúdio</button>
-      <span class="dica-cam">arrastar gira · scroll aproxima · botão direito move</span>
+      <span class="dica-cam" id="dica-cam">arrastar gira · scroll aproxima · botão direito move</span>
     </div>
     <div id="cena3d"></div>
+    <div id="equipes" style="display:none"></div>
     <canvas id="grafo"></canvas>
     <div class="placar">
       <div class="p"><span class="rot">Execuções hoje</span><b id="pl-hoje">—</b></div>
@@ -668,6 +705,7 @@ const ACOES = {
               'Escreva: cliente, serviço, valores e pagamento…'}],
   dit:      [{acao:'inventariar', rotulo:'Inventariar pastas da máquina'}],
   secretaria:[{acao:'triagem', rotulo:'Triar caixa de entrada agora'}],
+  gerente:  [{acao:'verificar', rotulo:'Verificar tudo agora'}],
 };
 
 window.focar = chave => {
@@ -936,16 +974,101 @@ function grafoLaco(){
   requestAnimationFrame(grafoLaco);
 }
 
+// ================================================================ aba Equipes
+// Cada mesa é uma equipe; cada função é uma tag com estado honesto: verde = funcionando
+// hoje; âmbar = falta credencial (liga em Dados → Conexões); azul = credencial ok,
+// implantação na fila; cinza = planejada.
+const ROT_FUNCAO = {ativa: 'funcionando', precisa_conexao: 'falta conexão',
+                    pronta: 'credencial ok — na fila de implantação', fila: 'planejada'};
+
+async function equipesMontar(){
+  const alvo = document.getElementById('equipes');
+  alvo.innerHTML = '<div class="vazio">carregando…</div>';
+  try {
+    const [d, cx] = await Promise.all([
+      (await fetch('/api/sala/equipes')).json(),
+      (await fetch('/api/conexoes')).json()]);
+    const opEquipes = d.equipes.map(e =>
+      `<option value="${e.chave}">${e.nome}</option>`).join('');
+    const opConexoes = '<option value="">conexão (opcional)</option>' +
+      cx.conexoes.map(c => `<option value="${c.chave}">${c.nome}</option>`).join('');
+    alvo.innerHTML = `
+      <div class="eq-legenda">
+        <span><i style="background:var(--ds-ok)"></i> funcionando</span>
+        <span><i style="background:var(--ds-atencao)"></i> falta conexão — clique e ligue</span>
+        <span><i style="background:var(--ds-info)"></i> credencial ok, implantação na fila</span>
+        <span><i style="background:var(--ds-txt-3)"></i> planejada</span>
+      </div>
+      <div class="eq-nova">
+        <input class="ds-campo" id="fn-nome" placeholder="Nova função — ex.: Cobrança de atrasados"
+               style="flex:2;min-width:180px">
+        <select class="ds-campo" id="fn-mesa" style="flex:1;min-width:120px">${opEquipes}</select>
+        <select class="ds-campo" id="fn-cx" style="flex:1;min-width:120px">${opConexoes}</select>
+        <button class="ds-btn" onclick="funcaoCriar()">Criar e ligar</button>
+        <span class="meta" id="fn-resp"></span>
+      </div>
+      <div class="eq-grade">` + d.equipes.map((e, ei) => `
+        <div class="eq">
+          <div class="eq-cab"><i style="background:${e.cor}"></i><b>${e.nome}</b>
+            <small>${e.funcoes.length} função(ões)</small></div>
+          <div class="eq-nums">
+            <span>hoje<b>${e.hoje}</b></span>
+            <span>p/ aprovar<b>${e.pendentes}</b></span>
+            <span>ativas<b>${e.ativas}/${e.funcoes.length}</b></span>
+          </div>
+          <div class="eq-tags">${e.funcoes.map((f, fi) =>
+            `<span class="tagf tagf--${f.estado}"
+                   onclick="funcaoDetalhe(${ei},${fi})">${f.nome}</span>`).join('')
+            || '<span class="meta">missão única — clique na mesa no Escritório</span>'}</div>
+          <div class="eq-det" id="eq-det-${ei}"></div>
+        </div>`).join('') + '</div>';
+    window._equipes = d.equipes;
+  } catch (e){ alvo.innerHTML = '<div class="vazio">não carregou: ' + e + '</div>'; }
+}
+
+window.funcaoDetalhe = (ei, fi) => {
+  const f = window._equipes[ei].funcoes[fi];
+  const det = document.getElementById('eq-det-' + ei);
+  const liga = f.estado === 'precisa_conexao'
+    ? ` — <a href="/conexoes">ligar em Conexões</a>` : '';
+  det.style.display = det.dataset.f === f.chave && det.style.display === 'block'
+    ? 'none' : 'block';
+  det.dataset.f = f.chave;
+  det.innerHTML = `<b>${f.nome}</b> · ${ROT_FUNCAO[f.estado]}${liga}
+    <div>${f.descricao || ''}</div>
+    <div class="meta">precisa: ${f.requisito || 'nada'}</div>`;
+};
+
+window.funcaoCriar = async () => {
+  const nome = document.getElementById('fn-nome').value.trim();
+  const mesa = document.getElementById('fn-mesa').value;
+  const conexao = document.getElementById('fn-cx').value;
+  const resp = document.getElementById('fn-resp');
+  if (!nome){ resp.textContent = 'dê um nome'; return; }
+  try {
+    const r = await fetch('/api/sala/funcao', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nome, mesa, conexao})});
+    const d = await r.json();
+    resp.textContent = d.msg || '';
+    if (d.ok) equipesMontar();
+  } catch (e){ resp.textContent = 'falhou: ' + e; }
+};
+
 window.verAba = async aba => {
   grafoLigado = aba === 'grafo';
-  document.getElementById('cena3d').style.display = grafoLigado ? 'none' : '';
+  document.getElementById('cena3d').style.display = aba === 'office' ? '' : 'none';
+  document.getElementById('equipes').style.display = aba === 'equipes' ? 'block' : 'none';
   cv.style.display = grafoLigado ? 'block' : 'none';
-  document.getElementById('aba-office').classList.toggle('on', !grafoLigado);
-  document.getElementById('aba-grafo').classList.toggle('on', grafoLigado);
+  for (const a of ['office', 'equipes', 'grafo'])
+    document.getElementById('aba-' + a).classList.toggle('on', a === aba);
+  document.getElementById('dica-cam').style.visibility =
+    aba === 'office' ? 'visible' : 'hidden';
   if (grafoLigado){
     if (!gNos.length) await grafoMontar();
     grafoLaco();
-  } else medir();
+  } else if (aba === 'equipes') equipesMontar();
+  else medir();
 };
 </script>
 {% endblock %}

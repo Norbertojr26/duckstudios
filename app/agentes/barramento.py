@@ -80,6 +80,19 @@ def _triagem_email(ev):
     return secretaria.triagem()
 
 
+def _verificacao_gerente(ev):
+    """No máximo 1×/hora: cobrança de pendência não precisa ser a cada tique."""
+    ha_recente = db.q1("""SELECT 1 FROM agent_run
+                           WHERE agente = 'gerente' AND status = 'sucesso'
+                             AND iniciado_em > now() - interval '55 minutes'""")
+    if ha_recente:
+        return "verificado há menos de 1 h"
+    from . import gerente
+    r = gerente.verificar()
+    return (f"{r['achados']} pendência(s) apontada(s)" if r["achados"]
+            else "tudo andando — nada parado")
+
+
 def _qualificar_lead_email(ev):
     from . import comercial
     p = ev["payload"]
@@ -163,7 +176,8 @@ ASSINATURAS = {
     "agenda.tique": [("rental", _ronda_rental),
                      ("comercial", _reativacao_comercial),
                      ("entrega", _prazos_entrega),
-                     ("secretaria", _triagem_email)],
+                     ("secretaria", _triagem_email),
+                     ("gerente", _verificacao_gerente)],
     "email.lead_recebido": [("comercial", _qualificar_lead_email)],
     "proposta.aceita": [("propostas", _minuta_apos_aceite)],
     "tarefa.delegada": [("expediente", _tarefa_delegada)],

@@ -74,6 +74,35 @@ CATALOGO = [
           "exemplo": ""},
          {"chave": "customer_id", "rotulo": "Customer ID", "tipo": "texto",
           "exemplo": "123-456-7890"}]},
+    {"chave": "openai_imagens", "nome": "OpenAI (imagens)", "agente": "Marketing",
+     "estado": "fila",
+     "descricao": "Geração de artes para o designer: posts, thumbs, mockups.",
+     "ajuda": "platform.openai.com → API keys. Usada só para gerar imagem.",
+     "campos": [
+         {"chave": "api_key", "rotulo": "API key", "tipo": "senha", "exemplo": "sk-..."}]},
+    {"chave": "gemini", "nome": "Google Gemini", "agente": "Marketing", "estado": "fila",
+     "descricao": "Alternativa de geração de imagem para o designer.",
+     "ajuda": "aistudio.google.com → Get API key.",
+     "campos": [
+         {"chave": "api_key", "rotulo": "API key", "tipo": "senha", "exemplo": "AIza..."}]},
+    {"chave": "vimeo", "nome": "Vimeo", "agente": "Entrega", "estado": "fila",
+     "descricao": "Subir cortes para review e entrega com senha.",
+     "ajuda": "developer.vimeo.com → My apps → token com upload.",
+     "campos": [
+         {"chave": "token", "rotulo": "Access token", "tipo": "senha", "exemplo": ""}]},
+    {"chave": "google_drive", "nome": "Google Drive", "agente": "Entrega", "estado": "fila",
+     "descricao": "Pastas de entrega e assets de cliente direto do CRM.",
+     "ajuda": "console.cloud.google.com → service account com acesso ao Drive do estúdio.",
+     "campos": [
+         {"chave": "credencial_json", "rotulo": "Credencial (JSON da service account)",
+          "tipo": "senha", "exemplo": ""}]},
+    {"chave": "google_agenda", "nome": "Google Agenda", "agente": "Secretária",
+     "estado": "fila",
+     "descricao": "Reuniões e datas de diária na agenda do estúdio.",
+     "ajuda": "Mesma service account do Drive, com a agenda compartilhada.",
+     "campos": [
+         {"chave": "credencial_json", "rotulo": "Credencial (JSON da service account)",
+          "tipo": "senha", "exemplo": ""}]},
 ]
 
 # Fallback: campo do banco → variável de ambiente equivalente (deploys antigos).
@@ -119,3 +148,9 @@ def preenchidos(servico):
     if not cat:
         return set()
     return {c["chave"] for c in cat["campos"] if credencial(servico, c["chave"])}
+
+
+def conectada(servico):
+    """Todos os campos da conexão preenchidos?"""
+    cat = next((c for c in CATALOGO if c["chave"] == servico), None)
+    return bool(cat) and len(preenchidos(servico)) == len(cat["campos"])

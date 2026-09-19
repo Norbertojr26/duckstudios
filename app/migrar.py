@@ -84,6 +84,16 @@ MIGRACOES = [
          cor text NOT NULL DEFAULT '#9CA3AF',
          ativo boolean NOT NULL DEFAULT true,
          criado_em timestamptz NOT NULL DEFAULT now())""",
+    """CREATE TABLE IF NOT EXISTS funcao (
+         chave text PRIMARY KEY,
+         mesa text NOT NULL,
+         nome text NOT NULL,
+         descricao text NOT NULL DEFAULT '',
+         requisito text NOT NULL DEFAULT '',
+         conexao text,
+         embutida boolean NOT NULL DEFAULT false,
+         origem text NOT NULL DEFAULT 'catalogo' CHECK (origem IN ('catalogo','dono')),
+         criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS conexao (
          servico text PRIMARY KEY,
          config jsonb NOT NULL DEFAULT '{}',
@@ -94,6 +104,18 @@ MIGRACOES = [
          criado_em timestamptz NOT NULL DEFAULT now(),
          expira_em timestamptz NOT NULL)""",
 ]
+
+
+def semear_agentes(conn):
+    """Mesas admitidas de fábrica (pedido do dono, 19/09): a copywriter usa o motor dos
+    agentes admitidos — redige no tom da casa, nunca publica nem envia sozinha."""
+    conn.execute("""INSERT INTO agente_custom (chave, nome, papel, missao, cor)
+                    VALUES ('copy', 'Bia', 'Copywriter',
+                            'Escrever copys, legendas, roteiros curtos e e-mails no tom '
+                            'da Duck Studios: direto, brasileiro, sem clichê corporativo. '
+                            'Todo texto é rascunho para o dono revisar antes de publicar.',
+                            '#FB7185')
+                    ON CONFLICT (chave) DO NOTHING""")
 
 
 def semear_dev(conn):
@@ -152,6 +174,9 @@ def rodar():
             print(f"[migrar] {s}")
             conn.execute(f.read_text(encoding="utf-8"))
         semear_dev(conn)
+        semear_agentes(conn)
+        from . import funcoes
+        funcoes.semear(conn)
         n = conn.execute("SELECT count(*) FROM asset").fetchone()[0]
         print(f"[migrar] pronto — {n} itens")
     return True
