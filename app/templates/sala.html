@@ -280,6 +280,7 @@ const modelosProntos = (async () => {
         const gl = await loader.loadAsync(caminho);
         gl.scene.traverse(o => { if (o.isMesh){ o.castShadow = true;
           o.frustumCulled = false; } });
+        if (nome === 'gato') pintarGato(gl.scene);
         const item = {raiz: normalizar(gl.scene, altura), anims: gl.animations || []};
         const grupo = nome.match(/^(pessoa_[mf])\d+$/);
         if (grupo) (MODELOS[grupo[1]] ||= []).push(item);
@@ -289,6 +290,44 @@ const modelosProntos = (async () => {
     }
   }
 })();
+
+// o gato do pack vem cinza; a casa pediu LARANJA com branco. Repinta a textura no
+// carregamento: pixels acinzentados viram laranja proporcional à luz, os claros ficam
+// brancos (peito/patas). Falhou a pintura → laranja chapado como reserva.
+function pintarGato(obj){
+  obj.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    for (const mt of (Array.isArray(o.material) ? o.material : [o.material])){
+      try {
+        if (mt.map && mt.map.image){
+          const img = mt.map.image;
+          const c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+          const px = g.getImageData(0, 0, c.width, c.height);
+          for (let i = 0; i < px.data.length; i += 4){
+            const r = px.data[i], v = px.data[i+1], b = px.data[i+2];
+            const lum = (r + v + b) / 765;
+            const sat = Math.max(r, v, b) - Math.min(r, v, b);
+            if (lum < .8 && sat < 70){
+              const k = .35 + lum * .95;
+              px.data[i]   = Math.min(255, 235 * k);
+              px.data[i+1] = Math.min(255, 130 * k);
+              px.data[i+2] = Math.min(255, 55 * k);
+            }
+          }
+          g.putImageData(px, 0, 0);
+          const nova = new THREE.CanvasTexture(c);
+          nova.flipY = mt.map.flipY; nova.colorSpace = mt.map.colorSpace;
+          mt.map = nova; mt.needsUpdate = true;
+        } else if (mt.color){
+          const hsl = mt.color.getHSL({});
+          if (hsl.s < .3 && hsl.l < .85) mt.color.setHex(0xE8863C);
+        }
+      } catch { if (mt.color) mt.color.setHex(0xE8863C); }
+    }
+  });
+}
 
 // troca de animação com crossfade; "once" congela no último quadro (ex.: SitDown)
 function tocar(fig, nome, once = false){
