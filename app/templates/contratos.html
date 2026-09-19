@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% block titulo %}Contratos — Duck Studios{% endblock %}
+{% block estilo %}<style>
+  .duas{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);
+        gap:var(--ds-e-4);align-items:start}
+  @media (max-width:1050px){.duas{grid-template-columns:1fr}}
+  .pend{padding:10px 0;border-top:1px solid var(--ds-border);font-size:.8125rem}
+  .pend:first-of-type{border-top:0}
+  .pend b{display:block}
+  .pend .meta{margin-top:2px}
+</style>{% endblock %}
+{% block conteudo %}
+<div class="topo"><div><h1>Contratos</h1>
+  <div class="sub">As minutas da casa — 7 modelos do audiovisual conforme a legislação
+    brasileira. Toda minuta nasce de uma proposta (proposta <b>aceita</b> gera a dela
+    sozinha) e é sempre rascunho até você revisar, completar e enviar.</div></div></div>
+
+<div class="duas">
+  <section class="ds-card ds-card--alto">
+    <h2>Minutas e contratos</h2>
+    {% if linhas %}
+    <table>
+      <thead><tr><th>Número</th><th>Contrato</th><th>Cliente</th><th>Proposta</th>
+        <th>Situação</th><th></th></tr></thead>
+      <tbody>
+      {% for c in linhas %}
+        <tr>
+          <td style="white-space:nowrap"><code>{{ c.numero }}</code></td>
+          <td><b>{{ templates_nomes.get(c.template, c.titulo) }}</b>
+            <div class="meta">{{ c.criado_em.strftime('%d/%m/%Y') }}</div></td>
+          <td>{{ c.empresa or '—' }}</td>
+          <td><a href="/propostas/{{ c.quote_id }}">{{ c.proposta }}</a></td>
+          <td><span class="ds-chip {{ 'ds-chip--ok' if c.status == 'assinado'
+                else 'ds-chip--info' if c.status == 'enviado'
+                else 'ds-chip--erro' if c.status == 'cancelado' else '' }}"
+              style="font-size:.6875rem">{{ c.status }}</span></td>
+          <td style="text-align:right;white-space:nowrap">
+            <a class="ds-btn ds-btn--fantasma" style="min-height:30px;padding:0 12px;
+               font-size:.75rem" href="/contratos/{{ c.id }}">abrir</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="meta" style="padding:var(--ds-e-4) 0">Nenhuma minuta ainda. Marque uma
+      proposta como <b>aceita</b> — a minuta nasce sozinha — ou gere pela lista ao lado.</div>
+    {% endif %}
+  </section>
+
+  <section class="ds-card">
+    <h2>Propostas esperando contrato</h2>
+    {% for q in sem_contrato %}
+      <div class="pend"><b>{{ q.numero }} — {{ q.empresa or 'sem cliente' }}</b>
+        <div class="meta">{{ q.status }} · {{ q.total|brl }}</div>
+        <a class="ds-btn ds-btn--fantasma" style="min-height:30px;padding:0 12px;
+           font-size:.75rem;margin-top:6px" href="/propostas/{{ q.id }}/contrato">
+          gerar minuta</a></div>
+    {% else %}
+      <div class="meta">Nenhuma proposta enviada/aceita sem contrato.</div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

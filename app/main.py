@@ -977,6 +977,30 @@ async def contrato_criar(request: Request, qid: str):
     return RedirectResponse(f"/contratos/{c['id']}", 303)
 
 
+@app.get("/contratos", response_class=HTMLResponse)
+def contratos_lista(request: Request):
+    """Tela própria dos contratos: tudo que já virou minuta, e as propostas aceitas ou
+    enviadas que ainda esperam a delas."""
+    linhas = db.q("""SELECT c.id, c.numero, c.titulo, c.status, c.criado_em, c.template,
+                            q.numero AS proposta, q.id AS quote_id, co.nome AS empresa
+                       FROM contrato c
+                       JOIN quote q ON q.id = c.quote_id
+                       LEFT JOIN deal d ON d.id = q.deal_id
+                       LEFT JOIN company co ON co.id = d.company_id
+                      ORDER BY c.criado_em DESC""")
+    sem_contrato = db.q("""SELECT q.id, q.numero, q.status, q.total, co.nome AS empresa
+                             FROM quote q
+                             LEFT JOIN deal d ON d.id = q.deal_id
+                             LEFT JOIN company co ON co.id = d.company_id
+                            WHERE q.status IN ('enviada', 'aceita')
+                              AND NOT EXISTS (SELECT 1 FROM contrato c
+                                               WHERE c.quote_id = q.id)
+                            ORDER BY q.criado_em DESC LIMIT 12""")
+    return pag(request, "contratos.html", ativo="contratos", linhas=linhas,
+               sem_contrato=sem_contrato, templates_nomes={
+                   k: t for k, (t, _) in contratos.TEMPLATES.items()})
+
+
 @app.get("/contratos/{cid}", response_class=HTMLResponse)
 def contrato_ver(request: Request, cid: str):
     c = db.q1("""SELECT c.*, q.numero AS proposta_numero, q.id AS proposta_id
