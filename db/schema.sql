@@ -536,6 +536,7 @@ CREATE TABLE agente_custom (
     papel           text NOT NULL,
     missao          text NOT NULL,
     cor             text NOT NULL DEFAULT '#9CA3AF',
+    setor           text NOT NULL DEFAULT 'Administração',
     ativo           boolean NOT NULL DEFAULT true,
     criado_em       timestamptz NOT NULL DEFAULT now()
 );

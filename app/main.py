@@ -1721,29 +1721,30 @@ def fluxos(request: Request):
 # trabalho visível — cada agente é uma mesa, cada tool call vira um evento na esteira.
 MESAS = [
     {"chave": "rental", "nome": "Rental", "papel": "Régua de devoluções e atrasos",
-     "sop": "SOP-002", "cor": "#60A5FA", "origem": "agendado"},
+     "sop": "SOP-002", "cor": "#60A5FA", "origem": "agendado", "setor": "Operação"},
     {"chave": "comercial", "nome": "Comercial", "papel": "Qualificação de leads",
-     "sop": "SOP-003", "cor": "#2DBDB8", "origem": "evento"},
+     "sop": "SOP-003", "cor": "#2DBDB8", "origem": "evento", "setor": "Comercial"},
     {"chave": "propostas", "nome": "Propostas", "papel": "Proposta e contrato por voz",
-     "sop": "SOP-003", "cor": "#F18E25", "origem": "evento"},
+     "sop": "SOP-003", "cor": "#F18E25", "origem": "evento", "setor": "Comercial"},
     {"chave": "trafego", "nome": "Tráfego", "papel": "Campanhas e tráfego pago",
-     "sop": "—", "cor": "#A78BFA", "origem": "futuro",
+     "sop": "—", "cor": "#A78BFA", "origem": "futuro", "setor": "Marketing",
      "motivo": "aguardando conexão com Meta/Google Ads"},
     {"chave": "marketing", "nome": "Marketing", "papel": "Artes, posts e divulgação",
-     "sop": "—", "cor": "#F472B6", "origem": "futuro",
+     "sop": "—", "cor": "#F472B6", "origem": "futuro", "setor": "Marketing",
      "motivo": "aguardando conexão de imagem (OpenAI/Gemini) e Meta"},
     {"chave": "secretaria", "nome": "Secretária", "papel": "E-mail, agenda e triagem",
-     "sop": "SOP-006", "cor": "#38BDF8", "origem": "agendado"},
+     "sop": "SOP-006", "cor": "#38BDF8", "origem": "agendado", "setor": "Administração"},
     {"chave": "gerente", "nome": "Gerente", "papel": "Garante entregas e verifica "
-     "cada solicitação", "sop": "SOP-007", "cor": "#E879F9", "origem": "agendado"},
+     "cada solicitação", "sop": "SOP-007", "cor": "#E879F9", "origem": "agendado",
+     "setor": "Administração"},
     {"chave": "financeiro", "nome": "Financeiro", "papel": "Conciliação e cobrança",
-     "sop": "—", "cor": "#FB923C", "origem": "futuro",
+     "sop": "—", "cor": "#FB923C", "origem": "futuro", "setor": "Administração",
      "motivo": "aguardando extrato/conta para conciliar"},
     {"chave": "dit", "nome": "DIT / Mídia", "papel": "Ingestão e verificação de cartões",
-     "sop": "SOP-001", "cor": "#FBBF24", "origem": "futuro",
+     "sop": "SOP-001", "cor": "#FBBF24", "origem": "futuro", "setor": "Operação",
      "motivo": "precisa do Mac Mini (acesso físico aos volumes)"},
     {"chave": "entrega", "nome": "Entrega", "papel": "Prazos e limpeza do Drive",
-     "sop": "SOP-005", "cor": "#F87171", "origem": "agendado"},
+     "sop": "SOP-005", "cor": "#F87171", "origem": "agendado", "setor": "Operação"},
 ]
 
 
@@ -1835,11 +1836,62 @@ def api_sala_rotinas():
 @app.get("/api/sala/eventos")
 def api_sala_eventos():
     """O barramento visível: últimos eventos com quem reagiu e com que resultado."""
-    evs = db.q("""SELECT tipo, origem, payload, reacoes, criado_em, processado_em
+    evs = db.q("""SELECT id, tipo, origem, payload, reacoes, criado_em, processado_em
                     FROM evento ORDER BY criado_em DESC LIMIT 20""")
-    return {"eventos": [{**e, "criado_em": e["criado_em"].isoformat(),
+    return {"eventos": [{**e, "id": str(e["id"]), "criado_em": e["criado_em"].isoformat(),
                          "processado_em": e["processado_em"].isoformat()
                          if e["processado_em"] else None} for e in evs]}
+
+
+@app.get("/api/sala/calendario")
+def api_sala_calendario(mes: str = ""):
+    """O calendário real do estúdio num mês: diárias, entregas, devoluções, validades e
+    o trabalho dos agentes por dia. Nada é inventado — cada item vem de uma tabela."""
+    from datetime import date
+    try:
+        ano, mn = (int(x) for x in mes.split("-")) if mes else (None, None)
+    except ValueError:
+        ano = None
+    hoje = date.today()
+    ano, mn = ano or hoje.year, mn or hoje.month
+    ini = date(ano, mn, 1)
+    fim = date(ano + (mn == 12), mn % 12 + 1, 1)
+    dias = {}
+
+    def add(d, tipo, rotulo, cor):
+        if d:
+            dias.setdefault(d.isoformat(), []).append(
+                {"tipo": tipo, "rotulo": rotulo, "cor": cor})
+
+    for r in db.q("""SELECT s.data, p.nome FROM shoot_day s
+                      JOIN project p ON p.id = s.project_id
+                     WHERE s.data >= %s AND s.data < %s""", (ini, fim)):
+        add(r["data"], "diaria", f"Diária — {r['nome']}", "#F18E25")
+    for r in db.q("""SELECT data_entrega, nome FROM project
+                     WHERE data_entrega >= %s AND data_entrega < %s
+                       AND estado_editorial <> 'entregue'""", (ini, fim)):
+        add(r["data_entrega"], "entrega", f"Entrega — {r['nome']}", "#F87171")
+    for r in db.q("""SELECT d.data_evento, d.titulo FROM deal d
+                     WHERE d.data_evento >= %s AND d.data_evento < %s
+                       AND d.estagio NOT IN ('perdido')""", (ini, fim)):
+        add(r["data_evento"], "evento", f"Evento — {r['titulo']}", "#2DBDB8")
+    for r in db.q("""SELECT q.validade, q.numero FROM quote q
+                     WHERE q.validade >= %s AND q.validade < %s
+                       AND q.status IN ('enviada','rascunho')""", (ini, fim)):
+        add(r["validade"], "validade", f"Vence proposta {r['numero']}", "#FBBF24")
+    for r in db.q("""SELECT previsao_devolucao::date AS d, numero FROM rental
+                     WHERE previsao_devolucao >= %s AND previsao_devolucao < %s
+                       AND status IN ('confirmado','em_campo')""", (ini, fim)):
+        add(r["d"], "devolucao", f"Devolução {r['numero'] or ''}", "#60A5FA")
+    for r in db.q("""SELECT prazo, nome FROM deliverable
+                     WHERE prazo >= %s AND prazo < %s
+                       AND status <> 'entregue'""", (ini, fim)):
+        add(r["prazo"], "prazo", f"Prazo — {r['nome']}", "#F87171")
+    trabalho = {r["d"].isoformat(): r["n"] for r in db.q(
+        """SELECT iniciado_em::date AS d, count(*) n FROM agent_run
+            WHERE iniciado_em >= %s AND iniciado_em < %s AND status = 'sucesso'
+            GROUP BY 1""", (ini, fim))}
+    return {"mes": f"{ano:04d}-{mn:02d}", "dias": dias, "trabalho": trabalho}
 
 
 _MESAS_DELEGAVEIS = {
@@ -2139,6 +2191,7 @@ def api_agentes_estado():
             estado, detalhe = "plantao", f"missão: {c['missao'][:70]}"
         mesas.append({"chave": c["chave"], "nome": c["nome"], "papel": c["papel"],
                       "sop": "admitido pela Sala", "cor": c["cor"], "origem": "custom",
+                      "setor": c.get("setor") or "Administração",
                       "estado": estado, "detalhe": detalhe,
                       "hoje": st.get("hoje", 0), "pendentes": pend,
                       "ultima": st["ultima"].isoformat() if st.get("ultima") else None,

@@ -94,8 +94,10 @@ MIGRACOES = [
          embutida boolean NOT NULL DEFAULT false,
          origem text NOT NULL DEFAULT 'catalogo' CHECK (origem IN ('catalogo','dono')),
          criado_em timestamptz NOT NULL DEFAULT now())""",
-    """CREATE TABLE IF NOT EXISTS conexao (
-         servico text PRIMARY KEY,
+    "ALTER TABLE agente_custom ADD COLUMN IF NOT EXISTS setor text NOT NULL "
+    "DEFAULT 'Administração'",
+    "UPDATE agente_custom SET setor = 'Marketing' WHERE chave = 'copy'",
+    """CREATE TABLE IF NOT EXISTS conexao (         servico text PRIMARY KEY,
          config jsonb NOT NULL DEFAULT '{}',
          atualizado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS sessao (

@@ -19,7 +19,7 @@ MODELO = os.environ.get("AGENTE_CUSTOM_MODELO", "claude-opus-5")
 
 def listar():
     try:
-        return db.q("SELECT chave, nome, papel, missao, cor FROM agente_custom "
+        return db.q("SELECT chave, nome, papel, missao, cor, setor FROM agente_custom "
                     "WHERE ativo ORDER BY criado_em")
     except Exception:                                                # noqa: BLE001
         return []

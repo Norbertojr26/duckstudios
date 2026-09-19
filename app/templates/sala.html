@@ -94,6 +94,59 @@
               color:var(--ds-txt-3);margin-bottom:var(--ds-e-3)}
   .eq-legenda span{display:inline-flex;align-items:center;gap:6px}
   .eq-legenda i{width:7px;height:7px;border-radius:99px;font-style:normal}
+
+  /* -------- ferramentas conectadas (faixa acima do palco) */
+  .conectado{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+             padding:0 4px var(--ds-e-3);font-size:.71875rem;color:var(--ds-txt-3)}
+  .conectado .rot{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.09em;
+                  text-transform:uppercase}
+  .cx-chip2{display:inline-flex;align-items:center;gap:6px;border:1px solid
+            var(--ds-border);border-radius:999px;padding:3px 10px;color:var(--ds-txt-2);
+            background:var(--ds-surface)}
+  .cx-chip2 i{width:6px;height:6px;border-radius:99px;background:var(--ds-txt-3);
+              font-style:normal}
+  .cx-chip2.on{color:var(--ds-txt);border-color:rgba(45,189,184,.4)}
+  .cx-chip2.on i{background:var(--ds-ok)}
+
+  /* -------- cartões flutuantes por setor (sobre o 3D) */
+  #cartoes-setor{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .ilha-card{position:absolute;translate:-50% -100%;min-width:150px;
+             background:rgba(16,19,23,.88);border:1px solid var(--ds-border-forte);
+             border-radius:14px;padding:9px 12px 10px;box-shadow:var(--ds-elev-2);
+             backdrop-filter:blur(4px)}
+  .ilha-card .nm{display:flex;align-items:center;gap:7px;font-weight:700;
+                 font-size:.8125rem}
+  .ilha-card .nm i{width:8px;height:8px;border-radius:99px;font-style:normal}
+  .ilha-card .ag{font-size:1.25rem;font-weight:500;line-height:1.3;
+                 font-variant-numeric:tabular-nums}
+  .ilha-card .ag small{font-family:var(--ds-mono);font-size:.5625rem;
+                       letter-spacing:.08em;text-transform:uppercase;
+                       color:var(--ds-txt-3);margin-left:4px}
+  .ilha-card .nums{display:flex;gap:11px;font-size:.625rem;font-family:var(--ds-mono);
+                   letter-spacing:.04em;text-transform:uppercase;color:var(--ds-txt-3);
+                   margin-top:4px;border-top:1px solid var(--ds-border);padding-top:5px}
+  .ilha-card .nums b{color:var(--ds-txt);margin-left:3px}
+
+  /* -------- calendário do estúdio */
+  #calendario{max-height:640px;overflow-y:auto}
+  .cal-topo{display:flex;align-items:center;gap:10px;margin-bottom:var(--ds-e-3)}
+  .cal-topo b{font-size:1.0625rem;min-width:170px;text-align:center}
+  .cal-nav{min-height:32px;padding:0 12px;border-radius:10px;border:1px solid
+           var(--ds-border);background:var(--ds-grad-surface-2);color:var(--ds-txt-2);
+           cursor:pointer;font:inherit}
+  .cal-grade{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .cal-sem{font-family:var(--ds-mono);font-size:.625rem;letter-spacing:.08em;
+           text-transform:uppercase;color:var(--ds-txt-3);padding:2px 6px}
+  .cal-dia{min-height:92px;border:1px solid var(--ds-border);border-radius:12px;
+           background:var(--ds-surface);padding:6px 8px;font-size:.6875rem}
+  .cal-dia.fora{opacity:.35}
+  .cal-dia.hoje{border-color:var(--ds-acao);box-shadow:0 0 0 1px var(--ds-acao) inset}
+  .cal-dia .n{font-weight:700;font-size:.75rem;display:flex;justify-content:space-between}
+  .cal-dia .trab{color:var(--ds-acao);font-variant-numeric:tabular-nums;font-weight:500}
+  .cal-item{display:flex;align-items:center;gap:5px;margin-top:3px;color:var(--ds-txt-2);
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-item i{width:6px;height:6px;border-radius:99px;flex:none;font-style:normal}
+  .cal-mais{color:var(--ds-txt-3);margin-top:3px}
 </style>{% endblock %}
 {% block conteudo %}
 <div class="topo">
@@ -108,11 +161,17 @@
     <div class="abas">
       <button class="aba on" id="aba-office" onclick="verAba('office')">Escritório</button>
       <button class="aba" id="aba-equipes" onclick="verAba('equipes')">Equipes</button>
+      <button class="aba" id="aba-cal" onclick="verAba('cal')">Calendário</button>
       <button class="aba" id="aba-grafo" onclick="verAba('grafo')">Grafo do estúdio</button>
       <span class="dica-cam" id="dica-cam">arrastar gira · scroll aproxima · botão direito move</span>
     </div>
-    <div id="cena3d"></div>
+    <div class="conectado" id="conectado"></div>
+    <div id="palco3d" style="position:relative">
+      <div id="cena3d"></div>
+      <div id="cartoes-setor"></div>
+    </div>
     <div id="equipes" style="display:none"></div>
+    <div id="calendario" style="display:none"></div>
     <canvas id="grafo"></canvas>
     <div class="placar">
       <div class="p"><span class="rot">Execuções hoje</span><b id="pl-hoje">—</b></div>
@@ -151,6 +210,7 @@
           <span><b id="foco-pend">0</b> p/ aprovar</span>
           <span>última: <b id="foco-ultima">—</b></span>
         </div>
+        <div id="foco-log" style="margin-bottom:10px"></div>
         <div class="acoes" id="foco-acoes"></div>
         <div class="resposta" id="foco-resposta"></div>
       </div>
@@ -226,7 +286,7 @@ const cena = new THREE.Scene();
 cena.fog = new THREE.Fog(0x0b0d10, 16, 34);
 
 const cam = new THREE.PerspectiveCamera(42, 1, .1, 100);
-cam.position.set(9.5, 8.5, 9.5);
+cam.position.set(11.5, 10.5, 11.5);
 const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -237,7 +297,7 @@ ALVO.appendChild(renderer.domElement);
 const ctrl = new OrbitControls(cam, renderer.domElement);
 ctrl.target.set(0, .6, 0);
 ctrl.enableDamping = true; ctrl.dampingFactor = .08;
-ctrl.minDistance = 5; ctrl.maxDistance = 24;
+ctrl.minDistance = 5; ctrl.maxDistance = 28;
 ctrl.maxPolarAngle = Math.PI * .46; ctrl.minPolarAngle = Math.PI * .12;
 
 function medir(){
@@ -524,15 +584,15 @@ function propsCargo(g, chave){
 
 const ORDEM = ["rental","comercial","propostas","dit","entrega",
                "secretaria","financeiro","trafego"];
-const RAIO = 6.1;
 const estacoes = {};
+const SETORES = {};                 // nome → {centro, cor, grupo, card, mesas:[chaves]}
+let ilhasGrupos = [];
+const mesaMundo = e => e.g.getWorldPosition(new THREE.Vector3());
 
-function estacao(m, i, total){
-  const ang = (i / total) * Math.PI * 2 + Math.PI / total;
-  const px = Math.sin(ang) * RAIO, pz = Math.cos(ang) * RAIO;
+// mesa individual DENTRO de uma ilha de setor (posição local; orientação da ilha)
+function estacao(m, ilha, lx, lz){
   const g = new THREE.Group();
-  g.position.set(px, 0, pz);
-  g.lookAt(0, 0, 0);
+  g.position.set(lx, 0, lz);
 
   const tampo = new THREE.Mesh(new THREE.BoxGeometry(1.7, .09, .8), madeira);
   tampo.position.y = .72; tampo.castShadow = true; g.add(tampo);
@@ -589,14 +649,109 @@ function estacao(m, i, total){
   propsCargo(g, m.chave);
 
   g.traverse(o => o.userData.chave = m.chave);
-  cena.add(g);
+  ilha.add(g);
   estacoes[m.chave] = {m, g, tela, fig, alerta, balao, pensou: '',
     figCasaLocal: fig.position.clone(), anda: null};
 }
 
+const COR_SETOR = {"Comercial": 0x2dbdb8, "Operação": 0x60a5fa,
+                   "Administração": 0xe879f9, "Marketing": 0xf472b6};
+
+function montarEscritorio(mesas){
+  const por = {};
+  for (const m of mesas) (por[m.setor || 'Administração'] ||= []).push(m);
+  const nomes = Object.keys(por);
+  const R = 6.9;
+  const alvoCartoes = document.getElementById('cartoes-setor');
+  alvoCartoes.innerHTML = '';
+  nomes.forEach((nome, i) => {
+    const lista = por[nome];
+    const cols = Math.min(lista.length, 3), rows = Math.ceil(lista.length / cols);
+    const larg = cols * 2.5 + .9, prof = rows * 2.3 + .9;
+    const ang = (i / nomes.length) * Math.PI * 2 + Math.PI / nomes.length;
+    const cx = Math.sin(ang) * R, cz = Math.cos(ang) * R;
+    const ilha = new THREE.Group();
+    ilha.position.set(cx, .2, cz);
+    ilha.lookAt(0, .2, 0);
+    // plataforma do setor + friso na cor do time
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(larg, .22, prof),
+      new THREE.MeshStandardMaterial({color: 0x272c34, roughness: .85}));
+    slab.position.y = -.11; slab.receiveShadow = true; slab.castShadow = true;
+    ilha.add(slab);
+    const friso = new THREE.Mesh(new THREE.BoxGeometry(larg, .03, .08),
+      new THREE.MeshBasicMaterial({color: COR_SETOR[nome] ?? 0x9ca3af,
+                                   transparent: true, opacity: .8}));
+    friso.position.set(0, .012, -prof / 2 + .05); ilha.add(friso);
+    // mesas em grade, telas voltadas ao núcleo
+    lista.forEach((m, j) => {
+      const col = j % cols, row = Math.floor(j / cols);
+      estacao(m, ilha, (col - (cols - 1) / 2) * 2.5,
+              (row - (rows - 1) / 2) * 2.3 - .15);
+    });
+    cena.add(ilha);
+    ilhasGrupos.push(ilha);
+    // ponte até a praça central
+    const dist = Math.hypot(cx, cz), compr = dist - prof / 2 - 2.1;
+    if (compr > .4){
+      const ponte = new THREE.Mesh(new THREE.BoxGeometry(1.1, .1, compr),
+        new THREE.MeshStandardMaterial({color: 0x20242b, roughness: .9}));
+      const meioR = 2.1 + compr / 2;
+      ponte.position.set(Math.sin(ang) * meioR, .05, Math.cos(ang) * meioR);
+      ponte.lookAt(0, .05, 0); ponte.receiveShadow = true;
+      cena.add(ponte); ilhasGrupos.push(ponte);
+    }
+    // cartão flutuante do setor (HTML projetado)
+    const card = document.createElement('div');
+    card.className = 'ilha-card'; card.id = 'card-' + i;
+    alvoCartoes.appendChild(card);
+    SETORES[nome] = {centro: new THREE.Vector3(cx, 0, cz),
+                     cor: '#' + (COR_SETOR[nome] ?? 0x9ca3af).toString(16).padStart(6, '0'),
+                     grupo: ilha, card, mesas: lista.map(m => m.chave), alto: prof / 2};
+  });
+}
+
 function desmontarEstacoes(){
-  for (const e of Object.values(estacoes)) cena.remove(e.g);
+  for (const o of ilhasGrupos) cena.remove(o);
+  ilhasGrupos = [];
   for (const k of Object.keys(estacoes)) delete estacoes[k];
+  for (const k of Object.keys(SETORES)) delete SETORES[k];
+}
+
+// cartões seguem as ilhas na tela (projeção 3D → CSS)
+function projetarCartoes(){
+  const w = ALVO.clientWidth, h = ALVO.clientHeight;
+  for (const s of Object.values(SETORES)){
+    const p = s.centro.clone(); p.y = 2.6;
+    p.project(cam);
+    const atras = p.z > 1;
+    s.card.style.display = atras ? 'none' : '';
+    if (!atras){
+      s.card.style.left = ((p.x * .5 + .5) * w) + 'px';
+      s.card.style.top = ((-p.y * .5 + .5) * h) + 'px';
+    }
+  }
+}
+
+// pulso de fluxo: uma luzinha viaja de um setor a outro (ou do núcleo) via o centro
+function pulso(deV, paraV, cor){
+  const esfera = new THREE.Mesh(new THREE.SphereGeometry(.09, 10, 8),
+    new THREE.MeshBasicMaterial({color: cor}));
+  cena.add(esfera);
+  const meio = new THREE.Vector3(0, 1.5, 0);
+  const a = deV.clone().setY(.5), b = paraV.clone().setY(.5), t0 = performance.now();
+  (function anda(t){
+    const k = Math.min((t - t0) / 1500, 1);
+    const p1 = a.clone().lerp(meio, k), p2 = meio.clone().lerp(b, k);
+    esfera.position.copy(p1.lerp(p2, k));
+    esfera.material.opacity = 1 - k * .3;
+    if (k < 1) requestAnimationFrame(anda); else cena.remove(esfera);
+  })(t0);
+}
+
+const NUCLEO_V = new THREE.Vector3(0, 0, 0);
+function setorDaMesa(chave){
+  const m = mesasAgora.find(x => x.chave === chave);
+  return m && SETORES[m.setor] ? SETORES[m.setor] : null;
 }
 
 // caixinha de entrega que voa até o núcleo (ação real registrada na auditoria)
@@ -604,7 +759,7 @@ function entregaAoNucleo(chave, corHex){
   const e = estacoes[chave]; if (!e) return;
   const caixa = new THREE.Mesh(new THREE.BoxGeometry(.16, .16, .16),
     new THREE.MeshBasicMaterial({color: corHex}));
-  const a = e.g.position.clone().setY(1.15);
+  const a = mesaMundo(e); a.y = 1.15;
   cena.add(caixa);
   const t0 = performance.now();
   function passo(t){
@@ -671,8 +826,9 @@ function conversaAmbiente(){
     .filter(e => e.m.estado !== 'futuro' && !e.anda);
   if (presentes.length < 2) return;
   const [a, b] = presentes.sort(() => Math.random() - .5).slice(0, 2);
-  const meio = a.g.position.clone().add(b.g.position).multiplyScalar(.5);
-  if (meio.length() < 2.4) meio.normalize().multiplyScalar(3.2);
+  // encontro na praça central, entre o núcleo e as pontes
+  const meio = mesaMundo(a).add(mesaMundo(b)).multiplyScalar(.5);
+  meio.y = 0; meio.normalize().multiplyScalar(2.9);
   const fala = FALAS[Math.floor(Math.random() * FALAS.length)];
   caminhar(a.m.chave, meio.clone().add(new THREE.Vector3(.4, 0, 0)), 4200,
            () => a.balao.set(fala));
@@ -814,7 +970,7 @@ function gatoComecar(t, nome){
     if (perto && Math.random() < .6) perto.balao.set(
       FALAS_GATO_GENTE[Math.floor(Math.random() * FALAS_GATO_GENTE.length)]); }
   else if (nome === 'esfregar' && e){
-    gato.alvoP = e.g.localToWorld(new THREE.Vector3(.3, 0, 1)); gato.alvoP.y = 0;
+    gato.alvoP = mesaMundo(e).multiplyScalar(.78); gato.alvoP.y = 0;
     gato.mesaAlvo = e; gato.alvoY = 0; gato.dur = 99999; }
   else if (nome === 'subir_mesa' && e){
     gato.alvoP = e.g.localToWorld(new THREE.Vector3(.35, .77, -.1));
@@ -927,11 +1083,11 @@ function patoNovoAlvo(){
   if (mesas.length && sorte < .3){                    // voa e pousa NO TAMPO da mesa
     const e = mesas[Math.floor(Math.random() * mesas.length)];
     const p = e.g.localToWorld(new THREE.Vector3(-.55, .77, -.05));
-    return {p, visita: e, voa: true, alt: .77};
+    return {p, visita: e, voa: true, alt: p.y};
   }
   if (mesas.length && sorte < .55){                   // visita a pé, ao lado da mesa
     const e = mesas[Math.floor(Math.random() * mesas.length)];
-    const p = e.g.position.clone().multiplyScalar(.72); p.y = 0;
+    const p = mesaMundo(e).multiplyScalar(.72); p.y = 0;
     return {p, visita: e, voa: false, alt: 0};
   }
   const ang = Math.random() * Math.PI * 2, r = 2.8 + Math.random() * 3.4;
@@ -1022,6 +1178,7 @@ function laco(t){
   animarFiguras(t);
   animarPato(t, dt);
   animarGato(t, dt);
+  projetarCartoes();
   ctrl.update();
   renderer.render(cena, cam);
 }
@@ -1146,6 +1303,14 @@ window.focar = chave => {
   document.getElementById('foco-pend').textContent = m.pendentes;
   document.getElementById('foco-ultima').textContent = tempo(m.ultima);
   document.getElementById('foco-resposta').textContent = '';
+  // o que essa mesa andou fazendo — as últimas ações reais da auditoria
+  const doAgente = ultimoFeed.filter(f => f.agente === chave).slice(0, 5);
+  document.getElementById('foco-log').innerHTML = doAgente.length
+    ? '<div class="meta" style="margin-bottom:4px">O que está fazendo:</div>'
+      + doAgente.map(f => `<div style="font-size:.75rem;padding:3px 0;border-top:1px solid var(--ds-border)">
+          <span class="meta" style="font-variant-numeric:tabular-nums">${hora(f.quando)}</span>
+          ${narrar(f)}</div>`).join('')
+    : '<div class="meta">Sem ações registradas ainda.</div>';
   const box = document.getElementById('foco-acoes');
   const acoes = ACOES[chave];
   if (m.origem === 'custom'){
@@ -1224,10 +1389,23 @@ async function rotinas(){
 }
 rotinas(); setInterval(rotinas, 60000);
 
-// -------- barramento de eventos
+// -------- barramento de eventos (+ pulsos de fluxo entre setores no 3D)
+let eventosVistos = new Set();
 async function eventos(){
   try {
     const d = await (await fetch('/api/sala/eventos')).json();
+    // evento novo → luzinha viaja da origem ao destino da reação
+    for (const e of d.eventos){
+      if (eventosVistos.size && !eventosVistos.has(e.id) && montado){
+        const de = setorDaMesa(e.origem)?.centro || NUCLEO_V;
+        const alvoAg = (e.reacoes || [])[0]?.agente
+                       || (e.payload && e.payload.destino) || '';
+        const para = setorDaMesa(alvoAg)?.centro || NUCLEO_V;
+        if (!de.equals(para)) pulso(de, para, 0x2dbdb8);
+        else pulso(de, NUCLEO_V, 0x2dbdb8);
+      }
+    }
+    eventosVistos = new Set(d.eventos.map(e => e.id));
     const alvo = document.getElementById('eventos');
     if (!d.eventos.length){
       alvo.innerHTML = '<div class="vazio">nenhum evento ainda</div>'; return;
@@ -1245,6 +1423,61 @@ async function eventos(){
 }
 eventos(); setInterval(eventos, 20000);
 
+// -------- ferramentas conectadas (faixa acima do palco)
+async function conectadas(){
+  try {
+    const d = await (await fetch('/api/conexoes')).json();
+    document.getElementById('conectado').innerHTML =
+      '<span class="rot">Conectado a</span>' + d.conexoes.map(c =>
+        `<a class="cx-chip2 ${c.conectada ? 'on' : ''}" href="/conexoes"
+            title="${c.agente}"><i></i>${c.nome}</a>`).join('');
+  } catch {}
+}
+conectadas(); setInterval(conectadas, 120000);
+
+// -------- calendário do estúdio (dados reais por dia)
+let calMes = null;
+async function calendario(delta = 0){
+  const alvo = document.getElementById('calendario');
+  if (!calMes){ const h = new Date(); calMes = [h.getFullYear(), h.getMonth()]; }
+  if (delta){ calMes[1] += delta;
+    if (calMes[1] < 0){ calMes[1] = 11; calMes[0]--; }
+    if (calMes[1] > 11){ calMes[1] = 0; calMes[0]++; } }
+  const chave = `${calMes[0]}-${String(calMes[1] + 1).padStart(2, '0')}`;
+  try {
+    const d = await (await fetch('/api/sala/calendario?mes=' + chave)).json();
+    const nomeMes = new Date(calMes[0], calMes[1], 1).toLocaleDateString('pt-BR',
+      {month: 'long', year: 'numeric'});
+    const prim = new Date(calMes[0], calMes[1], 1);
+    const ini = new Date(prim); ini.setDate(1 - ((prim.getDay() + 6) % 7));
+    const hojeIso = new Date().toISOString().slice(0, 10);
+    let celulas = '';
+    for (let i = 0; i < 42; i++){
+      const dia = new Date(ini); dia.setDate(ini.getDate() + i);
+      const iso = dia.toISOString().slice(0, 10);
+      const fora = dia.getMonth() !== calMes[1];
+      const itens = d.dias[iso] || [];
+      const trab = d.trabalho[iso];
+      celulas += `<div class="cal-dia ${fora ? 'fora' : ''} ${iso === hojeIso ? 'hoje' : ''}">
+        <div class="n"><span>${dia.getDate()}</span>
+          ${trab ? `<span class="trab" title="execuções dos agentes">${trab} exec</span>` : ''}</div>
+        ${itens.slice(0, 3).map(x =>
+          `<div class="cal-item" title="${x.rotulo}"><i style="background:${x.cor}"></i>${x.rotulo}</div>`).join('')}
+        ${itens.length > 3 ? `<div class="cal-mais">+${itens.length - 3}</div>` : ''}
+      </div>`;
+    }
+    alvo.innerHTML = `<div class="cal-topo">
+        <button class="cal-nav" onclick="calendario(-1)">‹</button>
+        <b>${nomeMes}</b>
+        <button class="cal-nav" onclick="calendario(1)">›</button>
+        <span class="meta">diárias, entregas, devoluções, validades e o trabalho dos
+          agentes — tudo do banco, nada desenhado à mão</span></div>
+      <div class="cal-grade">${['seg','ter','qua','qui','sex','sáb','dom']
+        .map(s => `<div class="cal-sem">${s}</div>`).join('')}${celulas}</div>`;
+  } catch (e){ alvo.innerHTML = '<div class="vazio">não carregou: ' + e + '</div>'; }
+}
+window.calendario = calendario;
+
 // -------- laço de estado
 async function atualizar(){
   try {
@@ -1259,10 +1492,7 @@ async function atualizar(){
       desmontarEstacoes(); montado = false;
     }
     if (!montado){
-      const orden = [...d.mesas].sort((a, b) =>
-        ((i => i < 0 ? 99 : i)(ORDEM.indexOf(a.chave))) -
-        ((i => i < 0 ? 99 : i)(ORDEM.indexOf(b.chave))));
-      orden.forEach((m, i) => estacao(m, i, orden.length));
+      montarEscritorio(d.mesas);
       montado = true;
     }
     let ativos = 0, pend = 0, hojeN = 0;
@@ -1293,13 +1523,25 @@ async function atualizar(){
     document.getElementById('pl-hoje').textContent = hojeN;
     document.getElementById('pl-pend').textContent = pend;
     document.getElementById('pl-ativos').textContent = `${ativos}/${d.mesas.length}`;
+    // cartões flutuantes dos setores: números REAIS por time
+    for (const [nome, s] of Object.entries(SETORES)){
+      const ms = d.mesas.filter(m => m.setor === nome);
+      const reais = ms.filter(m => m.estado !== 'futuro').length;
+      const doing = ms.filter(m => m.estado === 'trabalhando').length;
+      const sPend = ms.reduce((a, m) => a + m.pendentes, 0);
+      const sHoje = ms.reduce((a, m) => a + m.hoje, 0);
+      s.card.innerHTML = `<div class="nm"><i style="background:${s.cor}"></i>${nome}</div>
+        <div class="ag">${reais}<small>agente(s) ativos · ${ms.length} mesas</small></div>
+        <div class="nums"><span>agora<b>${doing}</b></span>
+          <span>p/ você<b>${sPend}</b></span><span>hoje<b>${sHoje}</b></span></div>`;
+    }
     // ação nova na auditoria → a figura leva a entrega até o núcleo
     for (const f of d.feed.slice(0, 6))
       if (vistosAntes.size && !vistosAntes.has(f.quando + f.tool) && estacoes[f.agente]){
         const cor = parseInt((CORES[f.agente] || '#2dbdb8').slice(1), 16);
         const e = estacoes[f.agente];
         caminhar(f.agente,
-          e.g.position.clone().normalize().multiplyScalar(2.2), 900,
+          mesaMundo(e).setY(0).normalize().multiplyScalar(2.4), 900,
           () => entregaAoNucleo(f.agente, cor));
       }
     ultimoFeed = d.feed;
@@ -1482,10 +1724,11 @@ window.funcaoCriar = async () => {
 
 window.verAba = async aba => {
   grafoLigado = aba === 'grafo';
-  document.getElementById('cena3d').style.display = aba === 'office' ? '' : 'none';
+  document.getElementById('palco3d').style.display = aba === 'office' ? '' : 'none';
   document.getElementById('equipes').style.display = aba === 'equipes' ? 'block' : 'none';
+  document.getElementById('calendario').style.display = aba === 'cal' ? 'block' : 'none';
   cv.style.display = grafoLigado ? 'block' : 'none';
-  for (const a of ['office', 'equipes', 'grafo'])
+  for (const a of ['office', 'equipes', 'cal', 'grafo'])
     document.getElementById('aba-' + a).classList.toggle('on', a === aba);
   document.getElementById('dica-cam').style.visibility =
     aba === 'office' ? 'visible' : 'hidden';
@@ -1493,6 +1736,7 @@ window.verAba = async aba => {
     if (!gNos.length) await grafoMontar();
     grafoLaco();
   } else if (aba === 'equipes') equipesMontar();
+  else if (aba === 'cal') calendario();
   else medir();
 };
 </script>
