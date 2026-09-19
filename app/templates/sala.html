@@ -121,8 +121,8 @@
       <span class="pulso" id="pulso"></span>
     </div>
     <div class="legenda-amb">Monitores, balões de pensamento, entregas ao núcleo e os
-      painéis refletem o estado real da auditoria; caminhadas, conversas de corredor e o
-      pato (nosso mascote de ronda) são ambientação. Núcleo teal = a memória do estúdio
+      painéis refletem o estado real da auditoria; caminhadas, conversas de corredor, o
+      pato e o gato (nossos mascotes) são ambientação. Núcleo teal = a memória do estúdio
       (o CRM). Mesas apagadas são agentes que ainda vão nascer.</div>
   </section>
 
@@ -186,6 +186,37 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from '/static/vendor/OrbitControls.js';
+import { GLTFLoader } from '/static/vendor/GLTFLoader.js';
+
+// ---------------- modelos .glb opcionais (packs CC0 em /static/modelos)
+// Convenção: pato.glb, arvore.glb, mesa.glb, cadeira.glb, pessoa_m.glb, pessoa_f.glb.
+// Arquivo presente = substitui a peça procedural; ausente = o visual atual continua.
+const MODELOS = {};
+function normalizar(obj, altura){
+  const cx = new THREE.Box3().setFromObject(obj);
+  const tam = cx.getSize(new THREE.Vector3());
+  const k = altura / (tam.y || 1);
+  obj.scale.setScalar(k);
+  const cx2 = new THREE.Box3().setFromObject(obj);
+  const centro = cx2.getCenter(new THREE.Vector3());
+  obj.position.sub(new THREE.Vector3(centro.x, cx2.min.y, centro.z));
+  const raiz = new THREE.Group(); raiz.add(obj); return raiz;
+}
+const ALTURAS = {pato: .5, arvore: 1.5, mesa: .81, cadeira: .95,
+                 pessoa_m: 1.05, pessoa_f: 1.05, gato: .34};
+const modelosProntos = (async () => {
+  const loader = new GLTFLoader();
+  for (const nome of Object.keys(ALTURAS)){
+    try {
+      const gl = await loader.loadAsync(`/static/modelos/${nome}.glb`);
+      gl.scene.traverse(o => { if (o.isMesh){ o.castShadow = true; } });
+      MODELOS[nome] = normalizar(gl.scene, ALTURAS[nome]);
+    } catch {}                                   // sem arquivo → segue o procedural
+  }
+})();
+function instanciar(nome){
+  return MODELOS[nome] ? MODELOS[nome].clone(true) : null;
+}
 
 // ================================================================ escritório 3D
 // Cena própria: chão, núcleo (a memória do estúdio), mesas em anel e uma figura low-poly
@@ -256,12 +287,17 @@ const anel = new THREE.Mesh(new THREE.TorusGeometry(1.55, .03, 10, 60),
 anel.rotation.x = Math.PI / 2; anel.position.y = .06; cena.add(anel);
 
 // -------- decoração do salão: árvores em vaso, estante de cases, pedras (refs low-poly)
-(function decorar(){
+function decorar(){
   const tronco = new THREE.MeshStandardMaterial({color: 0x6b4a2b, roughness: .9});
   const copa1 = new THREE.MeshStandardMaterial({color: 0x3f7d4e, roughness: .85});
   const copa2 = new THREE.MeshStandardMaterial({color: 0x51945f, roughness: .85});
   for (const [ang, esc] of [[.5, 1], [1.9, .8], [3.1, 1.15], [4.4, .85], [5.6, 1]]){
     const x = Math.sin(ang) * 8.55, z = Math.cos(ang) * 8.55;
+    const arvMod = instanciar('arvore');
+    if (arvMod){
+      arvMod.scale.multiplyScalar(esc); arvMod.position.set(x, 0, z);
+      arvMod.rotation.y = ang * 2.3; cena.add(arvMod); continue;
+    }
     const vs = new THREE.Mesh(new THREE.CylinderGeometry(.22*esc, .17*esc, .26*esc, 8),
       new THREE.MeshStandardMaterial({color: 0x7a4a2b, roughness: .9}));
     vs.position.set(x, .13*esc, z); vs.castShadow = true; cena.add(vs);
@@ -302,7 +338,8 @@ anel.rotation.x = Math.PI / 2; anel.position.y = .06; cena.add(anel);
     pd.position.set(Math.sin(ang) * r, .08*esc, Math.cos(ang) * r);
     pd.castShadow = true; cena.add(pd);
   }
-})();
+}
+modelosProntos.then(decorar);
 
 // materiais e cores de estado
 const COR_ESTADO = {trabalhando: 0x4ade80, aguardando: 0xfbbf24, plantao: 0x60a5fa,
@@ -369,6 +406,8 @@ const hashCh = s => [...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0);
 function figura(cor, chave=''){
   const h = hashCh(chave);
   const fem = (GENERO[chave] || (h % 2 ? 'f' : 'm')) === 'f';
+  const mod = instanciar(fem ? 'pessoa_f' : 'pessoa_m');
+  if (mod) return mod;                       // pack .glb presente → usa o modelo
   const pele = new THREE.MeshStandardMaterial({color: TONS_PELE[h % TONS_PELE.length],
                                                roughness: .7});
   const cab = new THREE.MeshStandardMaterial({color:
@@ -497,9 +536,11 @@ function estacao(m, i, total){
 
   const tampo = new THREE.Mesh(new THREE.BoxGeometry(1.7, .09, .8), madeira);
   tampo.position.y = .72; tampo.castShadow = true; g.add(tampo);
+  const mesaMod = instanciar('mesa');
+  if (mesaMod){ tampo.visible = false; g.add(mesaMod); }
   for (const sx of [-.72, .72]){
     const perna = new THREE.Mesh(new THREE.BoxGeometry(.09, .72, .7), metal);
-    perna.position.set(sx, .36, 0); g.add(perna);
+    perna.position.set(sx, .36, 0); perna.visible = !mesaMod; g.add(perna);
   }
   const moldura = new THREE.Mesh(new THREE.BoxGeometry(.78, .5, .05), metal);
   moldura.position.set(0, 1.12, .1); g.add(moldura);
@@ -526,9 +567,15 @@ function estacao(m, i, total){
   pedestal.position.set(0, .22, .95); g.add(pedestal);
   const rodinhas = new THREE.Mesh(new THREE.CylinderGeometry(.2, .24, .04, 5), metal);
   rodinhas.position.set(0, .04, .95); g.add(rodinhas);
+  const cadMod = instanciar('cadeira');
+  if (cadMod){
+    for (const p of [assento, encosto, pedestal, rodinhas]) p.visible = false;
+    cadMod.position.set(0, 0, .95); cadMod.rotation.y = Math.PI; g.add(cadMod);
+  }
 
   const fig = figura(m.cor, m.chave);
-  fig.position.set(0, 0, .95);
+  // sentado DE VERDADE: erguido até o topo do assento (~.47) e à frente do encosto
+  fig.position.set(0, .34, .9);
   fig.rotation.y = Math.PI;
   g.add(fig);
 
@@ -584,7 +631,7 @@ function animarFiguras(t){
     if (!a){
       const base = e.figCasaLocal;
       const digita = e.m.estado === 'trabalhando' ? Math.sin(t / 90) * .015 : 0;
-      e.fig.position.set(base.x, Math.sin(t / 600) * .01 + digita, base.z);
+      e.fig.position.set(base.x, base.y + Math.sin(t / 600) * .01 + digita, base.z);
       continue;
     }
     const k = Math.min((t - a.t0) / a.dur, 1);
@@ -592,7 +639,9 @@ function animarFiguras(t){
     const de   = a.fase === 'volta' ? a.destino : a.origem;
     if (a.fase !== 'pausa'){
       const p = de.clone().lerp(alvo, k);
-      p.y = Math.abs(Math.sin(k * Math.PI * (a.dur / 260))) * .05;
+      // levanta/senta suave: interpola a altura dos extremos + o quique do passo
+      p.y = de.y + (alvo.y - de.y) * k
+            + Math.abs(Math.sin(k * Math.PI * (a.dur / 260))) * .05;
       const local = e.g.worldToLocal(p.clone());
       e.fig.position.copy(local);
       const dir = e.g.worldToLocal(alvo.clone()).sub(local);
@@ -636,8 +685,13 @@ setTimeout(conversaAmbiente, 6000);
 // ================================================================ o pato (mascote)
 // Ambientação assumida: ronda de moral do escritório. Anda contornando o núcleo (nada
 // de bater no quadrado), e de vez em quando VOA e pousa em cima de uma mesa.
-const pato = (() => {
+let pato = null;
+function criarPato(){
   const g = new THREE.Group();
+  const asas = [];
+  const mod = instanciar('pato');
+  if (mod) g.add(mod);
+  else {
   const corMat = new THREE.MeshStandardMaterial({color: 0xF2E7C9, roughness: .75});
   const corpo = new THREE.Mesh(new THREE.SphereGeometry(.16, 16, 12), corMat);
   corpo.scale.set(1.25, 1, 1.5); corpo.position.y = .17; corpo.castShadow = true;
@@ -653,9 +707,7 @@ const pato = (() => {
       new THREE.MeshBasicMaterial({color: 0x101214}));
     olho.position.set(sx, .44, .21); g.add(olho);
   }
-  const asas = [];
-  for (const sx of [-.17, .17]){
-    const asa = new THREE.Mesh(new THREE.SphereGeometry(.11, 10, 8), corMat);
+  for (const sx of [-.17, .17]){    const asa = new THREE.Mesh(new THREE.SphereGeometry(.11, 10, 8), corMat);
     asa.scale.set(.45, .8, 1.25); asa.position.set(sx, .19, -.02);
     asa.castShadow = true; g.add(asa); asas.push(asa);
   }
@@ -663,13 +715,211 @@ const pato = (() => {
     const pe = new THREE.Mesh(new THREE.BoxGeometry(.07, .02, .1), laranjaMat);
     pe.position.set(sx, .01, .03); g.add(pe);
   }
+  }
   const balao = balaoVivo();
   balao.s.position.set(0, .95, 0); balao.s.scale.set(1.5, .47, 1); g.add(balao.s);
   g.position.set(3.2, 0, -2.5);
   cena.add(g);
   return {g, balao, asas, alvo: null, pausaAte: 0, modo: 'anda', altBase: 0, altAlvo: 0,
           t0: 0, origem: null};
-})();
+}
+modelosProntos.then(() => { pato = criarPato(); });
+
+// ================================================================ o gato (mascote 2)
+// Laranja e branco, rotina de felino DE VERDADE: nunca repete a última ação, escolhe a
+// próxima por peso com um tanto de acaso — dorme, sobe na mesa, derruba coisa, mia,
+// se esfrega em alguém, caça o pato, ou simplesmente vagueia. Ambientação assumida.
+let gato = null;
+function criarGato(){
+  const g = new THREE.Group();
+  const rabo = new THREE.Group();
+  const partes = {};
+  const mod = instanciar('gato');
+  if (mod) g.add(mod);
+  else {
+    const laranja = new THREE.MeshStandardMaterial({color: 0xE8863C, roughness: .8});
+    const branco = new THREE.MeshStandardMaterial({color: 0xF4EFE6, roughness: .8});
+    const corpo = new THREE.Mesh(new THREE.CapsuleGeometry(.085, .2, 6, 10), laranja);
+    corpo.rotation.x = Math.PI / 2; corpo.position.set(0, .13, 0);
+    corpo.castShadow = true; g.add(corpo);
+    const peito = new THREE.Mesh(new THREE.SphereGeometry(.075, 10, 8), branco);
+    peito.position.set(0, .11, .13); g.add(peito);
+    const cabeca = new THREE.Mesh(new THREE.SphereGeometry(.085, 12, 10), laranja);
+    cabeca.position.set(0, .24, .17); cabeca.castShadow = true; g.add(cabeca);
+    const focinho = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 8), branco);
+    focinho.position.set(0, .215, .235); g.add(focinho);
+    for (const sx of [-.05, .05]){
+      const orelha = new THREE.Mesh(new THREE.ConeGeometry(.03, .06, 4), laranja);
+      orelha.position.set(sx, .32, .15); g.add(orelha);
+      const olho = new THREE.Mesh(new THREE.SphereGeometry(.013, 6, 6),
+        new THREE.MeshBasicMaterial({color: 0x1e3d1e}));
+      olho.position.set(sx * .8, .26, .245); g.add(olho);
+      const pata = new THREE.Mesh(new THREE.CylinderGeometry(.022, .025, .1, 6), branco);
+      pata.position.set(sx, .05, .1); g.add(pata);
+      const pataT = new THREE.Mesh(new THREE.CylinderGeometry(.022, .025, .1, 6), laranja);
+      pataT.position.set(sx, .05, -.08); g.add(pataT);
+    }
+    const raboM = new THREE.Mesh(new THREE.CapsuleGeometry(.02, .22, 4, 8), laranja);
+    raboM.position.set(0, .12, 0); raboM.rotation.x = -.9; rabo.add(raboM);
+    const ponta = new THREE.Mesh(new THREE.SphereGeometry(.026, 8, 8), branco);
+    ponta.position.set(0, .24, -.09); rabo.add(ponta);
+    rabo.position.set(0, .12, -.16); g.add(rabo);
+    partes.corpo = corpo; partes.cabeca = cabeca;
+  }
+  const balao = balaoVivo();
+  balao.s.position.set(0, .78, 0); balao.s.scale.set(1.4, .44, 1); g.add(balao.s);
+  g.position.set(-3.4, 0, 2.8);
+  cena.add(g);
+  return {g, balao, rabo, partes, acao: null, historico: [], t0: 0, dur: 0,
+          origem: null, alvoP: null, alvoY: 0, mesaAlvo: null, dormindo: false};
+}
+modelosProntos.then(() => { gato = criarGato(); });
+
+const FALAS_GATO_GENTE = ['oi, gato', 'que fofo…', 'desce daí!', 'de novo, gato?',
+                          'quem é o bonito?'];
+
+// sorteio orgânico: pesos + nunca as 2 últimas ações
+function gatoProximaAcao(){
+  const mesas = Object.values(estacoes).filter(e => e.m.estado !== 'futuro');
+  const opcoes = [
+    ['vagar', 30], ['dormir', 14], ['sentar', 16], ['miar', 12],
+    ['esfregar', mesas.length ? 14 : 0], ['subir_mesa', mesas.length ? 14 : 0],
+    ['cacar_pato', pato && pato.g.position.y < .1 ? 10 : 0],
+  ].filter(([nome, p]) => p > 0 && !gato.historico.slice(-2).includes(nome));
+  const total = opcoes.reduce((a, [, p]) => a + p, 0);
+  let r = Math.random() * total;
+  for (const [nome, p] of opcoes){ r -= p; if (r <= 0) return nome; }
+  return 'vagar';
+}
+
+function gatoPontoLivre(){
+  const ang = Math.random() * Math.PI * 2, r = 2.7 + Math.random() * 4.2;
+  return new THREE.Vector3(Math.sin(ang) * r, 0, Math.cos(ang) * r);
+}
+
+function gatoComecar(t, nome){
+  const mesas = Object.values(estacoes).filter(e => e.m.estado !== 'futuro');
+  const e = mesas.length ? mesas[Math.floor(Math.random() * mesas.length)] : null;
+  gato.acao = nome; gato.t0 = t; gato.origem = gato.g.position.clone();
+  gato.mesaAlvo = null; gato.dormindo = false;
+  gato.historico = [...gato.historico.slice(-3), nome];
+  if (nome === 'vagar'){ gato.alvoP = gatoPontoLivre(); gato.alvoY = 0;
+    gato.dur = 99999; }
+  else if (nome === 'sentar'){ gato.dur = 2500 + Math.random() * 4000; }
+  else if (nome === 'dormir'){ gato.dormindo = true;
+    gato.dur = 9000 + Math.random() * 14000;
+    gato.balao.set('zzz'); setTimeout(() => gato.dormindo && gato.balao.set(null), 2600); }
+  else if (nome === 'miar'){ gato.dur = 1600; gato.balao.set('miau');
+    const perto = mesas.filter(m => m.g.position.distanceTo(gato.g.position) < 4)[0];
+    if (perto && Math.random() < .6) perto.balao.set(
+      FALAS_GATO_GENTE[Math.floor(Math.random() * FALAS_GATO_GENTE.length)]); }
+  else if (nome === 'esfregar' && e){
+    gato.alvoP = e.g.localToWorld(new THREE.Vector3(.3, 0, 1)); gato.alvoP.y = 0;
+    gato.mesaAlvo = e; gato.alvoY = 0; gato.dur = 99999; }
+  else if (nome === 'subir_mesa' && e){
+    gato.alvoP = e.g.localToWorld(new THREE.Vector3(.35, .77, -.1));
+    gato.mesaAlvo = e; gato.alvoY = .77; gato.dur = 99999; }
+  else if (nome === 'cacar_pato' && pato){ gato.alvoP = null; gato.dur = 99999; }
+  else { gato.acao = 'sentar'; gato.dur = 3000; }
+}
+
+function gatoAndarAte(t, dt, destino, vel){
+  const pos = gato.g.position;
+  const dir = destino.clone().sub(pos); dir.y = 0;
+  if (dir.length() < .16) return true;
+  dir.normalize();
+  const prox = pos.clone().addScaledVector(dir, .6);
+  if (prox.length() < 2.3 && pos.length() < 3.1 && pos.y < .1){
+    const tang = new THREE.Vector3(-pos.z, 0, pos.x).normalize();
+    if (tang.dot(dir) < 0) tang.negate();
+    dir.addScaledVector(tang, 1.3).normalize();
+  }
+  pos.addScaledVector(dir, vel * dt);
+  gato.g.rotation.y = Math.atan2(dir.x, dir.z);
+  return false;
+}
+
+function gatoDerrubar(e){
+  // o clássico: empurra um objetinho da mesa — cai, quica e fica no chão um tempo
+  const obj = new THREE.Mesh(new THREE.CylinderGeometry(.04, .035, .08, 8), laranjaMat);
+  const de = e.g.localToWorld(new THREE.Vector3(.6, .82, -.1));
+  const para = e.g.localToWorld(new THREE.Vector3(.9, .04, .55)); para.y = .04;
+  obj.position.copy(de); cena.add(obj);
+  const t0 = performance.now();
+  (function cai(t){
+    const k = Math.min((t - t0) / 700, 1);
+    obj.position.lerpVectors(de, para, k);
+    obj.position.y = de.y + (para.y - de.y) * k * k + Math.sin(Math.min(k * 2, 1) * Math.PI) * .04;
+    obj.rotation.z = k * 2.2; obj.rotation.x = k * .9;
+    if (k < 1) requestAnimationFrame(cai);
+    else setTimeout(() => cena.remove(obj), 25000);
+  })(t0);
+  e.balao.set(FALAS_GATO_GENTE[3]);
+}
+
+function animarGato(t, dt){
+  if (!gato) return;
+  gato.rabo.rotation.y = Math.sin(t / (gato.dormindo ? 900 : 260)) * .55;
+  if (!gato.acao){ gatoComecar(t, gatoProximaAcao()); return; }
+  const fim = t - gato.t0 > gato.dur;
+
+  if (gato.acao === 'vagar' || gato.acao === 'esfregar'){
+    const chegou = gatoAndarAte(t, dt, gato.alvoP, 1.1);
+    gato.g.position.y = Math.abs(Math.sin(t / 130)) * .02;
+    if (chegou){
+      if (gato.acao === 'esfregar' && gato.mesaAlvo){
+        gato.balao.set('rrrr…');
+        if (Math.random() < .7) gato.mesaAlvo.balao.set(FALAS_GATO_GENTE[0]);
+        gato.g.rotation.y += Math.PI / 2;
+      }
+      gato.acao = 'sentar'; gato.t0 = t; gato.dur = 2200 + Math.random() * 2600;
+    }
+  } else if (gato.acao === 'subir_mesa'){
+    // vai até perto da mesa no chão, depois PULA em arco para o tampo
+    const base = gato.alvoP.clone(); base.y = 0;
+    if (gato.g.position.y < .1 && gato.g.position.distanceTo(base) > .8){
+      gatoAndarAte(t, dt, base, 1.25);
+      gato.g.position.y = Math.abs(Math.sin(t / 130)) * .02;
+      gato.puloT0 = null;
+    } else {
+      if (!gato.puloT0){ gato.puloT0 = t; gato.puloDe = gato.g.position.clone(); }
+      const k = Math.min((t - gato.puloT0) / 650, 1);
+      gato.g.position.lerpVectors(gato.puloDe, gato.alvoP, k);
+      gato.g.position.y = gato.puloDe.y + (gato.alvoP.y - gato.puloDe.y) * k
+                          + Math.sin(k * Math.PI) * .5;
+      if (k >= 1){
+        gato.acao = 'na_mesa'; gato.t0 = t; gato.dur = 3800 + Math.random() * 4200;
+        if (Math.random() < .65 && gato.mesaAlvo) gatoDerrubar(gato.mesaAlvo);
+        else if (gato.mesaAlvo) gato.mesaAlvo.balao.set(FALAS_GATO_GENTE[2]);
+      }
+    }
+  } else if (gato.acao === 'na_mesa'){
+    if (fim){                                    // desce num pulo e segue a vida
+      const chaoP = gato.g.position.clone().multiplyScalar(1.18); chaoP.y = 0;
+      gato.acao = 'descendo'; gato.puloT0 = t; gato.puloDe = gato.g.position.clone();
+      gato.alvoP = chaoP;
+    }
+  } else if (gato.acao === 'descendo'){
+    const k = Math.min((t - gato.puloT0) / 600, 1);
+    gato.g.position.lerpVectors(gato.puloDe, gato.alvoP, k);
+    gato.g.position.y = gato.puloDe.y * (1 - k) + Math.sin(k * Math.PI) * .25;
+    if (k >= 1){ gato.g.position.y = 0; gato.acao = null; }
+  } else if (gato.acao === 'cacar_pato'){
+    if (!pato || pato.g.position.y > .1 || fim){ gato.acao = null; return; }
+    const alcancou = gatoAndarAte(t, dt, pato.g.position, 1.9);
+    gato.g.position.y = Math.abs(Math.sin(t / 90)) * .03;
+    if (alcancou){                               // o pato escapa voando, o gato desiste
+      pato.balao.set('quá!!');
+      pato.alvo = {p: gatoPontoLivre(), visita: null, voa: true, alt: 0};
+      pato.pausaAte = 0;
+      gato.acao = 'sentar'; gato.t0 = t; gato.dur = 3000;
+    }
+    if (t - gato.t0 > 6000) gato.acao = null;    // felino: cansa rápido
+  } else {                                       // sentar / dormir / miar
+    if (gato.dormindo) gato.g.position.y = Math.sin(t / 800) * .008;
+    if (fim){ gato.balao.set(null); gato.acao = null; }
+  }
+}
 
 function patoNovoAlvo(){
   const mesas = Object.values(estacoes).filter(e => e.m.estado !== 'futuro');
@@ -690,7 +940,7 @@ function patoNovoAlvo(){
 }
 
 function animarPato(t, dt){
-  if (t < pato.pausaAte) return;
+  if (!pato || t < pato.pausaAte) return;
   pato.balao.set(null);
   if (!pato.alvo){
     pato.alvo = patoNovoAlvo();
@@ -771,6 +1021,7 @@ function laco(t){
   luzNucleo.intensity = 7 + Math.sin(t / 700) * 2.5;
   animarFiguras(t);
   animarPato(t, dt);
+  animarGato(t, dt);
   ctrl.update();
   renderer.render(cena, cam);
 }
@@ -997,6 +1248,7 @@ eventos(); setInterval(eventos, 20000);
 // -------- laço de estado
 async function atualizar(){
   try {
+    await modelosProntos;               // mesas nascem já sabendo se há packs .glb
     const r = await fetch('/api/agentes/estado');
     if (!r.ok) return;
     const d = await r.json();
