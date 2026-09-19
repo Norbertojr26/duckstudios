@@ -83,12 +83,25 @@
       <div class="p"><span class="rot">Agentes ativos</span><b id="pl-ativos">—</b></div>
       <span class="pulso" id="pulso"></span>
     </div>
-    <div class="legenda-amb">Monitores, entregas ao núcleo e os painéis refletem o estado
-      real da auditoria; caminhadas e conversas entre mesas são ambientação. Núcleo teal =
-      a memória do estúdio (o CRM). Mesas apagadas são agentes que ainda vão nascer.</div>
+    <div class="legenda-amb">Monitores, balões de pensamento, entregas ao núcleo e os
+      painéis refletem o estado real da auditoria; caminhadas, conversas de corredor e o
+      pato (nosso mascote de ronda) são ambientação. Núcleo teal = a memória do estúdio
+      (o CRM). Mesas apagadas são agentes que ainda vão nascer.</div>
   </section>
 
   <div style="display:flex;flex-direction:column;gap:var(--ds-e-4)">
+    <section class="ds-card painel">
+      <h2>Delegar ao escritório</h2>
+      <div class="meta" style="margin-bottom:8px">Escreva a tarefa ou a pergunta; o
+        expediente encaminha à mesa certa — e se ninguém cobre a função, um agente novo é
+        <b>admitido</b> e ganha mesa no anel.</div>
+      <textarea class="ds-campo" id="deleg-txt" style="min-height:72px"
+        placeholder="Ex.: quantos negócios abertos temos e somando quanto? · qualifica esse lead: …"></textarea>
+      <button class="ds-btn" id="deleg-btn" style="margin-top:8px"
+              onclick="delegar()">Delegar</button>
+      <div class="resposta" id="deleg-resp" style="white-space:pre-wrap"></div>
+    </section>
+
     <section class="ds-card painel" id="foco">
       <h2 id="foco-nome">Escolha uma mesa</h2>
       <div class="meta" id="foco-papel">Clique num agente no escritório para ver o
@@ -218,6 +231,39 @@ function rotulo(texto, cor='#ffffff', tam=44){
   return s;
 }
 
+// balão de fala/pensamento redesenhável (canvas → sprite)
+function balaoVivo(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 160;
+  const g = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map: tex, transparent: true,
+    depthWrite: false}));
+  s.scale.set(2.4, .75, 1); s.visible = false;
+  function set(texto){
+    g.clearRect(0, 0, 512, 160);
+    if (!texto){ s.visible = false; tex.needsUpdate = true; return; }
+    g.font = '500 30px Satoshi, Arial';
+    const palavras = String(texto).split(' '), linhas = [''];
+    for (const p of palavras){
+      if ((linhas[linhas.length-1] + ' ' + p).trim().length > 28 && linhas.length < 2)
+        linhas.push('');
+      linhas[linhas.length-1] = (linhas[linhas.length-1] + ' ' + p).trim();
+    }
+    if (linhas[1] && linhas[1].length > 28) linhas[1] = linhas[1].slice(0, 27) + '…';
+    const larg = Math.min(480, Math.max(...linhas.map(l => g.measureText(l).width)) + 44);
+    const alt = linhas.length > 1 ? 118 : 78, x = (512 - larg) / 2;
+    g.fillStyle = 'rgba(18,21,25,.92)'; g.strokeStyle = 'rgba(255,255,255,.25)';
+    g.lineWidth = 2; g.beginPath();
+    g.roundRect(x, 10, larg, alt, 18);
+    g.moveTo(246, alt + 10); g.lineTo(266, alt + 10); g.lineTo(256, alt + 28);
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.textAlign = 'center';
+    linhas.forEach((l, i) => g.fillText(l, 256, 48 + i * 38));
+    tex.needsUpdate = true; s.visible = true;
+  }
+  return {s, set};
+}
+
 // figura low-poly com a cor do agente
 function figura(cor){
   const g = new THREE.Group();
@@ -232,6 +278,66 @@ function figura(cor){
     new THREE.MeshStandardMaterial({color: 0x14171b, roughness: .9}));
   boina.position.y = .93; g.add(boina);
   return g;
+}
+
+// -------- o workspace de cada cargo: objetos próprios + plantinha
+const verdePlanta = new THREE.MeshStandardMaterial({color: 0x3f7d4e, roughness: .8});
+const vaso = new THREE.MeshStandardMaterial({color: 0x7a4a2b, roughness: .9});
+const laranjaMat = new THREE.MeshStandardMaterial({color: 0xF18E25, roughness: .6});
+
+function cx(g, w, h, d, cor, x, y, z, ry=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+    cor.isMaterial ? cor : new THREE.MeshStandardMaterial({color: cor, roughness: .7}));
+  m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = true; g.add(m); return m;
+}
+
+function planta(g, x, z, escala=1){
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(.07*escala, .05*escala, .1*escala, 10), vaso);
+  p.position.set(x, .82, z); g.add(p);
+  const f = new THREE.Mesh(new THREE.IcosahedronGeometry(.1*escala, 0), verdePlanta);
+  f.position.set(x, .95, z); f.castShadow = true; g.add(f);
+}
+
+function propsCargo(g, chave){
+  const T = .765;                                   // topo do tampo
+  if (chave === 'rental'){                          // tripé de câmera ao lado da mesa
+    for (const a of [0, 2.1, 4.2]){
+      const perna = new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, .85, 6), metal);
+      perna.position.set(1.15 + Math.sin(a)*.13, .42, -.1 + Math.cos(a)*.13);
+      perna.rotation.z = Math.sin(a)*.28; perna.rotation.x = -Math.cos(a)*.28; g.add(perna);
+    }
+    cx(g, .22, .13, .13, 0x22262b, 1.15, .92, -.1);
+  } else if (chave === 'propostas'){                // claquete na mesa
+    cx(g, .3, .02, .2, 0x15181c, .55, T+.02, -.15, .5);
+    cx(g, .3, .02, .045, 0xe8e8e8, .55, T+.05, -.22, .62);
+  } else if (chave === 'dit'){                      // cartões e HD empilhados
+    cx(g, .1, .015, .14, 0x2f6fd8, .5, T+.01, -.2); cx(g, .1, .015, .14, 0x2f6fd8, .52, T+.03, -.18, .3);
+    cx(g, .2, .05, .13, 0x101316, .7, T+.03, -.2);
+  } else if (chave === 'entrega'){                  // pacotes prontos p/ sair
+    cx(g, .2, .16, .2, 0x8a6b45, 1.1, .08, .35); cx(g, .16, .13, .16, 0x9b7a50, 1.12, .23, .33, .4);
+  } else if (chave === 'secretaria'){               // bandeja de cartas + telefone
+    cx(g, .26, .012, .18, 0x22262b, .55, T+.01, -.18); cx(g, .22, .012, .14, 0xd9d4c8, .55, T+.03, -.18, .08);
+    cx(g, .1, .04, .16, 0x15181c, -.55, T+.02, -.2, -.3);
+  } else if (chave === 'financeiro'){               // calculadora e moedas
+    cx(g, .12, .02, .17, 0x15181c, .5, T+.01, -.18, -.2);
+    const moeda = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .012, 12), laranjaMat);
+    moeda.position.set(.68, T+.02, -.1); g.add(moeda);
+  } else if (chave === 'trafego'){                  // quadro de métricas atrás da mesa
+    cx(g, .5, .34, .02, 0x101316, -.62, 1.25, -.28, .25);
+    [0.1, .18, .26].forEach((h, i) => cx(g, .07, h, .015, 0x2dbdb8, -.74+i*.12, 1.12+h/2, -.26, .25));
+  } else if (chave === 'comercial'){                // celular sempre à mão + café
+    cx(g, .07, .015, .13, 0x0c0e11, .5, T+.01, -.15, .4);
+    const caneca = new THREE.Mesh(new THREE.CylinderGeometry(.045, .04, .09, 10), laranjaMat);
+    caneca.position.set(-.55, T+.045, -.15); g.add(caneca);
+  } else {                                          // mesa admitida: crachá novo + caneca
+    cx(g, .1, .14, .015, 0xe8e8e8, .55, T+.07, -.2, -.4);
+    const caneca = new THREE.Mesh(new THREE.CylinderGeometry(.045, .04, .09, 10),
+      new THREE.MeshStandardMaterial({color: 0x2dbdb8, roughness: .6}));
+    caneca.position.set(-.5, T+.045, -.18); g.add(caneca);
+  }
+  // plantinha em mesa sim, mesa não — escritório com vida
+  if ([...chave].reduce((a, c) => a + c.charCodeAt(0), 0) % 2 === 0)
+    planta(g, -.72, -.25);
 }
 
 const ORDEM = ["rental","comercial","propostas","dit","entrega",
@@ -272,13 +378,20 @@ function estacao(m, i, total){
   nome.position.set(0, 2.05, 0); g.add(nome);
   const alerta = rotulo('!', '#FBBF24', 84);
   alerta.position.set(.55, 1.75, .4); alerta.visible = false; g.add(alerta);
-  const balao = rotulo('…', '#ffffff', 70);
-  balao.position.set(0, 1.35, .95); balao.visible = false; g.add(balao);
+  const balao = balaoVivo();
+  balao.s.position.set(0, 1.62, .95); g.add(balao.s);
+
+  propsCargo(g, m.chave);
 
   g.traverse(o => o.userData.chave = m.chave);
   cena.add(g);
-  estacoes[m.chave] = {m, g, tela, fig, alerta, balao,
+  estacoes[m.chave] = {m, g, tela, fig, alerta, balao, pensou: '',
     figCasaLocal: fig.position.clone(), anda: null};
+}
+
+function desmontarEstacoes(){
+  for (const e of Object.values(estacoes)) cena.remove(e.g);
+  for (const k of Object.keys(estacoes)) delete estacoes[k];
 }
 
 // caixinha de entrega que voa até o núcleo (ação real registrada na auditoria)
@@ -336,13 +449,16 @@ function animarFiguras(t){
         a.dur = a.origem.distanceTo(a.destino) * 420 + 300;
       } else {
         e.anda = null; e.fig.position.copy(e.figCasaLocal);
-        e.fig.rotation.y = Math.PI; e.balao.visible = false;
+        e.fig.rotation.y = Math.PI; e.balao.set(null);
       }
     }
   }
 }
 
-// conversa ambiente: dois presentes se encontram no meio e trocam reticências
+// conversa ambiente: dois presentes se encontram no meio e trocam uma frase de corredor
+const FALAS = ['café?', 'o render saiu?', 'cadê o cartão B?', 'aprova aí pra mim',
+               'cliente respondeu?', 'a diária foi boa', 'olha o prazo…',
+               'backup rodou de noite', 'bora almoçar?', 'o pato comeu meu cabo'];
 function conversaAmbiente(){
   const presentes = Object.values(estacoes)
     .filter(e => e.m.estado !== 'futuro' && !e.anda);
@@ -350,13 +466,79 @@ function conversaAmbiente(){
   const [a, b] = presentes.sort(() => Math.random() - .5).slice(0, 2);
   const meio = a.g.position.clone().add(b.g.position).multiplyScalar(.5);
   if (meio.length() < 2.4) meio.normalize().multiplyScalar(3.2);
+  const fala = FALAS[Math.floor(Math.random() * FALAS.length)];
   caminhar(a.m.chave, meio.clone().add(new THREE.Vector3(.4, 0, 0)), 4200,
-           () => { a.balao.visible = true; });
+           () => a.balao.set(fala));
   caminhar(b.m.chave, meio.clone().add(new THREE.Vector3(-.4, 0, 0)), 4200,
-           () => { b.balao.visible = true; });
+           () => b.balao.set('…'));
 }
 setInterval(conversaAmbiente, 50000);
 setTimeout(conversaAmbiente, 6000);
+
+// ================================================================ o pato (mascote)
+// Ambientação assumida: ele faz a ronda de moral do escritório — anda à toa, visita
+// mesas, grasna e segue. Low-poly, bico laranja da marca.
+const pato = (() => {
+  const g = new THREE.Group();
+  const corMat = new THREE.MeshStandardMaterial({color: 0xF2E7C9, roughness: .75});
+  const corpo = new THREE.Mesh(new THREE.SphereGeometry(.16, 16, 12), corMat);
+  corpo.scale.set(1.25, 1, 1.5); corpo.position.y = .17; corpo.castShadow = true;
+  g.add(corpo);
+  const rabo = new THREE.Mesh(new THREE.ConeGeometry(.07, .14, 8), corMat);
+  rabo.position.set(0, .24, -.24); rabo.rotation.x = -1.1; g.add(rabo);
+  const cabeca = new THREE.Mesh(new THREE.SphereGeometry(.1, 14, 12), corMat);
+  cabeca.position.set(0, .4, .14); cabeca.castShadow = true; g.add(cabeca);
+  const bico = new THREE.Mesh(new THREE.ConeGeometry(.05, .12, 10), laranjaMat);
+  bico.position.set(0, .39, .26); bico.rotation.x = Math.PI / 2; g.add(bico);
+  for (const sx of [-.05, .05]){
+    const olho = new THREE.Mesh(new THREE.SphereGeometry(.016, 8, 8),
+      new THREE.MeshBasicMaterial({color: 0x101214}));
+    olho.position.set(sx, .44, .21); g.add(olho);
+  }
+  for (const sx of [-.07, .07]){
+    const pe = new THREE.Mesh(new THREE.BoxGeometry(.07, .02, .1), laranjaMat);
+    pe.position.set(sx, .01, .03); g.add(pe);
+  }
+  const balao = balaoVivo();
+  balao.s.position.set(0, .95, 0); balao.s.scale.set(1.5, .47, 1); g.add(balao.s);
+  g.position.set(3.2, 0, -2.5);
+  cena.add(g);
+  return {g, balao, alvo: null, pausaAte: 0, vel: 1.35};
+})();
+
+function patoNovoAlvo(){
+  // metade das vezes visita uma mesa ocupada; senão um ponto qualquer do salão
+  const mesas = Object.values(estacoes).filter(e => e.m.estado !== 'futuro');
+  if (mesas.length && Math.random() < .5){
+    const e = mesas[Math.floor(Math.random() * mesas.length)];
+    const p = e.g.position.clone().multiplyScalar(.72); p.y = 0;
+    return {p, visita: e};
+  }
+  const ang = Math.random() * Math.PI * 2, r = 2.6 + Math.random() * 3.6;
+  return {p: new THREE.Vector3(Math.sin(ang) * r, 0, Math.cos(ang) * r), visita: null};
+}
+
+function animarPato(t, dt){
+  if (t < pato.pausaAte) return;
+  pato.balao.set(null);
+  if (!pato.alvo) pato.alvo = patoNovoAlvo();
+  const alvo = pato.alvo.p, pos = pato.g.position;
+  const dir = alvo.clone().sub(pos); dir.y = 0;
+  if (dir.length() < .18){
+    const visita = pato.alvo.visita;
+    pato.pausaAte = t + 1800 + Math.random() * 3200;
+    pato.alvo = null;
+    if (Math.random() < (visita ? .85 : .35)) pato.balao.set('quá!');
+    if (visita && Math.random() < .4) visita.balao.set('oi, pato');
+    return;
+  }
+  dir.normalize();
+  pos.addScaledVector(dir, pato.vel * dt);
+  pato.g.rotation.y = Math.atan2(dir.x, dir.z);
+  pato.g.rotation.z = Math.sin(t / 110) * .1;          // gingado
+  pato.g.position.y = Math.abs(Math.sin(t / 110)) * .03;
+  if (pos.length() < 2.1) pos.normalize().multiplyScalar(2.1);   // respeita o núcleo
+}
 
 // clique → foco no agente
 const ray = new THREE.Raycaster(), ponteiro = new THREE.Vector2();
@@ -370,12 +552,15 @@ renderer.domElement.addEventListener('click', ev => {
   if (hit) focar(hit.object.userData.chave);
 });
 
+let tAnterior = 0;
 function laco(t){
   requestAnimationFrame(laco);
+  const dt = Math.min((t - tAnterior) / 1000, .1); tAnterior = t;
   nucleoMat.emissiveIntensity = .45 + Math.sin(t / 700) * .18;
   anel.material.opacity = .25 + Math.sin(t / 700) * .12;
   luzNucleo.intensity = 7 + Math.sin(t / 700) * 2.5;
   animarFiguras(t);
+  animarPato(t, dt);
   ctrl.update();
   renderer.render(cena, cam);
 }
@@ -501,6 +686,13 @@ window.focar = chave => {
   document.getElementById('foco-resposta').textContent = '';
   const box = document.getElementById('foco-acoes');
   const acoes = ACOES[chave];
+  if (m.origem === 'custom'){
+    box.innerHTML = `<textarea class="ds-campo" id="txt-custom-${chave}"
+        placeholder="Delegar tarefa ou pergunta direto para ${m.nome}…"></textarea>
+      <button class="ds-btn" onclick="delegar('${chave}','txt-custom-${chave}')">
+        Delegar a ${m.nome}</button>`;
+    return;
+  }
   if (m.estado === 'futuro' || !acoes){
     box.innerHTML = `<div class="meta">${m.detalhe || 'Esta mesa ainda não recebe instruções.'}</div>`;
     return;
@@ -511,6 +703,30 @@ window.focar = chave => {
     `<button class="ds-btn ${i ? 'ds-btn--fantasma' : ''}"
        onclick="ordenar('${chave}','${a.acao}','txt-${chave}-${i}')">${a.rotulo}</button>`
   ).join('');
+};
+
+// -------- delegação em linguagem natural (o balcão do escritório)
+window.delegar = async (destino, idTexto) => {
+  const el = document.getElementById(idTexto || 'deleg-txt');
+  const resp = document.getElementById(idTexto ? 'foco-resposta' : 'deleg-resp');
+  const btn = document.getElementById('deleg-btn');
+  const texto = (el ? el.value : '').trim();
+  if (!texto){ resp.textContent = 'escreva a tarefa primeiro'; return; }
+  resp.textContent = 'o expediente está encaminhando…'; if (btn) btn.disabled = true;
+  try {
+    const r = await fetch('/api/sala/delegar', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(destino ? {texto, destino} : {texto})});
+    const d = await r.json();
+    let m = d.msg || '';
+    if (d.admitido) m += `\n[novo agente admitido: ${d.admitido.nome} — ${d.admitido.papel}]`;
+    if (d.resultado) m += `\n\n${d.resultado}`;
+    resp.innerHTML = (d.ok ? '' : '<b style="color:var(--ds-erro)">não deu: </b>');
+    resp.append(m);
+    if (d.ok && el) el.value = '';
+    atualizar();
+  } catch (e){ resp.textContent = 'falhou: ' + e; }
+  if (btn) btn.disabled = false;
 };
 
 window.ordenar = async (agente, acao, idTexto) => {
@@ -575,6 +791,10 @@ async function atualizar(){
     const d = await r.json();
     mesasAgora = d.mesas;
     d.mesas.forEach(m => CORES[m.chave] = m.cor);
+    // mesa nova admitida (ou removida) → remonta o anel com o total certo
+    if (montado && d.mesas.length !== Object.keys(estacoes).length){
+      desmontarEstacoes(); montado = false;
+    }
     if (!montado){
       const orden = [...d.mesas].sort((a, b) =>
         ((i => i < 0 ? 99 : i)(ORDEM.indexOf(a.chave))) -
@@ -595,6 +815,17 @@ async function atualizar(){
       e.fig.visible = m.estado !== 'futuro';
       e.alerta.visible = m.estado !== 'futuro'
                          && (m.estado === 'aguardando' || m.pendentes > 0);
+      // balão de pensamento REAL: a última ação da auditoria desta mesa
+      const ultimaAcao = d.feed.find(f => f.agente === m.chave);
+      if (ultimaAcao && !e.anda){
+        const pens = narrar(ultimaAcao);
+        const fresca = (Date.now() - new Date(ultimaAcao.quando).getTime()) < 180000;
+        if (pens !== e.pensou && (fresca || m.estado === 'trabalhando')){
+          e.pensou = pens; e.balao.set(pens.slice(0, 56));
+          clearTimeout(e._balaoTimer);
+          e._balaoTimer = setTimeout(() => { if (!e.anda) e.balao.set(null); }, 9000);
+        }
+      }
     }
     document.getElementById('pl-hoje').textContent = hojeN;
     document.getElementById('pl-pend').textContent = pend;

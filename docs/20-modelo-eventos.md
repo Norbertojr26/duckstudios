@@ -35,6 +35,8 @@ acontece algo ──▶ INSERT em `evento` ──▶ despachante (a cada ~20 s) 
 | `contrato.rascunho_criado` | propostas | — (registro) |
 | `aprovacao.concedida/negada` | humano (tela) | — (registro) |
 | `maquina.conectada` | sistema (heartbeat novo/reconexão) | — (registro) |
+| `tarefa.delegada` | humano (balcão da Sala) | expediente → mesa destino (pipeline nativo ou agente admitido) |
+| `agente.admitido` | expediente (roteador) | — (registro; a mesa nasce em `agente_custom`) |
 
 ## O que o modelo NÃO muda
 

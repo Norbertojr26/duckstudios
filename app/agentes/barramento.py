@@ -27,13 +27,18 @@ from .. import db
 
 
 def emitir(tipo, origem, payload=None):
-    """Registrar que algo aconteceu. Nunca levanta exceção para quem emite: o evento é
-    consequência do trabalho, não pré-condição — perder um evento não pode quebrar a ação."""
+    """Registrar que algo aconteceu; devolve o id (ou None). Nunca levanta exceção para
+    quem emite: o evento é consequência do trabalho, não pré-condição — perder um evento
+    não pode quebrar a ação."""
     try:
-        db.exec_("INSERT INTO evento (tipo, origem, payload) VALUES (%s, %s, %s)",
-                 (tipo, origem, json.dumps(payload or {}, ensure_ascii=False, default=str)))
+        r = db.q1("INSERT INTO evento (tipo, origem, payload) VALUES (%s, %s, %s) "
+                  "RETURNING id",
+                  (tipo, origem, json.dumps(payload or {}, ensure_ascii=False,
+                                            default=str)))
+        return str(r["id"])
     except Exception:                                                # noqa: BLE001
         print(f"[barramento] falha ao emitir {tipo}:\n" + traceback.format_exc())
+        return None
 
 
 def _rodou_hoje(agente, gatilho):
@@ -122,6 +127,38 @@ def _minuta_apos_aceite(ev):
     return f"minuta {c['numero']} criada em rascunho — revisar dados do contratante"
 
 
+def _tarefa_delegada(ev):
+    """Tarefa/pergunta delegada pelo dono na Sala. O destino já foi decidido pelo
+    roteador; aqui só se entrega à mesa certa — pipelines nativos executam o de sempre,
+    agente admitido responde dentro da missão."""
+    p = ev["payload"]
+    destino, texto = p.get("destino", ""), p.get("texto", "")
+    if not (destino and texto):
+        return "evento sem destino/texto"
+    if destino == "comercial":
+        from . import comercial
+        r = comercial.qualificar(mensagem=texto, canal="sala")
+        return f"lead qualificado ({r['ramo']}) — rascunho aguardando aprovação"
+    if destino == "propostas":
+        from . import propostas
+        r = propostas.proposta_por_voz(texto)
+        return f"proposta em rascunho para {r['cliente']} — /propostas/{r['quote_id']}"
+    if destino == "rental":
+        from . import rental
+        return rental.rodar()
+    if destino == "entrega":
+        from . import entrega
+        return entrega.rodar()
+    if destino == "secretaria":
+        return _triagem_email(ev)
+    from . import custom
+    r = custom.responder(destino, texto)
+    resumo = r["resposta"]
+    if r.get("precisa_de_humano"):
+        resumo += f"\n[precisa de você: {r['precisa_de_humano']}]"
+    return resumo
+
+
 ASSINATURAS = {
     "agenda.tique": [("rental", _ronda_rental),
                      ("comercial", _reativacao_comercial),
@@ -129,15 +166,23 @@ ASSINATURAS = {
                      ("secretaria", _triagem_email)],
     "email.lead_recebido": [("comercial", _qualificar_lead_email)],
     "proposta.aceita": [("propostas", _minuta_apos_aceite)],
+    "tarefa.delegada": [("expediente", _tarefa_delegada)],
 }
 
 
-def despachar(limite=25):
+def despachar(limite=25, so_evento=None):
     """Uma passada: entrega os eventos pendentes aos assinantes, mais antigos primeiro.
-    Reação que falha não trava a fila — o erro fica gravado no evento e a vida segue."""
-    pendentes = db.q("""SELECT id, tipo, origem, payload FROM evento
-                         WHERE processado_em IS NULL
-                         ORDER BY criado_em LIMIT %s""", (limite,))
+    O claim é atômico (UPDATE ... SKIP LOCKED): o laço do servidor e um despacho inline
+    da delegação nunca pegam o mesmo evento. Reação que falha não trava a fila."""
+    filtro, params = "", (limite,)
+    if so_evento:
+        filtro, params = "AND id = %s", (so_evento, limite)
+    pendentes = db.q(f"""UPDATE evento SET processado_em = now()
+                          WHERE id IN (SELECT id FROM evento
+                                        WHERE processado_em IS NULL {filtro}
+                                        ORDER BY criado_em LIMIT %s
+                                        FOR UPDATE SKIP LOCKED)
+                          RETURNING id, tipo, origem, payload""", params)
     for ev in pendentes:
         reacoes = []
         for agente, fn in ASSINATURAS.get(ev["tipo"], []):
@@ -151,6 +196,6 @@ def despachar(limite=25):
                                 "erro": f"{type(e).__name__}: {e}"[:400]})
                 print(f"[barramento] {agente} falhou em {ev['tipo']}:\n"
                       + traceback.format_exc())
-        db.exec_("UPDATE evento SET processado_em = now(), reacoes = %s WHERE id = %s",
+        db.exec_("UPDATE evento SET reacoes = %s WHERE id = %s",
                  (json.dumps(reacoes, ensure_ascii=False), ev["id"]))
     return len(pendentes)

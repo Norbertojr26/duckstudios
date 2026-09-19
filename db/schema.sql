@@ -515,6 +515,18 @@ CREATE TABLE evento (
 );
 CREATE INDEX evento_pendente_idx ON evento (criado_em) WHERE processado_em IS NULL;
 
+-- Agentes admitidos pela delegação da Sala (modelo Maestri): mesa própria, missão fixa.
+-- Um agente custom REDIGE e analisa dentro da missão; nunca executa nada (A2 é teto).
+CREATE TABLE agente_custom (
+    chave           text PRIMARY KEY,
+    nome            text NOT NULL,
+    papel           text NOT NULL,
+    missao          text NOT NULL,
+    cor             text NOT NULL DEFAULT '#9CA3AF',
+    ativo           boolean NOT NULL DEFAULT true,
+    criado_em       timestamptz NOT NULL DEFAULT now()
+);
+
 -- Credenciais das ferramentas conectadas (tela Dados → Conexões). Env vars são fallback.
 CREATE TABLE conexao (
     servico         text PRIMARY KEY,

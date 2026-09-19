@@ -76,6 +76,14 @@ MIGRACOES = [
          processado_em timestamptz)""",
     """CREATE INDEX IF NOT EXISTS evento_pendente_idx ON evento (criado_em)
         WHERE processado_em IS NULL""",
+    """CREATE TABLE IF NOT EXISTS agente_custom (
+         chave text PRIMARY KEY,
+         nome text NOT NULL,
+         papel text NOT NULL,
+         missao text NOT NULL,
+         cor text NOT NULL DEFAULT '#9CA3AF',
+         ativo boolean NOT NULL DEFAULT true,
+         criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS conexao (
          servico text PRIMARY KEY,
          config jsonb NOT NULL DEFAULT '{}',
